@@ -1,0 +1,26 @@
+{
+  "name": "fiveagents-marketplace",
+  "owner": {
+    "name": "Five Agents",
+    "email": "hello@fiveagents.io"
+  },
+  "metadata": {
+    "description": "Marketing agent plugins by fiveagents.io",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "link-skills",
+      "source": "./plugins/link-skills",
+      "description": "Marketing agent — research, create, design, analyze, publish content for any brand",
+      "version": "1.0.0",
+      "author": {
+        "name": "Five Agents",
+        "email": "hello@fiveagents.io"
+      },
+      "homepage": "https://fiveagents.io",
+      "license": "proprietary",
+      "keywords": ["marketing", "social-media", "content", "analytics", "agent"]
+    }
+  ]
+}

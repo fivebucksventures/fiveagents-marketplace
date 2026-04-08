@@ -1,0 +1,78 @@
+{
+  "name": "fiveagents-link",
+  "version": "1.0.0",
+  "description": "Marketing agent — research, create, design, analyze, publish content for any brand",
+  "author": {
+    "name": "fiveagents.io",
+    "email": "hello@fiveagents.io",
+    "url": "https://fiveagents.io"
+  },
+  "homepage": "https://fiveagents.io",
+  "repository": "https://github.com/fiveagents/link",
+  "license": "proprietary",
+  "keywords": ["marketing", "social-media", "content", "analytics", "agent"],
+
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
+
+  "userConfig": {
+    "fiveagents_api_key": {
+      "description": "Your fiveagents.io API key (fa_live_... — from admin dashboard)",
+      "sensitive": true
+    },
+    "default_brand": {
+      "description": "Your primary brand name (must match a folder in brands/)",
+      "sensitive": false
+    },
+    "slack_notify_user": {
+      "description": "Your Slack user ID for notifications (e.g. U07QR52R342)",
+      "sensitive": false
+    },
+    "report_email": {
+      "description": "Email address for daily/weekly marketing reports",
+      "sensitive": false
+    },
+    "late_api_key": {
+      "description": "Late API key for social media publishing (from getlate.dev)",
+      "sensitive": true
+    },
+    "gemini_api_key": {
+      "description": "Google Gemini API key for image generation",
+      "sensitive": true
+    },
+    "argil_api_key": {
+      "description": "Argil API key for AI avatar videos (optional)",
+      "sensitive": true
+    },
+    "meta_ads_token": {
+      "description": "Meta Marketing API access token (optional — for paid ads analysis)",
+      "sensitive": true
+    },
+    "meta_ad_account_id": {
+      "description": "Meta Ad Account ID, e.g. act_123456 (optional)",
+      "sensitive": false
+    },
+    "ga4_property_id": {
+      "description": "Google Analytics 4 property ID (optional — for funnel analysis)",
+      "sensitive": false
+    },
+    "ga4_sa_key_path": {
+      "description": "Path to GA4 service account JSON key file (optional)",
+      "sensitive": false
+    },
+    "dataforseo_login": {
+      "description": "DataforSEO login email (optional — for keyword research)",
+      "sensitive": false
+    },
+    "dataforseo_password": {
+      "description": "DataforSEO password (optional)",
+      "sensitive": true
+    },
+    "notion_api_key": {
+      "description": "Notion API key (for direct API calls if Notion MCP unavailable)",
+      "sensitive": true
+    }
+  }
+}
