@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v1.0.1';
+const DEFAULT_VERSION = 'v1.0.2';
 const DEFAULT_DATE = 'April 8, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,13 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v1.0.2',
+    date: 'April 8, 2026',
+    changes: [
+      'brand-setup: updated FIVEAGENTS_API_KEY instructions — clients get key from their own dashboard instead of admin',
+    ],
+  },
   {
     version: 'v1.0.1',
     date: 'April 8, 2026',

@@ -33,7 +33,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 
 | Key | What it's for | Where to get it |
 |---|---|---|
-| `FIVEAGENTS_API_KEY` | Logs agent runs to the dashboard | Your fiveagents.io admin will provide this |
+| `FIVEAGENTS_API_KEY` | Logs agent runs to the dashboard | Go to your fiveagents.io dashboard → API Keys |
 | `SLACK_NOTIFY_USER` | Slack DM notifications | Slack profile → three dots → "Copy member ID" |
 | `REPORT_EMAIL` | Daily/weekly report delivery | Your work email |
 | `GEMINI_API_KEY` | Image generation | https://aistudio.google.com/apikey (free tier available) |
@@ -241,7 +241,7 @@ Walk through each integration. For each one, explain what it does and whether it
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 1 | `FIVEAGENTS_API_KEY` | Logs agent runs to the dashboard | Your fiveagents.io admin will provide this |
+| 1 | `FIVEAGENTS_API_KEY` | Logs agent runs to the dashboard | Go to your fiveagents.io dashboard → API Keys |
 | 2 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | Your Slack user ID — find it in Slack profile → three dots → "Copy member ID" |
 | 3 | `REPORT_EMAIL` | Email address for daily/weekly reports | Your work email |
 | 4 | `GEMINI_API_KEY` | Image generation (Gemini API) | https://aistudio.google.com/apikey — free tier available |
