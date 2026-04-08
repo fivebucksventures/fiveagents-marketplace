@@ -1,5 +1,5 @@
 ---
-description: Onboard a new brand — configure API keys, connect integrations, scrape website, generate brand context files
+description: Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 ---
 
 # Brand Setup — New Client Onboarding
@@ -18,10 +18,61 @@ Run these steps in order. Skip steps the user has already completed. After each 
 
 ---
 
-### Step 1 — Brand Name & Folder
+### Step 1 — What You'll Need (Prerequisites Overview)
+
+Before we begin, here's everything you'll want to have ready. You don't need all of these right now — we'll walk through each one — but having them handy will make setup faster.
+
+**Brand basics:**
+- Your brand name
+- Your website URL
+- Your brand colors as HEX codes (e.g. `#1A73E8`)
+- Your logo file (PNG, transparent background preferred)
+- Your brand fonts (.ttf files)
+
+**Required API keys:**
+
+| Key | What it's for | Where to get it |
+|---|---|---|
+| `FIVEAGENTS_API_KEY` | Logs agent runs to the dashboard | Your fiveagents.io admin will provide this |
+| `SLACK_NOTIFY_USER` | Slack DM notifications | Slack profile → three dots → "Copy member ID" |
+| `REPORT_EMAIL` | Daily/weekly report delivery | Your work email |
+| `GEMINI_API_KEY` | Image generation | https://aistudio.google.com/apikey (free tier available) |
+| `LATE_API_KEY` | Social media publishing | https://getlate.dev — sign up, connect social accounts |
+
+**Standard integrations:**
+
+| Key | What it's for | Where to get it |
+|---|---|---|
+| `META_ADS_TOKEN` + `META_AD_ACCOUNT_ID` | Paid ads analysis (Meta) | Meta Business Suite → Marketing API |
+| `GA4_PROPERTY_ID` + `GA4_SA_KEY_PATH` | Google Analytics funnel data | GA4 Admin + Google Cloud Console → Service Accounts |
+| `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research | https://dataforseo.com — sign up |
+
+**MCP connections (connect in Claude settings → Connected Apps):**
+
+| MCP | What it's for |
+|---|---|
+| Notion | Content calendar management |
+| Slack | Notifications |
+| Gmail | Reading emails |
+| Google Calendar | Scheduling |
+
+**Optional:**
+
+| Key | What it's for | Where to get it |
+|---|---|---|
+| `ARGIL_API_KEY` | AI avatar videos (Reels) | https://argil.ai — sign up, create avatar |
+
+Present this overview to the user, then ask:
+> Ready to get started? We'll go through each step together.
+
+---
+
+### Step 2 — Brand Name & Folder
 
 Ask the user:
-> What is your brand name? (This becomes the folder name, e.g. "acme" → `brands/acme/`)
+> What is your brand name? This will become the folder name for all your brand assets (e.g. "acme" → `brands/acme/`).
+
+**Important:** Do NOT suggest existing brand names or show a list of previous brands. Simply ask for the brand name as a free-text input and wait for the user's answer.
 
 Create the directory structure:
 ```
@@ -42,22 +93,26 @@ outputs/{brand}/
 outputs/{brand}/strategy/
 ```
 
-### Step 2 — Website Scrape
+### Step 3 — Website Analysis
 
 Ask the user:
 > What is your website URL? (e.g. https://acme.com)
 
-Use **Playwright MCP** or **WebFetch** to scrape:
+Use **Playwright MCP** or **WebFetch** to analyze:
 1. Homepage — extract tagline, value propositions, hero copy, CTAs
 2. Pricing page (if exists) — extract plans, pricing, features
 3. About page (if exists) — extract company story, team, mission
 4. Blog/resources (if exists) — extract content themes and topics
 
-Use the scraped data to draft the brand context files below. Show the user each draft and let them review/edit before saving.
+Use the analyzed data to draft the brand context files below. Show the user each draft and let them review/edit before saving.
 
-### Step 3 — Generate Brand Context Files
+### Step 4 — Generate Brand Context Files
 
-Using the scraped data + any corrections from the user, generate:
+Before generating files, ask the user for any details you couldn't extract from the website:
+- **Voice & Tone** — if unclear from the website copy, ask the user to describe it
+- **Brand Colors as HEX codes** — ask: "What are your brand colors? Please provide HEX codes (e.g. #1A73E8)." Do NOT ask for color names like "Green" or "Blue" — always request HEX codes.
+
+Using the analyzed data + any corrections from the user, generate:
 
 **`brands/{brand}/brand.md`**
 ```markdown
@@ -69,10 +124,10 @@ Using the scraped data + any corrections from the user, generate:
 ## Voice & Tone
 - {infer from website copy — e.g. "Professional but approachable", "Bold and direct"}
 
-## Colors
-- Primary: {extract from website if possible, otherwise ask}
-- Secondary: {extract or ask}
-- Accent: {extract or ask}
+## Colors (HEX codes)
+- Primary: {extract HEX from website if possible, otherwise ask user for HEX code e.g. #1A73E8}
+- Secondary: {extract HEX or ask user for HEX code}
+- Accent: {extract HEX or ask user for HEX code}
 
 ## Approved Phrases
 - {key phrases from the website}
@@ -170,7 +225,7 @@ Use Argil stock avatars. Rotate across personas for variety.
 Pick avatars that match the brand's target market demographics.
 ```
 
-### Step 4 — Logo & Fonts
+### Step 5 — Logo & Fonts
 
 Ask the user:
 > Please provide your logo file (PNG, transparent background preferred). Drop it into `brands/{brand}/logo.png`.
@@ -178,7 +233,7 @@ Ask the user:
 
 If they provide font names, ask them to place the `.ttf` files in `brands/{brand}/fonts/`.
 
-### Step 5 — API Keys & Connections
+### Step 6 — API Keys & Connections
 
 Walk through each integration. For each one, explain what it does and whether it's required or optional.
 
@@ -197,30 +252,44 @@ Walk through each integration. For each one, explain what it does and whether it
 |---|---|---|---|
 | 5 | `LATE_API_KEY` | Publish to social platforms | https://getlate.dev — sign up, connect your social accounts, get API key |
 
+**Standard integrations (ask for each — if user says "not now", move on but note it as unconfigured):**
+
+| # | Key | What it does | How to get it |
+|---|---|---|---|
+| 6 | `META_ADS_TOKEN` | Paid ads analysis (Meta) | Meta Business Suite → Marketing API → generate token |
+| 7 | `META_AD_ACCOUNT_ID` | Meta Ad Account ID | Meta Business Suite → Ad Account Settings (format: act_123456) |
+| 8 | `GA4_PROPERTY_ID` | Google Analytics funnel data | GA4 Admin → Property Settings → Property ID |
+| 9 | `GA4_SA_KEY_PATH` | Path to GA4 service account JSON | Google Cloud Console → IAM → Service Accounts → Create key |
+| 10 | `DATAFORSEO_LOGIN` | Keyword research | https://dataforseo.com — sign up, get login email |
+| 11 | `DATAFORSEO_PASSWORD` | Keyword research | DataforSEO dashboard → API password |
+
+For each of these, ask the user directly: "Do you have your {integration} credentials ready?" If they say "not now" or "skip", acknowledge and move on — but make sure to list it as unconfigured in the final summary so they know to come back to it.
+
 **Optional (enable specific skills):**
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 6 | `ARGIL_API_KEY` | AI avatar videos (Reels) | https://argil.ai — sign up, create avatar, get API key |
-| 7 | `META_ADS_TOKEN` | Paid ads analysis (Meta) | Meta Business Suite → Marketing API → generate token |
-| 8 | `META_AD_ACCOUNT_ID` | Meta Ad Account ID | Meta Business Suite → Ad Account Settings (format: act_123456) |
-| 9 | `GA4_PROPERTY_ID` | Google Analytics funnel data | GA4 Admin → Property Settings → Property ID |
-| 10 | `GA4_SA_KEY_PATH` | Path to GA4 service account JSON | Google Cloud Console → IAM → Service Accounts → Create key |
-| 11 | `DATAFORSEO_LOGIN` | Keyword research | https://dataforseo.com — sign up, get login email |
-| 12 | `DATAFORSEO_PASSWORD` | Keyword research | DataforSEO dashboard → API password |
+| 12 | `ARGIL_API_KEY` | AI avatar videos (Reels) | https://argil.ai — sign up, create avatar, get API key |
 
 For each key the user provides, save it to `.claude/settings.local.json` under the appropriate env var name.
 
 **MCP Connections (Claude.ai OAuth — user connects in their Claude settings):**
 
-Tell the user:
-> You also need to connect these in your Claude settings (Settings → Connected Apps):
-> - **Notion** — for content calendar management
-> - **Slack** — for notifications (also needs the Slack user ID above)
-> - **Gmail** — for reading emails (sending uses gws CLI)
-> - **Google Calendar** — for scheduling (optional)
+Walk the user through connecting each MCP integration one by one. For each one, explain what it does, then ask the user to confirm they've connected it. If the user says "not now", move on but note it as unconfigured.
 
-### Step 6 — Validate Connections
+| # | MCP | What it does | How to connect |
+|---|---|---|---|
+| 1 | **Notion** | Content calendar management, storing strategies & briefs | Settings → Connected Apps → Notion → Authorize |
+| 2 | **Slack** | Notifications after each skill run (also needs the Slack user ID above) | Settings → Connected Apps → Slack → Authorize |
+| 3 | **Gmail** | Reading emails for context (sending uses gws CLI) | Settings → Connected Apps → Gmail → Authorize |
+| 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
+
+For each, ask:
+> Have you connected {MCP name} in your Claude settings? (Settings → Connected Apps)
+
+If yes, proceed. If "not now", acknowledge and move on.
+
+### Step 7 — Validate Connections
 
 Test each configured integration:
 
@@ -249,29 +318,39 @@ slack_send_message to channel $SLACK_NOTIFY_USER:
 
 3. **Notion** — Try `notion-search` for any page. If it returns results, Notion MCP is connected.
 
-4. **GEMINI_API_KEY** — Quick test:
+4. **Gmail** — Try `gmail_get_profile`. If it returns the user's email, Gmail MCP is connected.
+
+5. **Google Calendar** — Try `gcal_list_calendars`. If it returns calendars, Google Calendar MCP is connected.
+
+6. **GEMINI_API_KEY** — Quick test:
 ```bash
 curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}" | head -c 200
 ```
 If it returns model data, the key works.
 
-5. **LATE_API_KEY** (if provided) — Test with a GET request to Late API.
+7. **LATE_API_KEY** (if provided) — Test with a GET request to Late API.
 
 Report results:
 ```
 Connection Status:
-✅ fiveagents.io API — connected
-✅ Slack — connected
-✅ Notion — connected
-✅ Gemini — connected
-⬜ Late — not configured (optional)
-⬜ Argil — not configured (optional)
-⬜ Meta Ads — not configured (optional)
-⬜ GA4 — not configured (optional)
-⬜ DataforSEO — not configured (optional)
+
+API Keys:
+  ✅ fiveagents.io API — connected
+  ✅ Gemini — connected
+  ⬜ Late — not configured (come back to set up)
+  ⬜ Meta Ads — not configured (come back to set up)
+  ⬜ GA4 — not configured (come back to set up)
+  ⬜ DataforSEO — not configured (come back to set up)
+  ⬜ Argil — not configured (optional)
+
+MCP Connections:
+  ✅ Slack — connected
+  ✅ Notion — connected
+  ⬜ Gmail — not configured (come back to set up)
+  ⬜ Google Calendar — not configured (come back to set up)
 ```
 
-### Step 7 — System Prerequisites Check
+### Step 8 — System Prerequisites Check
 
 Check if required CLI tools are installed:
 
@@ -286,7 +365,7 @@ Report what's missing and provide install instructions:
 - **ffmpeg**: `brew install ffmpeg` (macOS) or download from ffmpeg.org
 - **Python 3.10+**: Should be pre-installed on most systems
 
-### Step 8 — Summary & Next Steps
+### Step 9 — Summary & Next Steps
 
 Print a completion summary:
 
