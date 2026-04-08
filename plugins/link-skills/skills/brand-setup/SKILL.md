@@ -1,6 +1,5 @@
 ---
 description: Onboard a new brand — configure API keys, connect integrations, scrape website, generate brand context files
-disable-model-invocation: true
 ---
 
 # Brand Setup — New Client Onboarding
