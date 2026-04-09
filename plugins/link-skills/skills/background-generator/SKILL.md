@@ -56,37 +56,19 @@ Take up to 20 unique ImageBriefs from Step 1. If fewer than 20, create variation
 
 ## Step 3 — Generate images
 
-```bash
-mkdir -p brands/{brand}/backgrounds
+Create the backgrounds folder if it doesn't exist: `brands/{brand}/backgrounds/`
+
+For each image:
+```
+Use gateway MCP tool `gemini_generate_image`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- prompt: "{ImageBrief}"
+- model: "gemini-2.0-flash-exp"
+
+Tool returns base64 image. Save to `brands/{brand}/backgrounds/{descriptive_filename}.png`.
 ```
 
-Generate via **Gemini API** curl:
-
-```bash
-RESPONSE=$(curl -s -X POST \
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "contents": [{"parts": [{"text": "{ImageBrief}"}]}],
-    "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]}
-  }')
-
-# Extract base64 image and save
-python3 -c "
-import json, base64, sys
-data = json.loads('''${RESPONSE}''')
-for part in data['candidates'][0]['content']['parts']:
-    if 'inlineData' in part:
-        img = base64.b64decode(part['inlineData']['data'])
-        with open('brands/{brand}/backgrounds/{descriptive_filename}.png', 'wb') as f: f.write(img)
-        print('OK: Image saved')
-        sys.exit(0)
-print('ERROR: No image in response')
-sys.exit(1)
-"
-
-sleep 6  # Rate limit: ~10 requests per minute
-```
+Wait 6 seconds between calls (rate limit: ~10 requests per minute).
 
 **Filename convention:** Use a descriptive slug based on the Topic or ImageBrief content. Examples:
 - `finance_dashboard_laptop.png`
@@ -96,17 +78,13 @@ sleep 6  # Rate limit: ~10 requests per minute
 
 Filenames must be descriptive enough that the content-generator can pick the right background based on the post's Topic.
 
-**Rate limit:** 3 seconds between Nano Banana calls.
+**Rate limit:** 6 seconds between image generation calls.
 
 ---
 
 ## Step 4 — Verify
 
-```bash
-echo "{brand}: $(ls brands/{brand}/backgrounds/*.png | wc -l) images"
-```
-
-Must have at least 20 NEW images generated. Skip filenames that already exist — the library grows each month. If any failed, retry.
+Count the PNG files in `brands/{brand}/backgrounds/`. Must have at least 20 NEW images generated. Skip filenames that already exist — the library grows each month. If any failed, retry.
 
 ---
 
@@ -130,7 +108,7 @@ Location: brands/{brand}/backgrounds/
 - [ ] Filenames are descriptive (content-generator can pick by Topic)
 - [ ] No "portrait" in any prompt
 - [ ] All prompts end with "No text. No logos. No watermarks."
-- [ ] 3-second delay between Nano Banana calls
+- [ ] 6-second delay between image generation calls
 - [ ] Existing images NOT deleted (library grows)
 - [ ] Slack notification sent
 - [ ] Agent run logged to dashboard
@@ -141,21 +119,14 @@ Location: brands/{brand}/backgrounds/
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "background-generator",
-    "brand": "<active-brand>",
-    "status": "<success|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "images_generated": 0,
-      "total_library": 0
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "background-generator"
+- brand: "<active-brand>"
+- status: "<success|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: { "date": "YYYY-MM-DD", "images_generated": 0, "total_library": 0 }
 ```

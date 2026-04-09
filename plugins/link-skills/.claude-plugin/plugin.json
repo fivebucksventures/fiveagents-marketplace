@@ -35,43 +35,23 @@
       "sensitive": false
     },
     "late_api_key": {
-      "description": "Late API key for social media publishing (from getlate.dev)",
+      "description": "Zernio API key for social media publishing — also store in dashboard for Cowork use",
       "sensitive": true
     },
     "gemini_api_key": {
-      "description": "Google Gemini API key for image generation",
+      "description": "Google Gemini API key for image generation — also store in dashboard for Cowork use",
       "sensitive": true
     },
     "argil_api_key": {
-      "description": "Argil API key for AI avatar videos (optional)",
+      "description": "Argil API key for AI avatar videos (optional) — also store in dashboard for Cowork use",
       "sensitive": true
-    },
-    "meta_ads_token": {
-      "description": "Meta Marketing API access token (optional — for paid ads analysis)",
-      "sensitive": true
-    },
-    "meta_ad_account_id": {
-      "description": "Meta Ad Account ID, e.g. act_123456 (optional)",
-      "sensitive": false
-    },
-    "ga4_property_id": {
-      "description": "Google Analytics 4 property ID (optional — for funnel analysis)",
-      "sensitive": false
-    },
-    "ga4_sa_key_path": {
-      "description": "Path to GA4 service account JSON key file (optional)",
-      "sensitive": false
     },
     "dataforseo_login": {
-      "description": "DataforSEO login email (optional — for keyword research)",
+      "description": "DataforSEO login email (optional) — also store in dashboard for Cowork use",
       "sensitive": false
     },
     "dataforseo_password": {
-      "description": "DataforSEO password (optional)",
-      "sensitive": true
-    },
-    "notion_api_key": {
-      "description": "Notion API key (for direct API calls if Notion MCP unavailable)",
+      "description": "DataforSEO password (optional) — also store in dashboard for Cowork use",
       "sensitive": true
     }
   }

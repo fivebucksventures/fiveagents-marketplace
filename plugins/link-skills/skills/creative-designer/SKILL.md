@@ -120,36 +120,20 @@ For design spec output:
 **Core principle: Visual = emotion. Text = punchline.**
 The image must stop the scroll and evoke a feeling *before* the viewer reads a single word. Text overlays sharpen the message — they never explain what the image already shows.
 
-Use **Gemini image generation** via curl for assets that need real imagery — scenes, people, environments, data visualizations. Do NOT use Gemini for pure typographic/text-only graphics (use HTML/CSS for those instead).
+Use **Gemini image generation** for assets that need real imagery — scenes, people, environments, data visualizations. Do NOT use Gemini for pure typographic/text-only graphics (use HTML/CSS for those instead).
 
-```bash
-# Generate image via Gemini API
-RESPONSE=$(curl -s -X POST \
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "contents": [{"parts": [{"text": "<your image prompt>"}]}],
-    "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]}
-  }')
+```
+Use gateway MCP tool `gemini_generate_image`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- prompt: "<your image prompt>"
+- model: "gemini-2.0-flash-exp"
 
-# Extract base64 image and save to file
-python3 -c "
-import json, base64, sys
-data = json.loads('''${RESPONSE}''')
-for part in data['candidates'][0]['content']['parts']:
-    if 'inlineData' in part:
-        img = base64.b64decode(part['inlineData']['data'])
-        with open('<output.png>', 'wb') as f: f.write(img)
-        print('OK: Image saved')
-        sys.exit(0)
-print('ERROR: No image in response')
-sys.exit(1)
-"
+Tool returns base64 image directly — use it as input for `image_add_text_overlay` in the next step.
 ```
 
-If a 429 RESOURCE_EXHAUSTED error occurs, wait 60 seconds and retry once. Rate limit: ~10 requests per minute.
+If the tool returns a rate limit error, wait 60 seconds and retry once.
 
-**IMPORTANT — Never use Nano Banana / `continue_editing` for text overlays.** Nano Banana does not render brand fonts correctly and produces unprofessional typography. All text and logo compositing must be done with the Python scripts below.
+**IMPORTANT — Never use Nano Banana / `continue_editing` for text overlays.** Use `image_add_text_overlay` and `image_add_logo` gateway tools instead.
 
 **5 proven image patterns (adapt messaging to active brand):**
 
@@ -175,14 +159,14 @@ If a 429 RESOURCE_EXHAUSTED error occurs, wait 60 seconds and retry once. Rate l
 | Facebook | Pain Moment, Before/After | Medium — benefit + proof element | Thumb-stop visual; emotion-led |
 | Instagram | Bold Stat, Pain Moment | Low — 3–5 words max | Visual-first feed; text kills reach |
 
-**Nano Banana prompt guidelines:**
+**Image prompt guidelines:**
 - Lead with the **scene/feeling**, not the brand: "Frustrated professional at desk..." not "[brand] ad..."
 - Specify **cinematic, photorealistic, editorial photography style** for people/scenes
 - Specify **abstract, data visualization, geometric** for non-people visuals
 - Include **lighting/mood**: "dimly lit, blue screen glow, night" or "bright, clean, modern office"
-- **No text, no logos, no brand name in the image** — text and logo are composited after using Python scripts
+- **No text, no logos, no brand name in the image** — text and logo are composited after using gateway tools
 - Always end prompt with: **"No text in the image. No logos. No watermarks."**
-- Do NOT use `continue_editing` for text — use `add_text_overlay.py` instead
+- Do NOT use `continue_editing` for text — use `image_add_text_overlay` gateway tool instead
 
 **Example prompts by pattern:**
 
@@ -196,26 +180,26 @@ If a 429 RESOURCE_EXHAUSTED error occurs, wait 60 seconds and retry once. Rate l
 > "Dramatic close-up of a glowing purple number '275M' floating in dark space, abstract particle field background in purple and pink tones, cinematic lighting, square format. No text other than the number. No logos. No watermarks."
 
 **Rate limit rule — ALWAYS follow this sequence when generating multiple images:**
-1. Generate image 1 → apply text overlay → apply logo → save to `outputs/` → upload to Late
+1. Generate image 1 → apply text overlay → apply logo → save to `outputs/` → upload to Zernio
 2. Wait ~15 seconds before next generation (API allows 10 IPM; 15s is a safe buffer)
-3. Generate image 2 → apply text overlay → apply logo → save → upload to Late
+3. Generate image 2 → apply text overlay → apply logo → save → upload to Zernio
 4. Repeat
 
 Never generate multiple images in parallel or back-to-back. One at a time with a short pause. If a 429 RESOURCE_EXHAUSTED error occurs, wait 60 seconds and retry once.
 
-**After every Nano Banana generation, run BOTH scripts in order:**
+**After every image generation, run BOTH steps in order:**
 
-**Step 1 — Text overlay (brand font, gradient scrim, drop shadow):**
+**Step 1 — Text overlay (gradient scrim, drop shadow):**
 
-Use `media-server` MCP tool `add_text_overlay`:
-- `input_path`: path to raw image
-- `output_path`: path for image with text
+Use gateway MCP tool `image_add_text_overlay`:
+- `image_base64`: base64-encoded raw image (from `gemini_generate_image` output)
 - `headline`: max 6-8 words, title case or all caps
 - `subline`: brand tagline or CTA teaser
 - `target_w`, `target_h`: canvas dimensions (see table below)
 - `text_align`: left/center/right (from day-of-week rotation)
 - `text_position`: bottom (always)
-- `brand`: active brand name
+
+Returns base64-encoded PNG with text overlay applied.
 
 | Format | target_w | target_h |
 |--------|----------|----------|
@@ -236,38 +220,44 @@ Use `media-server` MCP tool `add_text_overlay`:
 | Fri | center | bottom | top-right |
 | Sat | right | bottom | top-left |
 
-- Font: Brand-specific fonts stored in `brands/{brand}/fonts/`
-- Script resizes via scale-to-fill + center-crop to hit exact target canvas
+- Font: system sans-serif (gateway uses sharp SVG rendering).
+- Tool resizes via scale-to-fill + center-crop to hit exact target canvas.
 
 **Step 2 — Logo overlay (brand mark):**
 
-Use `media-server` MCP tool `add_logo`:
-- `input_path`: path to image with text
-- `output_path`: path for final image
+Use gateway MCP tool `image_add_logo`:
+- `image_base64`: base64-encoded image from step 1 output
+- `logo_base64`: base64-encoded logo PNG (read `brands/{brand}/logo.png` and encode)
 - `position`: from day-of-week rotation (top-right/top-left)
 - `scale`: 0.18 (18% of image width)
-- `brand`: active brand name
-- Logo: `brands/{brand}/logo.png` — brand mark with RGBA transparent background
-- Size: **18%** of image width (0.18) — reduced for cleaner look
-- Logo PNG transparent padding is auto-cropped so top and right gaps are visually equal (both = 3% of image width)
-- This is the standard final step for ALL social images
 
-**Step 3 — Upload to Late API (for social posts):**
-```
-POST https://getlate.dev/api/v1/media/presign
-Authorization: Bearer $LATE_API_KEY
-{ "filename": "SocialPost_11Mar2026.png", "contentType": "image/png" }
-```
-Response gives `uploadUrl` (PUT the file to this) and `publicUrl` (use in `/v1/posts` media array).
+Returns base64-encoded final PNG. Logo transparent padding is auto-cropped so gaps are visually equal.
+This is the standard final step for ALL social images.
 
-**Standard asset sizes and Late API destinations:**
-| Format | Canvas | Script args | Late `platforms` |
-|--------|--------|-------------|-----------------|
-| LinkedIn Post | 1200×628 | `1200 628` | `linkedin` |
-| Facebook Post | 1200×630 | `1200 630` | `facebook` |
-| Instagram Post (square) | 1080×1080 | `1080 1080` | `instagram` |
-| Instagram Post (portrait) | 1080×1350 | `1080 1350` | `instagram` |
-| Reels / Story (9:16) | 1080×1920 | `1080 1920` | `instagram` |
+**Step 3 — Upload to Zernio (for social posts):**
+```
+1. Use gateway MCP tool `late_presign_upload`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - filename: "SocialPost_11Mar2026.png"
+   - content_type: "image/png"
+   → Returns uploadUrl + publicUrl
+
+2. Use gateway MCP tool `late_upload_media`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - upload_url: <uploadUrl from step 1>
+   - base64_data: <base64 encoded image>
+   - content_type: "image/png"
+```
+Use `publicUrl` from step 1 in `late_create_post` media array.
+
+**Standard asset sizes and Zernio platform destinations:**
+| Format | Canvas | Zernio `platforms` |
+|--------|--------|-----------------|
+| LinkedIn Post | 1200×628 | `linkedin` |
+| Facebook Post | 1200×630 | `facebook` |
+| Instagram Post (square) | 1080×1080 | `instagram` |
+| Instagram Post (portrait) | 1080×1350 | `instagram` |
+| Reels / Story (9:16) | 1080×1920 | `instagram` |
 
 **Always save Reels/Story to `outputs/{brand}/posts/Instagram/` — naming: append `_Story`.**
 e.g. `SocialPost_PainMoment_Story_11Mar2026.png`
@@ -291,38 +281,27 @@ Use **Argil API** to generate talking-head video ads. Only for Reels tagged `(Ar
 | Reel (FB/IG) | `"9:16"` (portrait) |
 | Landscape (if ever needed) | `"16:9"` |
 
-```bash
-# 1. Create the video (with aspectRatio matching the post format)
-curl -s -X POST "https://api.argil.ai/v1/videos" \
-  -H "x-api-key: $ARGIL_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Ad Video - [description]",
-    "aspectRatio": "9:16",
-    "moments": [{
-      "avatarId": "AVATAR_ID",
-      "voiceId": "VOICE_ID",
-      "transcript": "Your script here..."
-    }]
-  }'
+```
+1. Use gateway MCP tool `argil_create_video`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - name: "Ad Video - [description]"
+   - aspect_ratio: "9:16"
+   - moments: [{ avatarId: "AVATAR_ID", voiceId: "VOICE_ID", transcript: "Your script here..." }]
 
-# 2. Render the video (use the video ID from step 1)
-curl -s -X POST "https://api.argil.ai/v1/videos/{video_id}/render" \
-  -H "x-api-key: $ARGIL_API_KEY"
+2. Use gateway MCP tool `argil_render_video`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - video_id: <from step 1>
 
-# 3. Poll for completion
-curl -s "https://api.argil.ai/v1/videos/{video_id}" \
-  -H "x-api-key: $ARGIL_API_KEY"
-# Repeat until status = "DONE", then use videoUrl field
+3. Poll with `argil_get_video` (fiveagents_api_key + video_id) until status=DONE, then use videoUrl.
 ```
 
 **Avatar selection — rotate for variety, prefer Asian characters for SEA markets:**
 
-Use `GET /avatars` and `GET /voices` to discover all available options. Prefer Asian/SEA avatars for Singapore, Indonesia, and Malaysia audiences. Rotate across videos — don't always use the same avatar.
+Use `argil_list_avatars` and `argil_list_voices` gateway tools to discover all available options. Prefer Asian/SEA avatars for Singapore, Indonesia, and Malaysia audiences. Rotate across videos — don't always use the same avatar.
 
 | Actor | Use For | Example Scenes |
 |---|---|---|
-Read avatar preferences from `brands/{brand}/avatars.md`. This file defines which avatars to use, the founder avatar + voice clone ID, and market preferences. Use `GET /avatars` and `GET /voices` to discover all available options. Example avatar table below:
+Read avatar preferences from `brands/{brand}/avatars.md`. This file defines which avatars to use, the founder avatar + voice clone ID, and market preferences. Use `argil_list_avatars` and `argil_list_voices` gateway tools to discover all available options. Example avatar table below:
 
 | Actor | Use For | Example Scenes |
 |---|---|---|
@@ -337,7 +316,7 @@ Read avatar preferences from `brands/{brand}/avatars.md`. This file defines whic
 | **Amira** (F) | CS/support personas | Cafe, Street |
 | **Anjali** (F) | Enterprise/corporate content | Elevator |
 
-**Voice:** Use the founder's voice clone (ID from `brands/{brand}/avatars.md`) for the founder avatar only. For stock avatars, pick a matching English voice from `GET /voices`.
+**Voice:** Use the founder's voice clone (ID from `brands/{brand}/avatars.md`) for the founder avatar only. For stock avatars, pick a matching English voice from `argil_list_voices` gateway tool.
 
 **Rotation rules:**
 - Don't use the same avatar for consecutive posts on the same platform
@@ -350,38 +329,11 @@ Read avatar preferences from `brands/{brand}/avatars.md`. This file defines whic
 - Meta Ads TOFU video content (pain-point or authority ads for FB/IG)
 
 **When NOT to use Argil:**
-- Non-tagged Reels (use Ken Burns background video instead)
-- Stories (use pre-stored backgrounds + text overlay)
+- Stories (use static images with text/logo overlay)
 - LinkedIn posts (use static images)
 - Any post not explicitly tagged `(Argil)` in the calendar
 
-### Step 5b: Generate Reel video from pre-stored background (Ken Burns + text overlay)
-
-For Reels NOT tagged `(Argil)`. No external API — instant, free.
-
-**Pipeline:** Pick background from `brands/{brand}/backgrounds/` → scale + Ken Burns zoom (ffmpeg) → text + logo overlay → silent .mp4
-
-1. Pick background image matching the post topic (filenames are descriptive)
-2. Scale to 1296x2304 (1.2x headroom) with PIL
-3. ffmpeg `zoompan` with `setsar=1:1` → 1080x1920
-4. Overlay logo (static) + text (animated fade per scene) via `drawtext`
-5. Auto-detect brightness: dark bg → white text + shadow, light bg → brand text, no scrim
-
-```bash
-ffmpeg -y -loop 1 -i "tmp/bg_large.png" -i "tmp/logo_cropped.png" \
-  -filter_complex "[0:v]zoompan=z='1+0.012*in/270':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=270:s=1080x1920:fps=30,setsar=1:1,format=rgba[bg0];[1:v]format=rgba[logo];[bg0][logo]overlay=50:50:format=auto[bg];[bg]DRAWTEXT_FILTERS" \
-  -t 9 -c:v libx264 -preset fast -crf 20 -pix_fmt yuv420p -an -movflags +faststart output.mp4
-```
-
-**When to use Ken Burns video:**
-- All FB/IG Reels not tagged `(Argil)`
-
-**When NOT to use:**
-- Talking-head content (use Argil)
-- Stories (use Nano Banana static)
-- LinkedIn (use Nano Banana static)
-
-**Script must come from content-creation skill first.** The creative-designer skill only handles the generation and rendering step.
+**For non-Argil Reels:** Use static image (1080x1920) with text + logo overlay, published as Story format.
 
 ---
 
@@ -394,7 +346,7 @@ outputs/{brand}/strategy/             ← design specs / HTML mockups
 ```
 
 **Folder by asset type:**
-| Asset Type | Local Folder | Upload to Late? |
+| Asset Type | Local Folder | Upload to Zernio? |
 |---|---|---|
 | LinkedIn graphic | `outputs/{brand}/posts/LinkedIn/` | Yes — upload via presign, use `publicUrl` in post |
 | Facebook graphic | `outputs/{brand}/posts/Facebook/` | Yes |
@@ -405,12 +357,12 @@ outputs/{brand}/strategy/             ← design specs / HTML mockups
 
 **Naming convention:**
 ```
-[AssetType]_[DDMonYYYY].png           ← Nano Banana generated images
+[AssetType]_[DDMonYYYY].png           ← generated images
 [AssetType]_[DDMonYYYY]_spec.md       ← Design spec / HTML mockup
 ```
 
 Examples:
-- `SocialPost_10Mar2026.png` (Nano Banana output)
+- `SocialPost_10Mar2026.png`
 - `HeroImage_10Mar2026.png`
 - `AdCreative_10Mar2026.png`
 - `LandingPage_10Mar2026_spec.md`
@@ -465,31 +417,28 @@ Before finalizing any design output:
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "creative-designer",
-    "brand": "<active-brand>",
-    "status": "<success|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "assets": [
-        {
-          "type": "social-image",
-          "platform": "Facebook",
-          "dimensions": "1200x630",
-          "tool": "gemini",
-          "avatar": false,
-          "file": "<filename>",
-          "late_uploaded": true
-        }
-      ],
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "creative-designer"
+- brand: "<active-brand>"
+- status: "<success|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "assets": [
+      {
+        "type": "social-image",
+        "platform": "Facebook",
+        "dimensions": "1200x630",
+        "tool": "gemini",
+        "avatar": false,
+        "file": "<filename>",
+        "late_uploaded": true
+      }
+    ],
       "late_uploads": 0
-    }
-  }'
+  }
 ```

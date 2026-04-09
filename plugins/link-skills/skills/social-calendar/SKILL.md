@@ -187,32 +187,23 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "social-calendar",
-    "brand": "<active-brand>",
-    "status": "<success|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "week": "DD-DD Mon YYYY",
-      "posts_planned": 14,
-      "calendar_status": "Published",
-      "notion_url": "https://notion.so/...",
-      "posts": [
-        { "date": "DD Mon", "platform": "LinkedIn", "topic": "...", "persona": "...", "format": "static", "status": "Published" }
-      ],
-      "content_mix": [
-        { "type": "static", "count": 11, "percentage": 78.6 }
-      ],
-      "persona_distribution": [
-        { "persona": "seo-pro", "count": 3 }
-      ]
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "social-calendar"
+- brand: "<active-brand>"
+- status: "<success|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "week": "DD-DD Mon YYYY",
+    "posts_planned": 14,
+    "calendar_status": "Published",
+    "notion_url": "https://notion.so/...",
+    "posts": [{ "date": "DD Mon", "platform": "LinkedIn", "topic": "...", "persona": "...", "format": "static", "status": "Published" }],
+    "content_mix": [{ "type": "static", "count": 11, "percentage": 78.6 }],
+    "persona_distribution": [{ "persona": "seo-pro", "count": 3 }]
+  }
 ```

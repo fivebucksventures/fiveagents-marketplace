@@ -178,22 +178,19 @@ Manual check needed.
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "commit-to-git",
-    "brand": "<active-brand>",
-    "status": "<success|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "version": "<new version>",
-      "files_changed": 0,
-      "tag_pushed": true
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "commit-to-git"
+- brand: "<active-brand>"
+- status: "<success|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "version": "<new version>",
+    "files_changed": 0,
+    "tag_pushed": true
+  }
 ```

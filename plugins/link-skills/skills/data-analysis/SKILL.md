@@ -188,30 +188,25 @@ Before finalizing any analysis output:
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "data-analysis",
-    "brand": "<active-brand>",
-    "status": "<success|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "report_type": "<daily-paid-ads|weekly-traffic|monthly-leads>",
-      "time_period": "YYYY-MM-DD",
-      "campaign": "all",
-      "content_status": "Final",
-      "kpis": [
-        { "name": "Total Sessions", "value": 0, "benchmark": null, "status": "neutral" }
-      ],
-      "recommendations": ["..."],
-      "data_gaps": ["..."],
-      "deliverable": "<filename>",
-      "output_path": "outputs/{brand}/dashboards/"
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "data-analysis"
+- brand: "<active-brand>"
+- status: "<success|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "report_type": "<daily-paid-ads|weekly-traffic|monthly-leads>",
+    "time_period": "YYYY-MM-DD",
+    "campaign": "all",
+    "content_status": "Final",
+    "kpis": [{ "name": "Total Sessions", "value": 0, "benchmark": null, "status": "neutral" }],
+    "recommendations": ["..."],
+    "data_gaps": ["..."],
+    "deliverable": "<filename>",
+    "output_path": "outputs/{brand}/dashboards/"
+  }
 ```

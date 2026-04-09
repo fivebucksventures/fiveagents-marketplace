@@ -1,11 +1,8 @@
 {
   "mcpServers": {
-    "media": {
-      "command": "python",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/media-server/server.py"],
-      "env": {
-        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/scripts"
-      }
+    "gateway": {
+      "type": "url",
+      "url": "https://gateway.fiveagents.io/api/mcp"
     }
   }
 }

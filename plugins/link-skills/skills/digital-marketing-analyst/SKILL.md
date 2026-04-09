@@ -44,128 +44,55 @@ Zero spend on a given date is valid data. It means campaigns were paused or budg
 
 ### Step 1 — Pull Google Ads Data
 
-Pull from all **4 report folders** — Campaigns, Ad Groups, Ads, Keywords.
+Pull Google Ads data via **Windsor.ai MCP** connector.
 
-⚠️ **Never hardcode file IDs. Always search the Daily subfolder and take the file with the latest `modifiedTime`.** Files are replaced daily — a hardcoded ID silently reads stale data.
-
-```bash
-# Step 1: List files in subfolder — sorted by modifiedTime desc, take top 2
-gws drive files list --params '{"q":"'\''<FOLDER_ID>'\'' in parents","pageSize":2,"orderBy":"modifiedTime desc","fields":"files(id,name,modifiedTime)"}' --format json
-
-# Step 2: Read the sheet — row 1 is title, row 2 is date range, row 3 is headers, row 4+ is data
-gws sheets +read --spreadsheet <FILE_ID> --range "A1:BK500" --format json
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "google_ads"
+- date_preset: "last_30d" (first call — then filter to yesterday + day-before for DoD)
+- fields: ["date", "campaign", "campaign_status", "ad_group", "clicks", "impressions", "ctr", "cost", "conversions", "cpa"]
 ```
 
-Daily subfolder IDs (folder IDs are stable — file IDs inside change daily):
-- Campaigns → `1RCIi2wWb30ag0NErePn5oNSkGwA6iiw8`
-- Ad Groups → `1_MZanLkvA26gl_rD4E6bYTNb7-xFzEbE`
-- Ads → `15VosHTy6awaTXJ5EyV5nkPcpJ6P0-J0_`
-- Keywords → `1xoO2YPJW_L7HCnaAv8QPt7XvRzWxmFCQ`
+⚠️ **Data lag:** Google Ads data in Windsor has ~12 days lag. Use `max(date)` from the result to find the most recent available date. If yesterday's data isn't available yet, use the most recent date.
 
-Pull **top 2 files** from each subfolder — file[0] is today's (yesterday's data), file[1] is prior day for DoD.
+⚠️ **Known issues:**
+- `keyword` field returns null — omit keyword table
+- `ad_group` returns raw resource paths, not human-readable names
+- `cost` is already in SGD (no conversion needed)
 
-If today is Monday, note "Weekend — structurally lower volume" for DoD comparisons.
+Pull data for **two dates** — most recent available date + prior day for DoD comparison.
 
-#### Google Ads Sheet Column Mappings
+If the most recent date is a Monday, note "Weekend — structurally lower volume" for DoD comparisons.
 
-**Campaigns** (row 1 = title, row 2 = date range, row 3 = headers, row 4+ = data):
-| Col | Field |
-|---|---|
-| A | Campaign |
-| B | Campaign state |
-| C | Campaign type |
-| D | Clicks |
-| E | Impr. |
-| F | CTR |
-| G | Currency code |
-| H | Avg. CPC |
-| I | Cost |
-| J | Impr. (Abs. Top) % |
-| K | Impr. (Top) % |
-| L | Conversions |
-| M | View-through conv. |
-| N | Cost / conv. |
-| O | Conv. rate |
+#### Windsor.ai field reference
 
-**Ad Groups** (row 1 = title, row 2 = date range, row 3 = headers, row 4+ = data):
-| Col | Field |
-|---|---|
-| A | Ad group |
-| B | Campaign |
-| C–Y | Metadata (state, type, bid strategy, etc.) |
-| Z (col 26) | Clicks |
-| AA (col 27) | Impr. |
-| AB (col 28) | CTR |
-| AC (col 29) | Currency code |
-| AD (col 30) | Avg. CPC |
-| AE (col 31) | Cost |
-| AF (col 32) | Impr. (Abs. Top) % |
-| AG (col 33) | Impr. (Top) % |
-| AH (col 34) | Conversions |
-| AI (col 35) | View-through conv. |
-| AJ (col 36) | Cost / conv. |
-| AK (col 37) | Conv. rate |
+Windsor returns named fields directly — no column mapping needed:
+- `date`, `campaign`, `campaign_status`, `ad_group`, `clicks`, `impressions`, `ctr`, `cost`, `conversions`, `cpa`
 
-**Ads** (row 1 = title, row 2 = date range, row 3 = headers, row 4+ = data):
-| Col | Field |
-|---|---|
-| A | Ad state |
-| B | Ad type |
-| C | Final URL |
-| D | Headline 1 |
-| D–AF | Headlines 1–15 + positions (pairs) |
-| AG–AN | Descriptions 1–4 + positions |
-| AO–AP | Path 1, Path 2 |
-| AQ–AT | Mobile final URL, Tracking, Suffix, Custom param |
-| AU (col 47) | Campaign |
-| AV (col 48) | Ad group |
-| AW–AX | Campaign type, subtype |
-| AY (col 51) | Ad final URL |
-| AZ (col 52) | Ad mobile final URL |
-| BA (col 53) | Clicks |
-| BB (col 54) | Impr. |
-| BC (col 55) | CTR |
-| BD (col 56) | Currency code |
-| BE (col 57) | Avg. CPC |
-| BF (col 58) | Cost |
-| BG (col 59) | Conversions |
-| BH (col 60) | View-through conv. |
-| BI (col 61) | Cost / conv. |
-| BJ (col 62) | Conv. rate |
-
-**Keywords** (row 1 = title, row 2 = date range, row 3 = headers, row 4+ = data):
-| Col | Field |
-|---|---|
-| A | Search keyword |
-| B | Search keyword status |
-| C | Search keyword status reasons |
-| D | Search keyword match type |
-| E | Campaign |
-| F | Ad group |
-| G | Currency code |
-| H | Keyword max CPC |
-| I | Clicks |
-| J | Impr. |
-| K | CTR |
-| L | Avg. CPC |
-| M | Cost |
-| N | Impr. (Abs. Top) % |
-| O | Impr. (Top) % |
-
-⚠️ **Keywords sheet does not include Conversions column.** Use campaign-level conversion data for keyword analysis.
+⚠️ **Invalid fields** (not available in Windsor for Google Ads): keyword-level data returns null. Omit keyword table.
 
 #### Date validation
-Row 2 of every sheet contains the date range (e.g., "March 27, 2026 - March 27, 2026"). Always verify this matches the expected report date before processing.
+Check `max(date)` from the Windsor response to confirm the data covers the expected report date.
 
 ### Step 2 — Pull GA4 Data
 
-⚠️ **Data reliability note:** GA4 data before **2026-03-08** was affected by a tracking bug. Always use Mar 8 as the earliest start date. Do not pull or compare against pre-Mar 8 data.
+⚠️ **Data reliability note:** GA4 data before **2026-03-08** was affected by a tracking bug. Always use Mar 8 as the earliest start date.
 
-```bash
-python scripts/ga4_pull.py --date yesterday --json
+Pull GA4 data via **Windsor.ai MCP** connector:
+
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "googleanalytics4"
+- date_preset: "last_7d"
+- fields: ["date", "source", "medium", "session_source_medium", "sessions", "bounce_rate"]
 ```
 
-Key file: path in `$GOOGLE_ANALYTICS_SA_KEY_PATH` env var | Pass brand via `--brand` flag: `python scripts/ga4_pull.py --brand {brand} ...` (reads `{BRAND}_GA4_PROPERTY` from env)
+Filter results for the report date. Segment by source/medium:
+- `meta / paid_social` → Meta Ads sessions
+- `google / cpc` → Google Ads sessions
+
+⚠️ **Invalid fields** (not in Windsor for GA4): `session_source`, `session_medium` — use `session_source_medium` instead.
+⚠️ **GA4 has zero data lag** in Windsor — yesterday's data should be available immediately.
 
 ### Step 3 — Analyze Google Ads + GA4
 
@@ -315,30 +242,21 @@ After saving, log to `memory/YYYY-MM-DD.md`:
 
 ### Step 1 — Pull Meta Ads Data
 
-Pull Meta Ads performance for yesterday (today's date − 1) AND day-before-yesterday (for DoD):
+Pull Meta Ads data via **Windsor.ai MCP** connector:
 
-Pull via curl to Meta Graph API. Run 6 calls — 3 levels × 2 dates (yesterday + day-before for DoD):
-
-```bash
-# Fields for all levels
-FIELDS="campaign_name,adset_name,ad_name,impressions,reach,clicks,spend,ctr,cpc,cpm,actions,cost_per_action_type,frequency"
-
-# Yesterday — campaign, adset, ad levels
-curl -s "https://graph.facebook.com/v19.0/${META_AD_ACCOUNT_ID}/insights?fields=${FIELDS}&time_range={\"since\":\"YYYY-MM-DD\",\"until\":\"YYYY-MM-DD\"}&level=campaign&limit=50&access_token=${META_ADS_TOKEN}"
-
-curl -s "https://graph.facebook.com/v19.0/${META_AD_ACCOUNT_ID}/insights?fields=${FIELDS}&time_range={\"since\":\"YYYY-MM-DD\",\"until\":\"YYYY-MM-DD\"}&level=adset&limit=50&access_token=${META_ADS_TOKEN}"
-
-curl -s "https://graph.facebook.com/v19.0/${META_AD_ACCOUNT_ID}/insights?fields=${FIELDS}&time_range={\"since\":\"YYYY-MM-DD\",\"until\":\"YYYY-MM-DD\"}&level=ad&limit=50&access_token=${META_ADS_TOKEN}"
-
-# Day-before-yesterday — same 3 levels (for DoD comparison)
-# Same curl commands with prior day's date
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "facebook"
+- date_preset: "last_30d" (then filter to yesterday + day-before for DoD)
+- fields: ["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]
 ```
 
-**Date resolution:** Use SGT (UTC+8) for dates — `TZ=Asia/Singapore date -v-1d '+%Y-%m-%d'` for yesterday.
+⚠️ **Data lag:** Facebook data in Windsor has ~12 days lag. Use `max(date)` to find most recent available date.
+⚠️ **Invalid fields** (not in Windsor for Facebook): `ad_set`, `ad`, `lp_views`, `landing_page_views`, `video_views`. Campaign is the lowest available breakdown.
+⚠️ **No conversion data** available for Facebook via Windsor.
 
-- Token: `$META_ADS_TOKEN` | Account: `$META_AD_ACCOUNT_ID`
-- **Currency:** Meta returns USD. Convert to SGD using rate 1 USD = 1.357 SGD
-- **Response parsing:** Extract `data[]` array. Key fields: `impressions`, `clicks`, `spend`, `ctr`, `cpc`, `cpm`, `reach`. For LP views: find `actions[]` where `action_type == "landing_page_view"`. For video views: `action_type == "video_view"`.
+- **Currency:** Facebook `spend` is USD. Convert to SGD using rate 1 USD = 1.36 SGD.
+- **Date resolution:** Use SGT (UTC+8) for dates.
 
 ### Step 2 — Analyze Meta Ads
 
@@ -517,37 +435,20 @@ Single most impactful action across both platforms. Name the specific campaign/a
 
 ### Step 3 — Send Email
 
-The HTML brief is too large for shell arguments. Build an RFC 5322 `.eml` file and send via Gmail API upload:
+Send the HTML brief via Postmark using the gateway tool:
 
-```bash
-# 1. HTML already generated by Claude in Step 2 → saved to tmp/paid_ads_brief_{date}.html
-HTML_FILE="tmp/paid_ads_brief_YYYY-MM-DD.html"
-
-# 2. Build .eml file (Python one-liner)
-python -c "
-import base64, os
-with open('$HTML_FILE', encoding='utf-8') as f: html = f.read()
-subj_b64 = base64.b64encode('📊 Paid Ads Daily Brief — DD Mon YYYY'.encode()).decode()
-email = os.environ.get('REPORT_EMAIL', 'user@example.com')
-msg = f'From: {email}\r\nTo: {email}\r\nSubject: =?utf-8?B?{subj_b64}?=\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n{base64.b64encode(html.encode()).decode()}'
-with open('tmp/email.eml', 'w', encoding='utf-8') as f: f.write(msg)
-"
-
-# 3. Send via Gmail API upload (avoids shell arg length limit)
-gws gmail users messages send --params '{"userId":"me"}' --upload "tmp/email.eml" --upload-content-type "message/rfc822" --format json
 ```
+Use gateway MCP tool `fiveagents_send_email`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- to: ${REPORT_EMAIL}
+- subject: "📊 Paid Ads Daily Brief — DD Mon YYYY"
+- html_body: <the HTML content from Step 2 — tables, KPIs, flags only, no wrapper needed>
+- tag: "daily-brief"
+```
+
+The email is automatically wrapped in the fiveagents.io branded template (logo, card, footer). Only pass the **content** HTML — not a full `<html>` document.
 
 ⚠️ **Subject date** must be the report date (yesterday), not today. Format: `DD Mon YYYY` (e.g., "27 Mar 2026").
-
-⚠️ **Do NOT use `gws gmail +send --body`** — HTML briefs exceed shell argument length limits (~36KB). Always use the `.eml` upload approach above.
-
-### Step 4 — Cleanup temp files
-
-After successful send, remove all intermediate files:
-
-```bash
-rm -f tmp/gads-*.json tmp/meta-*.json tmp/paid_ads_brief_*.html tmp/email.eml
-```
 
 ### Step 5 — Notify via Slack
 
@@ -609,39 +510,38 @@ Run this workflow when triggered by `gads-weekly-data-pull` or `meta-weekly-data
 
 ### Step 1 — Pull Weekly Google Ads Data
 
-⚠️ **Never hardcode file IDs. Always search the Weekly subfolder and take the file with the latest `modifiedTime`.**
+Pull weekly Google Ads data via **Windsor.ai MCP**:
 
-```bash
-gws drive files list --params '{"q":"'\''<FOLDER_ID>'\'' in parents","pageSize":1,"orderBy":"modifiedTime desc","fields":"files(id,name,modifiedTime)"}' --format json
-gws sheets +read --spreadsheet <FILE_ID> --range "A1:BK500" --format json
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "google_ads"
+- date_preset: "last_30d"
+- fields: ["date", "campaign", "campaign_status", "ad_group", "clicks", "impressions", "ctr", "cost", "conversions", "cpa"]
 ```
 
-Weekly subfolder IDs:
-- Campaigns → `184UFljcYoYJHRfKcoGNbXWHpY1vbxm1h`
-- Ad Groups → `1uXADTj0dukNMF2P3UGxNXmYtGvIbOv5Q`
-- Ads → `1Zf1ewh9wNFS3OexsBqxfcM9L2s50yx__`
-- Keywords → `1VvjqXBeL0UbuYE_AWn1s7o3bP1uPM0Xq`
-
-Verify row 2 contains the expected week date range. If date doesn't match — stop, report data not ready yet.
-
-⚠️ **Weekly sheets use the same column mappings as daily** — see "Google Ads Sheet Column Mappings" section above. Row 1 = title, row 2 = date range, row 3 = headers, row 4+ = data.
+Filter results for the target week range. Also pull prior week for WoW comparison.
 
 ### Step 1b — Pull Weekly Meta Ads Data
 
-Same curl pattern as daily pull, but with `time_range` spanning the full week:
-
-```bash
-curl -s "https://graph.facebook.com/v19.0/${META_AD_ACCOUNT_ID}/insights?fields=${FIELDS}&time_range={\"since\":\"<week_start>\",\"until\":\"<week_end>\"}&level=campaign&limit=50&access_token=${META_ADS_TOKEN}"
-# Repeat for level=adset and level=ad
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "facebook"
+- date_preset: "last_30d"
+- fields: ["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]
 ```
 
-Convert USD to SGD (× 1.357). Include WoW comparison if prior week data exists in memory.
+Filter for the target week. Convert USD spend to SGD (× 1.36). Include WoW comparison from prior week.
 
 ### Step 1c — Pull Weekly GA4 Data
 
-```bash
-python scripts/ga4_pull.py --start <week_start> --end <week_end> --json
 ```
+Use Windsor.ai MCP tool `get_data`:
+- source: "googleanalytics4"
+- date_preset: "last_30d"
+- fields: ["date", "source", "medium", "session_source_medium", "sessions", "bounce_rate"]
+```
+
+Filter for the target week range.
 
 ### Step 2 — Analyze Weekly Performance
 
@@ -669,30 +569,13 @@ Sections identical to daily: Google Ads → Meta Ads → Combined Summary → To
 
 ### Step 4 — Send Weekly Email
 
-Same `.eml` upload approach as daily (avoids shell arg length limit):
-
-```bash
-# 1. HTML already generated by Claude in Step 3 → saved to tmp/paid_ads_brief_weekly_{date}.html
-HTML_FILE="tmp/paid_ads_brief_weekly_YYYY-MM-DD.html"
-
-# 2. Build .eml file
-python -c "
-import base64, os
-with open('$HTML_FILE', encoding='utf-8') as f: html = f.read()
-subj_b64 = base64.b64encode('📊 Paid Ads Weekly Brief — Week of DD Mon YYYY'.encode()).decode()
-email = os.environ.get('REPORT_EMAIL', 'user@example.com')
-msg = f'From: {email}\r\nTo: {email}\r\nSubject: =?utf-8?B?{subj_b64}?=\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n{base64.b64encode(html.encode()).decode()}'
-with open('tmp/email.eml', 'w', encoding='utf-8') as f: f.write(msg)
-"
-
-# 3. Send
-gws gmail users messages send --params '{"userId":"me"}' --upload "tmp/email.eml" --upload-content-type "message/rfc822" --format json
 ```
-
-### Step 5 — Cleanup temp files
-
-```bash
-rm -f tmp/gads-weekly-*.json tmp/meta-weekly-*.json tmp/paid_ads_brief_*.html tmp/email.eml
+Use gateway MCP tool `fiveagents_send_email`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- to: ${REPORT_EMAIL}
+- subject: "📊 Paid Ads Weekly Brief — Week of DD Mon YYYY"
+- html_body: <the HTML content from Step 3 — tables, KPIs, flags only, no wrapper needed>
+- tag: "weekly-brief"
 ```
 
 ### Step 6 — Notify via Slack
@@ -730,16 +613,14 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 
 ## Notes
 
-- **Platform:** Windows — use `python` (not `python3`). Date format `%#d` (not `%-d`).
-- **gws CLI (v0.22.3):** Required scopes: `https://mail.google.com/`, `drive`, `spreadsheets`. If Gmail send fails with "insufficient scopes", delete `~/.config/gws/token_cache.json` and retry. Auth: `gws auth login --scopes "https://mail.google.com/,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets,email,profile,openid"`
-- **Email sending:** Always use `.eml` upload via `gws gmail users messages send --upload` — the `+send` helper cannot handle large HTML bodies (shell arg limit ~32KB).
-- Meta Ads connected 2026-03-17 via Marketing API. Token: `$META_ADS_TOKEN`. Data pulled via curl to Graph API.
-- GA4 clean data start: **2026-03-08** — never pull or compare pre-Mar 8 data
-- GA4 service account: `link-analytics@gen-lang-client-0242132474.iam.gserviceaccount.com`. If auth fails with "Invalid JWT" clock error, sync Windows clock (Settings → Time → Sync now).
+- **Data sources:** All ads/analytics data pulled via Windsor.ai MCP connector (`get_data` tool). Google Ads, Meta Ads (Facebook), and GA4 are all connected in Windsor.
+- **Email sending:** Via `fiveagents_send_email` gateway tool (Postmark). Email content is wrapped in fiveagents.io branded template automatically.
+- **Windsor data lag:** Google Ads ~12 days, Facebook ~12 days, GA4 ~0 days. Always check `max(date)` to confirm most recent available data.
+- **Currency:** Google Ads cost is SGD. Facebook spend is USD — multiply by 1.36 for SGD.
+- GA4 clean data start: **2026-03-08** — never pull or compare pre-Mar 8 data.
 - Brand-specific known issues should be documented in `brands/{brand}/funnel.md` notes section.
-- If Google Ads Drive reports aren't generated yet, still send email with Meta data. Note the gap in memory log.
-- **Cleanup:** Always delete `tmp/` intermediate files after successful email send.
-- Future data sources to add: TikTok Ads (when connected)
+- If one platform has no data yet, still send email with available data. Note the gap.
+- Future data sources to add: TikTok Ads (when connected to Windsor)
 
 ---
 
@@ -747,52 +628,45 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 
 After the skill completes, log the run to Supabase. The `metrics` JSONB must match the schema in `docs/new_agent_onboarding/metrics-spec.md` — the dashboard renders widgets from these exact key paths.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "digital-marketing-analyst",
-    "brand": "<active-brand>",
-    "status": "<success|partial|failed>",
-    "summary": "<1 line, <200 chars — shown in activity feed>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "brief_type": "<daily|weekly>",
-      "google_ads": {
-        "totals": { "spend": 0, "clicks": 0, "impr": 0, "ctr": 0, "conv": 0, "cpa": 0 },
-        "campaigns": [{ "name": "", "status": "", "spend": 0, "clicks": 0, "ctr": 0, "conv": 0, "cpa": 0 }],
-        "ad_groups": [{ "name": "", "campaign": "", "status": "", "clicks": 0, "impr": 0, "ctr": 0, "cost": 0 }],
-        "keywords": [{ "keyword": "", "campaign": "", "clicks": 0, "ctr": 0, "cost": 0, "conv": 0 }]
-      },
-      "google_ads_funnel": [
-        { "stage": "Impressions", "volume": 0, "rate": null, "cost_per": 0, "benchmark": null, "status": null }
-      ],
-      "meta_ads": {
-        "totals": { "spend": 0, "clicks": 0, "impr": 0, "ctr": 0, "lp_views": 0, "cpm": 0 },
-        "campaigns": [{ "name": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "lp_rate": 0, "spend": 0, "cpc": 0, "cpm": 0 }],
-        "ad_sets": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "spend": 0, "reach": 0 }],
-        "ads": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "video_views": 0, "spend": 0 }]
-      },
-      "meta_ads_funnel": [
-        { "stage": "Impressions", "volume": 0, "rate": null, "cost_per": 0, "benchmark": null, "status": null }
-      ],
-      "combined_summary": {
-        "google_ads": { "spend": 0, "clicks": 0, "lp_views": null, "ga4_sessions": 0, "trials": 0, "cpa": 0, "status": "Active" },
-        "meta_ads": { "spend": 0, "clicks": 0, "lp_views": 0, "ga4_sessions": 0, "trials": 0, "cpa": 0, "status": "Active" },
-        "total": { "spend": 0, "clicks": 0, "lp_views": 0, "ga4_sessions": 0, "trials": 0 }
-      },
-      "flags": {
-        "urgent": ["..."],
-        "optimize": ["..."],
-        "monitoring": ["..."]
-      },
-      "top_recommendation": "...",
-      "gmail_message_id": "..."
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "digital-marketing-analyst"
+- brand: "<active-brand>"
+- status: "<success|partial|failed>"
+- summary: "<1 line, <200 chars — shown in activity feed>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "brief_type": "<daily|weekly>",
+    "google_ads": {
+      "totals": { "spend": 0, "clicks": 0, "impr": 0, "ctr": 0, "conv": 0, "cpa": 0 },
+      "campaigns": [{ "name": "", "status": "", "spend": 0, "clicks": 0, "ctr": 0, "conv": 0, "cpa": 0 }],
+      "ad_groups": [{ "name": "", "campaign": "", "status": "", "clicks": 0, "impr": 0, "ctr": 0, "cost": 0 }],
+      "keywords": [{ "keyword": "", "campaign": "", "clicks": 0, "ctr": 0, "cost": 0, "conv": 0 }]
+    },
+    "google_ads_funnel": [
+      { "stage": "Impressions", "volume": 0, "rate": null, "cost_per": 0, "benchmark": null, "status": null }
+    ],
+    "meta_ads": {
+      "totals": { "spend": 0, "clicks": 0, "impr": 0, "ctr": 0, "lp_views": 0, "cpm": 0 },
+      "campaigns": [{ "name": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "lp_rate": 0, "spend": 0, "cpc": 0, "cpm": 0 }],
+      "ad_sets": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "spend": 0, "reach": 0 }],
+      "ads": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "video_views": 0, "spend": 0 }]
+    },
+    "meta_ads_funnel": [
+      { "stage": "Impressions", "volume": 0, "rate": null, "cost_per": 0, "benchmark": null, "status": null }
+    ],
+    "combined_summary": {
+      "google_ads": { "spend": 0, "clicks": 0, "lp_views": null, "ga4_sessions": 0, "trials": 0, "cpa": 0, "status": "Active" },
+      "meta_ads": { "spend": 0, "clicks": 0, "lp_views": 0, "ga4_sessions": 0, "trials": 0, "cpa": 0, "status": "Active" },
+      "total": { "spend": 0, "clicks": 0, "lp_views": 0, "ga4_sessions": 0, "trials": 0 }
+    },
+    "flags": { "urgent": ["..."], "optimize": ["..."], "monitoring": ["..."] },
+    "top_recommendation": "...",
+    "gmail_message_id": "..."
+  }
 ```
 
 **Status values:** `success` (all data pulled + email sent), `partial` (one platform missing), `failed` (skill errored).

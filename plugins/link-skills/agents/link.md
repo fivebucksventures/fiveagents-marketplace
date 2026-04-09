@@ -73,34 +73,23 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 ### MCP Connectors (OAuth — client connects in Claude settings)
 - **Notion MCP** — content calendar, page management
 - **Slack MCP** — messaging and notifications
-- **Gmail MCP** — search, read, create drafts (cannot send — use `gws gmail` for sending)
+- **Gmail MCP** — search, read, create drafts
 - **Google Calendar MCP** — calendar access
-- **media-server MCP** — bundled with plugin: text overlays, logo compositing, Ken Burns video, animated text Reels
+- **Windsor.ai MCP** — Google Ads, Meta Ads, GA4 analytics data
 
-### CLI Tools (system prerequisites)
-- **gws** (Google Workspace CLI) — Google Drive, Sheets, Gmail send. Install: `npm i -g @googleworkspace/cli`
-- **ffmpeg** — video processing for Ken Burns Reels. Install from ffmpeg.org
-- **Python 3.10+** — required for GA4 script and media-server MCP
+### External APIs (via gateway MCP tools)
 
-### External APIs (via curl in skills)
-- **Gemini API** — image generation (`$GEMINI_API_KEY`)
-- **Argil API** — AI avatar video generation (`$ARGIL_API_KEY`)
-- **Late API** — social media publishing (`$LATE_API_KEY`)
-- **Meta Graph API** — paid ads data (`$META_ADS_TOKEN`)
-- **DataforSEO API** — keyword research (`$DATAFORSEO_LOGIN` + `$DATAFORSEO_PASSWORD`)
+All external API calls go through the fiveagents-gateway remote MCP server (`https://gateway.fiveagents.io/api/mcp`). Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`.
 
-### Scripts (bundled with plugin)
-- `scripts/ga4_pull.py` — GA4 data pull (needs google-analytics-data SDK)
+- **Gemini API** — image generation → `gemini_generate_image` / `gemini_generate_text`
+- **Argil API** — AI avatar video → `argil_create_video` / `argil_render_video` / `argil_get_video` / `argil_list_avatars` / `argil_list_voices`
+- **Zernio API** — social publishing → `late_presign_upload` / `late_upload_media` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post`
+- **DataforSEO API** — keywords → `dataforseo_search_volume` / `dataforseo_keyword_suggestions`
+- **FiveAgents** — `fiveagents_log_run` / `fiveagents_store_credential` / `fiveagents_send_email`
+- **Image processing** — `image_add_text_overlay` / `image_add_logo`
 
 ### Agent Run Logging
-All skills log to fiveagents.io dashboard at the end of execution:
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer $FIVEAGENTS_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{ "skill": "...", "brand": "...", "status": "success", ... }'
-```
-See `docs/new_agent_onboarding/metrics-spec.md` for the metrics JSONB contract.
+All skills log to fiveagents.io dashboard at the end of execution via `fiveagents_log_run` gateway tool. See `docs/new_agent_onboarding/metrics-spec.md` for the metrics JSONB contract.
 
 ## Output Conventions
 

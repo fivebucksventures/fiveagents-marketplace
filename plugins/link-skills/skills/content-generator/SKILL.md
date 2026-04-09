@@ -1,6 +1,6 @@
 ---
 name: content-generator
-description: Daily automated content production — generate copy and images from Notion Social Calendar, publish to Late API, update Notion, notify Slack. Runs daily 09:00 SGT.
+description: Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack. Runs daily 09:00 SGT.
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
@@ -17,7 +17,7 @@ Runs daily Mon–Sun at 09:00 SGT. Targets posts scheduled for **today**.
 ## Inputs
 
 - **Social calendar**: Notion Social Media Calendar database — DB ID from env var `{BRAND}_NOTION_DB` (e.g. `FIVEBUCKS_NOTION_DB`)
-- **Publishing**: Late API — publish immediately (`isDraft: false`, `publishNow: true`)
+- **Publishing**: Zernio API — publish immediately (`isDraft: false`, `publishNow: true`)
 - **Brand context**: `brands/{brand}/brand.md`, `brands/{brand}/audience.md`, `brands/{brand}/product.md`
 - **Mode**: `AUTO_PUBLISH=true` — publish immediately, do NOT save as draft
 
@@ -86,9 +86,9 @@ For each post, generate:
 
 **For Reels**: write TWO outputs:
 1. **Production script** (internal only, saved to `_copy.md`): 15-30 second script with `[Hook — 3s]` / `[Value — 12s]` / `[CTA — 5s]` timing markers
-2. **Reel caption** (posted to Late API as `content`): clean, readable copy — hook + 1-2 short paragraphs + CTA + hashtags. No script formatting, no timing markers. ~300 chars.
+2. **Reel caption** (posted to Zernio API as `content`): clean, readable copy — hook + 1-2 short paragraphs + CTA + hashtags. No script formatting, no timing markers. ~300 chars.
 
-**For Stories**: caption text is NOT displayed (Stories are visual-only). Still write a production script for the `_copy.md` file, but send minimal text to Late (just hashtags or empty string).
+**For Stories**: caption text is NOT displayed (Stories are visual-only). Still write a production script for the `_copy.md` file, but send minimal text to Zernio (just hashtags or empty string).
 
 ### Naming convention for output files
 ```
@@ -144,13 +144,13 @@ Check the post `Format` from the calendar:
 | Any | Carousel | Static images | Pre-stored background + text overlay + logo |
 | FB/IG | Story | Static image | Pre-stored background + text overlay + logo (publish as Story) |
 | FB/IG | Reel (Argil) | **AI avatar video** | **Argil API** (1 per brand per week, tagged by social-calendar) |
-| FB/IG | Reel | **Ken Burns video** | Pre-stored background + Ken Burns zoom + text overlay (no API) |
+| FB/IG | Reel | **Static image as Story** | Pre-stored background + text overlay + logo (publish as Story) |
 | LinkedIn | Reel/Story | Static image | Pre-stored background + text overlay + logo (publish as post) |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar
 2. If Format = `"Reel (Argil)"` → use **Step 4c-argil** (AI avatar talking-head)
-3. If Format = `"Reel"` (without Argil tag) → use **Step 4c-video** (Ken Burns background video)
+3. If Format = `"Reel"` (without Argil tag) → use **Step 4c-image** (static image, publish as Story)
 4. All other formats → use **Step 4c-image** (pre-stored background + text overlay)
 
 ### Step 4c-argil — Generate Reel video via Argil API (1 per brand per week)
@@ -165,120 +165,26 @@ Only for Reels tagged `(Argil)` in the social calendar. Generate a talking-head 
 2. **Set aspect ratio** — always `"9:16"` for Reels (Argil is only used for Reels, never Stories).
 
 3. **Create the video:**
-```bash
-VIDEO_RESPONSE=$(curl -s -X POST "https://api.argil.ai/v1/videos" \
-  -H "x-api-key: $ARGIL_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "[Brand] [Platform] Reel - [Topic] - [Date]",
-    "aspectRatio": "9:16",
-    "moments": [{
-      "avatarId": "AVATAR_ID",
-      "voiceId": "VOICE_ID",
-      "transcript": "Your 15-30 second script here..."
-    }]
-  }')
-VIDEO_ID=$(echo $VIDEO_RESPONSE | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
+```
+Use gateway MCP tool `argil_create_video`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- name: "[Brand] [Platform] Reel - [Topic] - [Date]"
+- aspect_ratio: "9:16"
+- moments: [{ avatarId: "AVATAR_ID", voiceId: "VOICE_ID", transcript: "Your 15-30 second script here..." }]
+→ Returns video ID
 ```
 
-4. **Render:**
-```bash
-curl -s -X POST "https://api.argil.ai/v1/videos/$VIDEO_ID/render" \
-  -H "x-api-key: $ARGIL_API_KEY"
-```
+4. **Render:** `argil_render_video` with `fiveagents_api_key` + `video_id`
 
-5. **Poll until done** (check every 30 seconds, max 10 minutes):
-```bash
-curl -s "https://api.argil.ai/v1/videos/$VIDEO_ID" \
-  -H "x-api-key: $ARGIL_API_KEY"
-```
-When `status` = `"DONE"`, extract `videoUrl`.
+5. **Poll:** `argil_get_video` with `fiveagents_api_key` + `video_id` until status=DONE, extract videoUrl
 
-6. **Download and save:**
-```bash
-curl -s -o "outputs/{brand}/posts/[Platform]/[Slug]_[Date]_final.mp4" "$VIDEO_URL"
-```
+6. **Download and save:** Download the video from `videoUrl` and save to `outputs/{brand}/posts/[Platform]/[Slug]_[Date]_final.mp4`
 
-**Fallback:** If Argil fails (API error, timeout > 10 min, no credits), fall back to Ken Burns video (Step 4c-video). If that also fails, fall back to static image (Step 4c-image) and publish as Story instead of Reel.
-
-### Step 4c-video — Generate Reel video from pre-stored background (Ken Burns + text overlay)
-
-For Reels NOT tagged `(Argil)` in the calendar. No external API needed — instant, free.
-
-**Pipeline:** Pre-stored background → Ken Burns zoom (ffmpeg) → text + logo overlay → silent .mp4
-
-**1. Pick a background image from `brands/{brand}/backgrounds/`:**
-
-Match the filename to the post's Topic or ImageBrief. Filenames are descriptive (e.g., `finance_dashboard_laptop.png`, `singapore_skyline_timelapse.png`). Pick the closest match. Don't reuse the same background for consecutive Reels on the same platform.
-
-**2. Scale background and apply Ken Burns zoom:**
-
-```bash
-# Scale image to 1.2x target for Ken Burns headroom, then zoompan to 1080x1920
-python -c "
-from PIL import Image
-img = Image.open('brands/{brand}/backgrounds/CHOSEN_BG.png').convert('RGB')
-scale = max(1080/img.width, 1920/img.height)
-img = img.resize((int(img.width*scale), int(img.height*scale)), Image.LANCZOS)
-left = (img.width-1080)//2; top = (img.height-1920)//2
-img = img.crop((left, top, left+1080, top+1920))
-img = img.resize((1296, 2304), Image.LANCZOS)
-img.save('tmp/bg_large.png')
-"
-```
-
-**3. Check brightness to determine text style:**
-
-```bash
-python -c "
-from PIL import Image, ImageStat
-img = Image.open('tmp/bg_large.png').convert('RGB')
-w, h = img.size
-center = img.crop((w//4, h//3, 3*w//4, 2*h//3))
-brightness = sum(ImageStat.Stat(center).mean) / 3
-print('DARK' if brightness < 160 else 'LIGHT')
-"
-```
-
-- **DARK bg:** White text with `shadowcolor=black@0.6:shadowx=3:shadowy=3`
-- **LIGHT bg:** Brand-colored text (`fontcolor=0x{brand_primary}`), no shadow
-
-**4. Build ffmpeg command:**
-
-Crop logo with PIL first (transparent PNG):
-```bash
-python -c "
-from PIL import Image
-logo = Image.open('brands/{brand}/logo.png').convert('RGBA')
-bbox = logo.getbbox()
-if bbox: logo = logo.crop(bbox)
-logo = logo.resize((160, int(logo.height*(160/logo.width))), Image.LANCZOS)
-logo.save('tmp/logo_cropped.png')
-"
-```
-
-Generate the video (single ffmpeg command — Ken Burns bg + static logo + animated text):
-```bash
-ffmpeg -y \
-  -loop 1 -i "tmp/bg_large.png" \
-  -i "tmp/logo_cropped.png" \
-  -filter_complex "[0:v]zoompan=z='1+0.012*in/270':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=270:s=1080x1920:fps=30,setsar=1:1,format=rgba[bg0];[1:v]format=rgba[logo];[bg0][logo]overlay=50:50:format=auto[bg];[bg]DRAWTEXT_FILTERS" \
-  -t 9 -c:v libx264 -preset fast -crf 20 -pix_fmt yuv420p -an -movflags +faststart \
-  "outputs/{brand}/posts/[Platform]/[Slug]_[Date]_final.mp4"
-```
-
-The DRAWTEXT_FILTERS use `drawtext` with `enable` and `alpha` for fade-in/fade-out per scene (3 scenes × 3 seconds). Text is centered horizontally, positioned at bottom half of frame. Use brand font from `brands/{brand}/fonts/`.
-
-**5. Cleanup:**
-```bash
-rm -f tmp/bg_large.png tmp/logo_cropped.png
-```
-
-**Fallback:** If Ken Burns generation fails (ffmpeg error), fall back to static image from the same background (Step 4c-image) and publish as Story instead of Reel.
+**Fallback:** If Argil fails (API error, timeout > 10 min, no credits), fall back to static image (Step 4c-image) and publish as Story instead of Reel.
 
 **Avatar selection — rotate for variety, prefer Asian characters for SEA markets:**
 
-Pick avatar based on the post's Persona and platform. Don't repeat the same avatar on consecutive posts for the same platform. Use `GET /avatars` to get current IDs.
+Pick avatar based on the post's Persona and platform. Don't repeat the same avatar on consecutive posts for the same platform. Use `argil_list_avatars` gateway tool to get current IDs.
 
 Read avatar-to-persona mappings from `brands/{brand}/avatars.md`. This file defines which avatars to use for each persona slug, the founder avatar + voice clone, and market preferences. Example mapping below:
 
@@ -291,63 +197,44 @@ Read avatar-to-persona mappings from `brands/{brand}/avatars.md`. This file defi
 | agency-owner, growth-mktr | Kabir, Arjun, Founder avatar | Strategy/leadership |
 | general | Rotate any Asian avatar | Variety |
 
-Use the founder avatar + voice clone only for authority/founder content. For all other avatars, pick a matching English voice from `GET /voices`.
+Use the founder avatar + voice clone only for authority/founder content. For all other avatars, pick a matching English voice from `argil_list_voices` gateway tool.
 
 ### Step 4c-image — Pick pre-stored background image
 
 Pick a background from `brands/{brand}/backgrounds/` that best matches the post's Topic and ImageBrief. Filenames are descriptive — match by keyword.
 
-```bash
-# List available backgrounds
-ls brands/{brand}/backgrounds/*.png
-```
-
-Pick the closest match. Examples:
+List available backgrounds in `brands/{brand}/backgrounds/`. Pick the closest match. Examples:
 - Post about invoices → `finance_dashboard_laptop.png` or `stacked_invoices_desk.png`
 - Post about SEO → `seo_performance_graph.png` or `analytics_dashboard_desk.png`
 - Post about customer service → `whatsapp_chat_night.png` or `automated_chat_responses.png`
 
 **Don't reuse the same background for consecutive posts on the same platform.**
 
-Scale the chosen background to the target canvas dimensions (from Step 4a):
+Read the chosen background, encode to base64, and pass directly to `image_add_text_overlay` in Step 4d — the gateway tool handles resize + center-crop to the target canvas automatically.
 
-```bash
-python -c "
-from PIL import Image
-img = Image.open('brands/{brand}/backgrounds/CHOSEN.png').convert('RGB')
-tw, th = TARGET_W, TARGET_H
-scale = max(tw/img.width, th/img.height)
-img = img.resize((int(img.width*scale), int(img.height*scale)), Image.LANCZOS)
-left = (img.width-tw)//2; top = (img.height-th)//2
-img = img.crop((left, top, left+tw, top+th))
-img.save('outputs/{brand}/posts/[Platform]/[Slug]_[Date]_raw.png')
-"
-```
-
-**No Nano Banana API call needed.** Backgrounds are pre-generated monthly by the background-generator skill.
+**No image generation API call needed.** Backgrounds are pre-generated monthly by the background-generator skill.
 
 ### Step 4d — Apply text overlay
 
-Use `media-server` MCP tool `add_text_overlay` with:
-- `input_path`: raw image path
-- `output_path`: with_text image path
-- `headline`, `subline`, `target_w`, `target_h`, `text_align`, `text_position`, `brand`
+Use gateway MCP tool `image_add_text_overlay`:
+- `image_base64`: base64-encoded raw image (from Step 4c output)
+- `headline`: max 6–8 words, title case or all caps — use the post hook (NOT the topic name verbatim)
+- `subline`: **always provide a subline** — never pass `""`. Use a short supporting line: brand tagline, key benefit, or CTA teaser (read from `brands/{brand}/brand.md`)
+- `target_w`, `target_h`: canvas dimensions from Step 4a
+- `text_align`: from day-of-week rotation (Step 4b)
+- `text_position`: bottom (always)
 
-- `HEADLINE`: max 6–8 words, title case or all caps — use the post hook (NOT the topic name verbatim)
-- `Subline`: **always provide a subline** — never pass `""`. Use a short supporting line: brand tagline, key benefit, or CTA teaser (read from `brands/{brand}/brand.md`)
-- Always pass `target_w target_h` explicitly — Gemini doesn't return correct dimensions
+Returns base64-encoded PNG with text overlay.
 
 ### Step 4e — Apply logo overlay
 
-Use `media-server` MCP tool `add_logo` with:
-- `input_path`: with_text image path
-- `output_path`: final image path
-- `position`: from day-of-week rotation table
-- `scale`: 0.18
-- `brand`: active brand name
+Use gateway MCP tool `image_add_logo`:
+- `image_base64`: base64-encoded image from Step 4d output
+- `logo_base64`: base64-encoded logo PNG (read `brands/{brand}/logo.png` and encode)
+- `position`: from day-of-week rotation table (Step 4b)
+- `scale`: 0.18 (18% of image width)
 
-- Logo: `brands/{brand}/logo.png` — always 0.18 scale (18% of image width)
-- `logo_position`: from day-of-week rotation table above
+Returns base64-encoded final PNG. Save this as the `_final.png`.
 
 ### Step 4f — Save final image
 
@@ -357,101 +244,81 @@ outputs/{brand}/posts/[Platform]/[TopicSlug]_[DDMonYYYY]_final.png
 
 **Always overwrite** — never skip existing files.
 
-### Step 4g — Delete intermediate image files
+### Step 4g — Cleanup
 
-After `_final.png` is confirmed saved, delete the build artifacts:
-
-```bash
-rm -f "outputs/{brand}/posts/[Platform]/[TopicSlug]_[DDMonYYYY]_raw.png"
-rm -f "outputs/{brand}/posts/[Platform]/[TopicSlug]_[DDMonYYYY]_with_text.png"
-```
-
-Only `_final.png` should remain. Run this for every post before moving to Step 5.
+Only `_final.png` (or `_final.mp4`) should remain in the output folder. Delete any intermediate files (`_raw.png`, `_with_text.png`) for every post before moving to Step 5.
 
 ---
 
-## Step 5 — Publish to Late API
+## Step 5 — Publish to Zernio API
 
-Upload the image and copy directly to Late API and publish immediately. See TOOLS.md → "Social Publishing" for account IDs and helper functions.
+Upload the image and copy directly to Zernio API and publish immediately. See TOOLS.md → "Social Publishing" for account IDs and helper functions.
 
-**IMPORTANT: Always pass `platformSpecificData.contentType` for Reels and Stories.** Without this, Late defaults everything to a feed Post regardless of image dimensions.
+**IMPORTANT: Always pass `platformSpecificData.contentType` for Reels and Stories.** Without this, Zernio defaults everything to a feed Post regardless of image dimensions.
 
-**Reel video publishing:** When the asset is a video (from Argil or Ken Burns), upload as `"type": "video"` and use `"contentType": "video/mp4"` in the presign call. The `platformSpecificData.contentType` mapping for Reels stays the same.
+**Reel video publishing:** When the asset is a video (from Argil), upload as `"type": "video"` and use `"contentType": "video/mp4"` in the presign call. The `platformSpecificData.contentType` mapping for Reels stays the same.
 
-**Reel fallback rule:** If both Argil and Ken Burns video generation failed and you have a static image instead, Late API will return a 400 aspect ratio error for Reels. In this case, fall back to `"story"` for both Instagram and Facebook — same 1080×1920 image dimensions, no changes needed. Log the fallback in the Slack notification and memory.
+**Reel fallback rule:** If Argil video generation failed and you have a static image instead, Zernio API will return a 400 aspect ratio error for Reels. In this case, fall back to `"story"` for both Instagram and Facebook — same 1080×1920 image dimensions, no changes needed. Log the fallback in the Slack notification and memory.
 
+For each post, use gateway MCP tools:
+
+```
+1. Use `late_presign_upload`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - filename: "<filename>.png" (or .mp4 for video)
+   - content_type: "image/png" (or "video/mp4")
+   → Returns uploadUrl + publicUrl
+
+2. Use `late_upload_media`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - upload_url: <uploadUrl from step 1>
+   - base64_data: <base64 encoded file>
+   - content_type: "image/png" (or "video/mp4")
+
+3. Use `late_create_post`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - content: <copy text with hashtags>
+   - platforms: [{ platform: "<platform>", accountId: "<id>", platformSpecificData: { contentType: "<type>" } }]
+   - media_items: [{ url: "<publicUrl from step 1>", type: "image" or "video" }]
+   - publish_now: true (or is_draft: true)
+```
+
+Follow the platformSpecificData.contentType mapping and Reel fallback logic below.
+
+**Account IDs** — read from env vars using brand prefix (e.g. `FIVEBUCKS_LATE_FB`):
 ```python
-import urllib.request
-
-LATE_API_KEY = os.environ["LATE_API_KEY"]
-# Account IDs — read from env vars using brand prefix (e.g. FIVEBUCKS_LATE_FB)
 B = BRAND.upper()
 LATE_ACCOUNTS = {
     "facebook":  os.environ[f"{B}_LATE_FB"],
     "instagram": os.environ[f"{B}_LATE_IG"],
     "linkedin":  os.environ[f"{B}_LATE_LI"],
 }
+```
 
-# Maps Notion calendar Format → Late API contentType per platform
-# Instagram uses "reels" (plural); Facebook uses "reel" (singular)
-# FALLBACK: Reels require video. If publishing a static image as a Reel and Late returns 400,
-# retry with contentType "story" for both Instagram and Facebook (same 1080x1920 dimensions).
+**platformSpecificData.contentType mapping** — Instagram uses "reels" (plural); Facebook uses "reel" (singular):
+```python
 LATE_CONTENT_TYPE = {
     "reel":     {"instagram": "reels", "facebook": "reel"},
     "story":    {"instagram": "story", "facebook": "story"},
-    "carousel": {},   # Late handles carousels via multiple mediaItems — no contentType needed
+    "carousel": {},   # Zernio handles carousels via multiple mediaItems — no contentType needed
     "post":     {},   # default feed post — no contentType needed
 }
 LATE_CONTENT_TYPE_FALLBACK = {
     "reel": {"instagram": "story", "facebook": "story"},
 }
-
-def late_request(method, path, body=None):
-    url = f"https://getlate.dev/api/v1/{path}"
-    data = json.dumps(body).encode() if body else None
-    req = urllib.request.Request(url, data=data, method=method, headers={
-        "Authorization": f"Bearer {LATE_API_KEY}",
-        "Content-Type": "application/json",
-    })
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read())
-
-def upload_to_late(file_path, filename):
-    content_type = "video/mp4" if filename.endswith(".mp4") else "image/png"
-    presign = late_request("POST", "media/presign", {
-        "filename": filename,
-        "contentType": content_type
-    })
-    with open(file_path, "rb") as f:
-        file_bytes = f.read()
-    put_req = urllib.request.Request(presign["uploadUrl"], data=file_bytes, method="PUT",
-                                     headers={"Content-Type": content_type})
-    with urllib.request.urlopen(put_req): pass
-    return presign["publicUrl"]
-
-# For each post:
-platform_key = post["platform"].lower()  # "facebook" | "instagram" | "linkedin"
-post_format = post["format"].lower()     # "post" | "reel" | "story" | "carousel"
-account_id = LATE_ACCOUNTS[platform_key]
-image_url = upload_to_late(final_image_path, os.path.basename(final_image_path))
-
-# Build platform object — add platformSpecificData for Reels/Stories
-platform_obj = {"platform": platform_key, "accountId": account_id}
-content_type = LATE_CONTENT_TYPE.get(post_format, {}).get(platform_key)
-if content_type:
-    platform_obj["platformSpecificData"] = {"contentType": content_type}
-
-result = late_request("POST", "posts", {
-    "content": copy_text,        # full post copy including hashtags
-    "isDraft": False,
-    "publishNow": True,
-    "platforms": [platform_obj],
-    "mediaItems": [{"url": media_url, "type": "video" if final_path.endswith(".mp4") else "image"}],
-})
-late_post_id = result["post"]["_id"]
 ```
 
-**Do NOT store copy in Notion** — Late is the single source of truth.
+**FALLBACK:** Reels require video. If publishing a static image as a Reel and Zernio returns 400, retry with contentType "story" for both Instagram and Facebook (same 1080x1920 dimensions).
+
+**For each post**, determine the platform object:
+- `platform_key` = post platform lowercase ("facebook" | "instagram" | "linkedin")
+- `post_format` = post format lowercase ("post" | "reel" | "story" | "carousel")
+- `account_id` = from env var `{BRAND}_LATE_{PLATFORM}` (e.g. `FIVEBUCKS_LATE_FB`)
+- Add `platformSpecificData.contentType` using the mapping above (required for Reels/Stories)
+
+Then call `late_create_post` with the assembled platform object, media URL from step 2, and copy text.
+
+**Do NOT store copy in Notion** — Zernio is the single source of truth.
 
 ---
 
@@ -512,7 +379,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [Platform] "[Topic]" ([persona])
   - Copy: [path]
   - Image: [path]
-  - Late draft id: [id]
+  - Zernio draft id: [id]
 - Images generated: N
 - Social Calendar updated: yes/no
 - Slack notified: yes/no
@@ -533,9 +400,9 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Final images saved to correct `outputs/{brand}/posts/[Platform]/` folder
 - [ ] Intermediate files deleted — `_raw.png` and `_with_text.png` removed after `_final.png` confirmed
 - [ ] `platformSpecificData.contentType` set correctly for Reels/Stories (never omitted)
-- [ ] Published to Late API with correct mode (publishNow or isDraft)
+- [ ] Published to Zernio API with correct mode (publishNow or isDraft)
 - [ ] Notion Social Calendar rows updated to "Published" (if published) or "Draft Ready" (if draft) — never hardcoded
-- [ ] Slack notification sent with Late post IDs and correct status
+- [ ] Slack notification sent with Zernio post IDs and correct status
 - [ ] Memory logged
 - [ ] Agent run logged to dashboard
 
@@ -543,34 +410,23 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 
 ## Final Step — Log to Dashboard
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "content-generator",
-    "brand": "<active-brand>",
-    "status": "<success|partial|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "images_generated": 0,
-      "videos_generated": 0,
-      "posts": [
-        {
-          "platform": "Facebook",
-          "topic": "...",
-          "persona": "...",
-          "format": "static",
-          "asset_type": "image",
-          "status": "Published",
-          "late_post_id": "..."
-        }
-      ]
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "content-generator"
+- brand: "<active-brand>"
+- status: "<success|partial|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "images_generated": 0,
+    "videos_generated": 0,
+    "posts": [
+      { "platform": "Facebook", "topic": "...", "persona": "...", "format": "static", "asset_type": "image", "status": "Published", "late_post_id": "..." }
+    ]
+  }
 ```
 
 **Status values:** `success` (all posts generated + published), `partial` (some posts failed), `failed` (skill errored).

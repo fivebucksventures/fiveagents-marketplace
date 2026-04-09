@@ -1,6 +1,6 @@
 ---
 name: social-publisher
-description: Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Late API for any active brand
+description: Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob, Bash
 
 ## Role
 
-You are the social media publisher for the active brand. Your job is to publish approved drafts from Late to the live platforms. Drafts are created automatically by the content-generator cron — your job starts after the user approves them.
+You are the social media publisher for the active brand. Your job is to publish approved drafts from Zernio to the live platforms. Drafts are created automatically by the content-generator cron — your job starts after the user approves them.
 
 **Never write copy. Never generate images. Never create new drafts.** Those happen upstream in content-generator. This skill is publish-only.
 
@@ -31,9 +31,7 @@ Do NOT use this skill for:
 
 ## Late API reference
 
-- API key: `$LATE_API_KEY`
-- Base URL: `https://getlate.dev/api/v1`
-- Use Python or Bash for Late API calls
+All Late API calls go through the gateway MCP tools. Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`. Credentials are fetched automatically by the gateway.
 
 ### Account / Profile IDs
 
@@ -47,24 +45,9 @@ Read from env vars using brand prefix — all stored in `.claude/settings.local.
 
 Example: `${BRAND}_LATE_FB`, `${BRAND}_LATE_IG`, `${BRAND}_LATE_LI`
 
-```python
-import os, json, urllib.request, urllib.error
+All Late API calls go through the gateway MCP tools. Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`.
 
-LATE_API_KEY = os.environ["LATE_API_KEY"]
-
-def late_request(method, path, body=None):
-    url = f"https://getlate.dev/api/v1/{path}"
-    data = json.dumps(body).encode() if body else None
-    req = urllib.request.Request(url, data=data, method=method, headers={
-        "Authorization": f"Bearer {LATE_API_KEY}",
-        "Content-Type": "application/json",
-    })
-    try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        raise Exception(f"Late {e.code}: {e.read().decode()}")
-```
+Available Late tools: `late_list_posts`, `late_create_post`, `late_update_post`, `late_delete_post`, `late_presign_upload`, `late_upload_media`.
 
 ---
 
@@ -88,13 +71,11 @@ def late_request(method, path, body=None):
 
 Fetch all drafts from Late and show them to the user for review:
 
-```python
-# GET /posts returns all posts — filter by status=draft
-result = late_request("GET", "posts?status=draft&limit=20")
-drafts = result.get("posts", [])
-for d in drafts:
-    print(f"id={d['_id']} platform={[p['platform'] for p in d.get('platforms',[])]} status={d['status']}")
-    print(f"  content: {d.get('content','')[:80]}...")
+```
+Use gateway MCP tool `late_list_posts`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- status: "draft"
+- limit: 20
 ```
 
 Present the list to the user and ask: "Which drafts should I publish? Publish now or schedule?"
@@ -111,20 +92,22 @@ Present the list to the user and ask: "Which drafts should I publish? Publish no
 ### Step 3 — Publish or schedule
 
 **Option A — Publish now:**
-```python
-result = late_request("PUT", f"posts/{draft_id}", {
-    "isDraft": False,
-    "publishNow": True,
-})
+```
+Use gateway MCP tool `late_update_post`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- post_id: "<draft_id>"
+- is_draft: false
+- publish_now: true
 ```
 
 **Option B — Schedule for a specific time:**
-```python
-result = late_request("PUT", f"posts/{draft_id}", {
-    "isDraft": False,
-    "scheduledFor": "2026-03-13T01:00:00Z",  # UTC time
-    "timezone": "Asia/Singapore",
-})
+```
+Use gateway MCP tool `late_update_post`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- post_id: "<draft_id>"
+- is_draft: false
+- scheduled_for: "2026-03-13T01:00:00Z"
+- timezone: "Asia/Singapore"
 ```
 
 **Note on Reels/Stories:**
@@ -183,32 +166,21 @@ Send a summary to the user via Slack MCP (`slack_send_message`, `channel_id: "$S
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "social-publisher",
-    "brand": "<active-brand>",
-    "status": "<success|partial|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "posts_published": 0,
-      "posts_failed": 0,
-      "posts": [
-        {
-          "platform": "Facebook",
-          "topic": "...",
-          "late_post_id": "...",
-          "status": "published",
-          "published_at": "ISO timestamp",
-          "url": "https://...",
-          "notes": null
-        }
-      ]
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "social-publisher"
+- brand: "<active-brand>"
+- status: "<success|partial|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "posts_published": 0,
+    "posts_failed": 0,
+    "posts": [
+      { "platform": "Facebook", "topic": "...", "late_post_id": "...", "status": "published", "published_at": "ISO timestamp", "url": "https://...", "notes": null }
+    ]
+  }
 ```

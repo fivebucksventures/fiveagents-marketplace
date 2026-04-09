@@ -31,36 +31,31 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 
 **Required API keys:**
 
-| Key | What it's for | Where to get it |
-|---|---|---|
-| `FIVEAGENTS_API_KEY` | Logs agent runs to the dashboard | Go to your fiveagents.io dashboard → API Keys |
-| `SLACK_NOTIFY_USER` | Slack DM notifications | Slack profile → three dots → "Copy member ID" |
-| `REPORT_EMAIL` | Daily/weekly report delivery | Your work email |
-| `GEMINI_API_KEY` | Image generation | https://aistudio.google.com/apikey (free tier available) |
-| `LATE_API_KEY` | Social media publishing | https://getlate.dev — sign up, connect social accounts |
+| # | Key | What it's for | How to get it |
+|---|---|---|---|
+| 1 | `FIVEAGENTS_API_KEY` | Dashboard logging, credential vault, email sending | 1. Go to https://fiveagents.io and sign in<br>2. Go to Dashboard → API Keys<br>3. Copy your `fa_live_...` key |
+| 2 | `GEMINI_API_KEY` | Image generation (social graphics, backgrounds) | 1. Go to https://aistudio.google.com/apikey<br>2. Click "Create API Key"<br>3. Copy the key (free tier: 10 images/min) |
+| 3 | `LATE_API_KEY` | Social media publishing (Facebook, Instagram, LinkedIn) | 1. Sign up at https://zernio.com<br>2. Connect your social media accounts in Zernio dashboard<br>3. Go to Settings → API → copy your API key |
+| 4 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | 1. Open Slack<br>2. Click your profile photo → "Profile"<br>3. Click the three dots ⋯ → "Copy member ID" |
+| 5 | `REPORT_EMAIL` | Daily/weekly marketing report delivery | Your work email address |
 
-**Standard integrations:**
+**Optional API keys:**
 
-| Key | What it's for | Where to get it |
-|---|---|---|
-| `META_ADS_TOKEN` + `META_AD_ACCOUNT_ID` | Paid ads analysis (Meta) | Meta Business Suite → Marketing API |
-| `GA4_PROPERTY_ID` + `GA4_SA_KEY_PATH` | Google Analytics funnel data | GA4 Admin + Google Cloud Console → Service Accounts |
-| `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research | https://dataforseo.com — sign up |
+| # | Key | What it's for | How to get it |
+|---|---|---|---|
+| 6 | `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research (search volume, suggestions) | 1. Sign up at https://dataforseo.com<br>2. Go to Dashboard → API Settings<br>3. Copy your login email and API password |
+| 7 | `ARGIL_API_KEY` | AI avatar talking-head videos (Reels) | 1. Sign up at https://argil.ai<br>2. Create your avatar (upload a video of yourself)<br>3. Go to Settings → API → copy your API key |
 
-**MCP connections (connect in Claude settings → Connected Apps):**
+**MCP connections (connect in Claude settings):**
 
-| MCP | What it's for |
-|---|---|
-| Notion | Content calendar management |
-| Slack | Notifications |
-| Gmail | Reading emails |
-| Google Calendar | Scheduling |
-
-**Optional:**
-
-| Key | What it's for | Where to get it |
-|---|---|---|
-| `ARGIL_API_KEY` | AI avatar videos (Reels) | https://argil.ai — sign up, create avatar |
+| # | MCP | What it's for | How to connect |
+|---|---|---|---|
+| 1 | **FiveAgents** | All external API calls (Gemini, Zernio, Argil, DataforSEO, email, logging) | 1. In Claude, go to Settings → Connectors<br>2. Click "Add custom connector"<br>3. Name: `FiveAgents`<br>4. URL: `https://gateway.fiveagents.io/api/mcp`<br>5. Click Connect |
+| 2 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
+| 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
+| 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
+| 5 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
+| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Settings → Connected Apps → Windsor.ai → Authorize<br>2. In Windsor dashboard, connect your Google Ads, Facebook Ads, and GA4 accounts |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
@@ -98,11 +93,13 @@ outputs/{brand}/strategy/
 Ask the user:
 > What is your website URL? (e.g. https://acme.com)
 
-Use **Playwright MCP** or **WebFetch** to analyze:
+Use **WebFetch** to analyze (works in both Cowork and terminal — no special permissions needed):
 1. Homepage — extract tagline, value propositions, hero copy, CTAs
 2. Pricing page (if exists) — extract plans, pricing, features
 3. About page (if exists) — extract company story, team, mission
 4. Blog/resources (if exists) — extract content themes and topics
+
+If WebFetch cannot access the site (e.g. JavaScript-heavy SPA), ask the user to paste the key content directly.
 
 Use the analyzed data to draft the brand context files below. Show the user each draft and let them review/edit before saving.
 
@@ -228,10 +225,13 @@ Pick avatars that match the brand's target market demographics.
 ### Step 5 — Logo & Fonts
 
 Ask the user:
-> Please provide your logo file (PNG, transparent background preferred). Drop it into `brands/{brand}/logo.png`.
-> What fonts does your brand use? (e.g. "Inter for body, Montserrat for headings")
+> Please paste your logo image directly into this chat (PNG, transparent background preferred).
+> What Google Font does your brand use? (e.g. "Inter", "Montserrat", "Poppins", "Roboto")
+> Browse fonts at https://fonts.google.com
 
-If they provide font names, ask them to place the `.ttf` files in `brands/{brand}/fonts/`.
+When the user pastes the logo, save it to `brands/{brand}/logo.png`. This file is read and passed as base64 to the `image_add_logo` gateway tool.
+
+Save the font name to `brands/{brand}/brand.md` under the Typography section. The `image_add_text_overlay` gateway tool accepts a `font_family` parameter — pass the Google Font name exactly as it appears on Google Fonts (e.g. "Inter", "Montserrat"). The font is loaded automatically at runtime.
 
 ### Step 6 — API Keys & Connections
 
@@ -250,18 +250,20 @@ Walk through each integration. For each one, explain what it does and whether it
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 5 | `LATE_API_KEY` | Publish to social platforms | https://getlate.dev — sign up, connect your social accounts, get API key |
+| 5 | `LATE_API_KEY` | Publish to social platforms | https://zernio.com — sign up, connect your social accounts, get API key |
 
 **Standard integrations (ask for each — if user says "not now", move on but note it as unconfigured):**
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 6 | `META_ADS_TOKEN` | Paid ads analysis (Meta) | Meta Business Suite → Marketing API → generate token |
-| 7 | `META_AD_ACCOUNT_ID` | Meta Ad Account ID | Meta Business Suite → Ad Account Settings (format: act_123456) |
-| 8 | `GA4_PROPERTY_ID` | Google Analytics funnel data | GA4 Admin → Property Settings → Property ID |
-| 9 | `GA4_SA_KEY_PATH` | Path to GA4 service account JSON | Google Cloud Console → IAM → Service Accounts → Create key |
-| 10 | `DATAFORSEO_LOGIN` | Keyword research | https://dataforseo.com — sign up, get login email |
-| 11 | `DATAFORSEO_PASSWORD` | Keyword research | DataforSEO dashboard → API password |
+| 6 | `DATAFORSEO_LOGIN` | Keyword research | https://dataforseo.com — sign up, get login email |
+| 7 | `DATAFORSEO_PASSWORD` | Keyword research | DataforSEO dashboard → API password |
+
+**MCP connectors (user connects in Claude settings → Connected Apps):**
+
+| # | Connector | What it does | How to connect |
+|---|---|---|---|
+| 8 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | Connect in Claude settings → add Windsor.ai connector. Then connect Google Ads, Facebook, and GA4 accounts inside Windsor.ai dashboard. |
 
 For each of these, ask the user directly: "Do you have your {integration} credentials ready?" If they say "not now" or "skip", acknowledge and move on — but make sure to list it as unconfigured in the final summary so they know to come back to it.
 
@@ -271,7 +273,32 @@ For each of these, ask the user directly: "Do you have your {integration} creden
 |---|---|---|---|
 | 12 | `ARGIL_API_KEY` | AI avatar videos (Reels) | https://argil.ai — sign up, create avatar, get API key |
 
-For each key the user provides, save it to `.claude/settings.local.json` under the appropriate env var name.
+For each key the user provides, save it to `.claude/settings.local.json` under the appropriate env var name (for terminal use).
+
+**Also store keys in the credential vault (for Cowork use):**
+
+After saving to `settings.local.json`, store each API key in the encrypted vault so the gateway can access it:
+
+```
+For each key provided, use gateway MCP tool `fiveagents_store_credential`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- service: "<service_name>"
+- key: "<the_api_key>"
+```
+
+Use these service names (must match what the gateway expects):
+
+| Env Var | Service Name |
+|---------|-------------|
+| `GEMINI_API_KEY` | `gemini` |
+| `LATE_API_KEY` | `late` |
+| `ARGIL_API_KEY` | `argil` |
+| `DATAFORSEO_LOGIN` | `dataforseo_login` |
+| `DATAFORSEO_PASSWORD` | `dataforseo_password` |
+
+Note: Google Ads, Meta Ads, and GA4 credentials are handled by the Windsor.ai MCP connector — no gateway storage needed.
+
+Keys are encrypted via Supabase Vault and can never be retrieved after storage. If the user needs to update a key later, they can re-run this step or use the dashboard UI at fiveagents.io.
 
 **MCP Connections (Claude.ai OAuth — user connects in their Claude settings):**
 
@@ -281,7 +308,7 @@ Walk the user through connecting each MCP integration one by one. For each one, 
 |---|---|---|---|
 | 1 | **Notion** | Content calendar management, storing strategies & briefs | Settings → Connected Apps → Notion → Authorize |
 | 2 | **Slack** | Notifications after each skill run (also needs the Slack user ID above) | Settings → Connected Apps → Slack → Authorize |
-| 3 | **Gmail** | Reading emails for context (sending uses gws CLI) | Settings → Connected Apps → Gmail → Authorize |
+| 3 | **Gmail** | Reading emails + creating report drafts | Settings → Connected Apps → Gmail → Authorize |
 | 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
 
 For each, ask:
@@ -293,79 +320,91 @@ If yes, proceed. If "not now", acknowledge and move on.
 
 Test each configured integration:
 
-1. **FIVEAGENTS_API_KEY** — POST a test run to `https://www.fiveagents.io/api/agent-runs`:
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "brand-setup",
-    "brand": "{brand}",
-    "status": "success",
-    "summary": "Brand setup completed for {brand}",
-    "started_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",
-    "completed_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",
-    "metrics": { "date": "'$(date +%Y-%m-%d)'", "brand": "{brand}", "step": "validation" }
-  }'
-```
-Check for `{"id": "..."}` response. If error, tell user to verify the key.
+**Gateway connector (most critical — test first):**
 
-2. **Slack** — Send a test DM via Slack MCP:
+1. **FiveAgents gateway** — Log a test run:
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "brand-setup"
+- brand: "{brand}"
+- status: "success"
+- summary: "Brand setup validation for {brand}"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: { "date": "YYYY-MM-DD", "brand": "{brand}", "step": "validation" }
+```
+If error, tell user to verify their FIVEAGENTS_API_KEY and that the gateway connector URL is correct (`https://gateway.fiveagents.io/api/mcp`).
+
+**API keys stored in vault (test each configured key):**
+
+2. **Gemini** (if configured):
+```
+Use gateway MCP tool `gemini_generate_text`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- prompt: "Say hello"
+- model: "gemini-2.5-flash"
+```
+
+3. **Zernio** (if configured):
+```
+Use gateway MCP tool `late_list_posts`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- limit: 1
+```
+
+4. **Argil** (if configured):
+```
+Use gateway MCP tool `argil_list_avatars`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+```
+
+5. **DataforSEO** (if configured):
+```
+Use gateway MCP tool `dataforseo_search_volume`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- keywords: ["test"]
+- location_code: 2702
+```
+
+**MCP connectors:**
+
+6. **Slack** — Send a test DM via Slack MCP:
 ```
 slack_send_message to channel $SLACK_NOTIFY_USER:
 "✅ Link plugin connected successfully for brand: {brand}"
 ```
 
-3. **Notion** — Try `notion-search` for any page. If it returns results, Notion MCP is connected.
+7. **Notion** — Try `notion-search` for any page. If it returns results, Notion MCP is connected.
 
-4. **Gmail** — Try `gmail_get_profile`. If it returns the user's email, Gmail MCP is connected.
+8. **Gmail** — Try `gmail_get_profile`. If it returns the user's email, Gmail MCP is connected.
 
-5. **Google Calendar** — Try `gcal_list_calendars`. If it returns calendars, Google Calendar MCP is connected.
+9. **Google Calendar** — Try `gcal_list_calendars`. If it returns calendars, Google Calendar MCP is connected.
 
-6. **GEMINI_API_KEY** — Quick test:
-```bash
-curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}" | head -c 200
-```
-If it returns model data, the key works.
+10. **Windsor.ai** (if configured) — Try Windsor MCP `get_connectors` to list connected accounts. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
 
-7. **LATE_API_KEY** (if provided) — Test with a GET request to Late API.
-
-Report results:
+**Report results:**
 ```
 Connection Status:
 
-API Keys:
-  ✅ fiveagents.io API — connected
-  ✅ Gemini — connected
-  ⬜ Late — not configured (come back to set up)
-  ⬜ Meta Ads — not configured (come back to set up)
-  ⬜ GA4 — not configured (come back to set up)
-  ⬜ DataforSEO — not configured (come back to set up)
-  ⬜ Argil — not configured (optional)
+Gateway:
+  {✅|❌} FiveAgents gateway — {connected|error}
 
-MCP Connections:
-  ✅ Slack — connected
-  ✅ Notion — connected
-  ⬜ Gmail — not configured (come back to set up)
-  ⬜ Google Calendar — not configured (come back to set up)
+API Keys (via gateway vault):
+  {✅|⬜} Gemini — {connected|not configured}
+  {✅|⬜} Zernio — {connected|not configured}
+  {✅|⬜} Argil — {connected|not configured (optional)}
+  {✅|⬜} DataforSEO — {connected|not configured}
+
+MCP Connectors:
+  {✅|⬜} Slack — {connected|not configured}
+  {✅|⬜} Notion — {connected|not configured}
+  {✅|⬜} Gmail — {connected|not configured}
+  {✅|⬜} Google Calendar — {connected|not configured}
+  {✅|⬜} Windsor.ai — {connected|not configured} (Google Ads, Meta Ads, GA4)
 ```
 
-### Step 8 — System Prerequisites Check
-
-Check if required CLI tools are installed:
-
-```bash
-which gws && gws --version
-which ffmpeg && ffmpeg -version | head -1
-python3 --version
-```
-
-Report what's missing and provide install instructions:
-- **gws**: `npm i -g @googleworkspace/cli` then `gws auth login`
-- **ffmpeg**: `brew install ffmpeg` (macOS) or download from ffmpeg.org
-- **Python 3.10+**: Should be pre-installed on most systems
-
-### Step 9 — Summary & Next Steps
+### Step 8 — Summary & Next Steps
 
 Print a completion summary:
 

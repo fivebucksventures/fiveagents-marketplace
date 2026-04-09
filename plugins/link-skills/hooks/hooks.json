@@ -1,16 +1,3 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "pip install -q -r ${CLAUDE_PLUGIN_ROOT}/servers/media-server/requirements.txt 2>/dev/null || true",
-            "timeout": 30,
-            "statusMessage": "Installing media-server dependencies..."
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }

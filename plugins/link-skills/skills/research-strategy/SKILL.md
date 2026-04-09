@@ -66,34 +66,26 @@ Only query WebSearch when context files lack the information needed. Cite web fi
 ### Step 1c: Keyword research via DataforSEO (when task involves paid ads or SEO)
 When the task involves paid ads strategy, keyword research, or SEO analysis, use the **DataforSEO API** to pull real search volume, CPC, and competition data.
 
-**Auth:** Basic auth using `$DATAFORSEO_LOGIN` and `$DATAFORSEO_PASSWORD` (from settings.local.json).
-
 **Search Volume for specific keywords:**
-```bash
-curl -s -X POST "https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live" \
-  -H "Authorization: Basic $(echo -n "$DATAFORSEO_LOGIN:$DATAFORSEO_PASSWORD" | base64)" \
-  -H "Content-Type: application/json" \
-  -d '[{
-    "keywords": ["keyword1", "keyword2", "keyword3"],
-    "location_code": 2702,
-    "language_code": "en",
-    "date_from": "2025-04-01",
-    "date_to": "2026-03-31"
-  }]'
+```
+Use gateway MCP tool `dataforseo_search_volume`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- keywords: ["keyword1", "keyword2", "keyword3"]
+- location_code: 2702
+- language_code: "en"
+- date_from: "2025-04-01"
+- date_to: "2026-03-31"
 ```
 
 **Keyword suggestions (expand from seeds):**
-```bash
-curl -s -X POST "https://api.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live" \
-  -H "Authorization: Basic $(echo -n "$DATAFORSEO_LOGIN:$DATAFORSEO_PASSWORD" | base64)" \
-  -H "Content-Type: application/json" \
-  -d '[{
-    "keywords": ["seed keyword 1", "seed keyword 2"],
-    "location_code": 2702,
-    "language_code": "en",
-    "date_from": "2025-04-01",
-    "date_to": "2026-03-31"
-  }]'
+```
+Use gateway MCP tool `dataforseo_keyword_suggestions`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- keywords: ["seed keyword 1", "seed keyword 2"]
+- location_code: 2702
+- language_code: "en"
+- date_from: "2025-04-01"
+- date_to: "2026-03-31"
 ```
 
 **Location codes:** See [DataforSEO docs](https://docs.dataforseo.com/v3/appendix/locations/) for full list. Examples: Singapore=2702, Malaysia=2458, Indonesia=2360, Australia=2036, United States=2840.
@@ -222,29 +214,26 @@ Before finalizing any strategy output:
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "research-strategy",
-    "brand": "<active-brand>",
-    "status": "<success|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "type": "<competitive-analysis|icp|positioning|campaign-brief>",
-      "persona": "<slug>",
-      "markets": ["SG", "ID", "MY"],
-      "campaign": "<campaign name>",
-      "content_status": "Final",
-      "competitors_analyzed": 0,
-      "core_messages": ["..."],
-      "keywords_analyzed": 0,
-      "deliverable": "<filename>",
-      "output_path": "outputs/{brand}/strategy/"
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "research-strategy"
+- brand: "<active-brand>"
+- status: "<success|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "type": "<competitive-analysis|icp|positioning|campaign-brief>",
+    "persona": "<slug>",
+    "markets": ["SG", "ID", "MY"],
+    "campaign": "<campaign name>",
+    "content_status": "Final",
+    "competitors_analyzed": 0,
+    "core_messages": ["..."],
+    "keywords_analyzed": 0,
+    "deliverable": "<filename>",
+    "output_path": "outputs/{brand}/strategy/"
+  }
 ```

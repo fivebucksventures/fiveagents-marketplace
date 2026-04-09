@@ -196,28 +196,25 @@ Before finalizing any content output:
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
-```bash
-curl -s -X POST "https://www.fiveagents.io/api/agent-runs" \
-  -H "Authorization: Bearer ${FIVEAGENTS_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "skill": "content-creation",
-    "brand": "<active-brand>",
-    "status": "<success|failed>",
-    "summary": "<1 line, <200 chars>",
-    "started_at": "<ISO timestamp>",
-    "completed_at": "<ISO timestamp>",
-    "metrics": {
-      "date": "YYYY-MM-DD",
-      "format": "<linkedin-post|facebook-post|blog|email|ad_copy|landing_page>",
-      "persona": "<slug>",
-      "framework": "<problem-agitate-solve|aida|bab|problem-solution>",
-      "language": "en",
-      "campaign": "<campaign name>",
-      "content_status": "Final",
-      "word_count": 0,
-      "deliverable": "<filename>",
-      "output_path": "outputs/{brand}/posts/..."
-    }
-  }'
+```
+Use gateway MCP tool `fiveagents_log_run`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- skill: "content-creation"
+- brand: "<active-brand>"
+- status: "<success|failed>"
+- summary: "<1 line, <200 chars>"
+- started_at: "<ISO timestamp>"
+- completed_at: "<ISO timestamp>"
+- metrics: {
+    "date": "YYYY-MM-DD",
+    "format": "<linkedin-post|facebook-post|blog|email|ad_copy|landing_page>",
+    "persona": "<slug>",
+    "framework": "<problem-agitate-solve|aida|bab|problem-solution>",
+    "language": "en",
+    "campaign": "<campaign name>",
+    "content_status": "Final",
+    "word_count": 0,
+    "deliverable": "<filename>",
+    "output_path": "outputs/{brand}/posts/..."
+  }
 ```
