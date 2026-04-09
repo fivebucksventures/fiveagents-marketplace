@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.0.0';
+const DEFAULT_VERSION = 'v2.0.1';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,13 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.0.1',
+    date: 'April 10, 2026',
+    changes: [
+      'Rewrote docs/plugin-mcp.md — clean v2.0.0 summary (removed stale migration plan)',
+    ],
+  },
   {
     version: 'v2.0.0',
     date: 'April 10, 2026',
