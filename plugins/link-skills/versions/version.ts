@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.1.0';
-const DEFAULT_DATE = 'April 10, 2026';
+const DEFAULT_VERSION = 'v2.1.1';
+const DEFAULT_DATE = 'April 11, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,16 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.1.1',
+    date: 'April 11, 2026',
+    changes: [
+      'brand-setup: added Step 1 Cowork Setup (capabilities, Claude in Chrome, connectors)',
+      'brand-setup: website analysis uses Claude in Chrome instead of WebFetch',
+      'brand-setup: renumbered all steps (1-9), fixed cross-references',
+      'brand-setup: fonts changed from .ttf to Google Fonts in prerequisites',
+    ],
+  },
   {
     version: 'v2.1.0',
     date: 'April 10, 2026',

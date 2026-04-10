@@ -18,7 +18,22 @@ Run these steps in order. Skip steps the user has already completed. After each 
 
 ---
 
-### Step 1 — What You'll Need (Prerequisites Overview)
+### Step 1 — Cowork Setup (one-time, skip if already done)
+
+Before anything else, ensure your Cowork environment is configured:
+
+> To use this plugin, you'll need to adjust a few settings first. Go to **Settings → Capabilities** and check the following:
+
+1. **Cloud code execution and file creation** — toggle ON (required for skills)
+2. **Allow network egress** — toggle ON (required for API calls)
+3. **Claude in Chrome** — go to Settings → Claude in Chrome → enable and install the extension (required for website analysis)
+4. Confirm all your **MCP connectors** are connected (we'll set these up in Step 2)
+
+> Have you enabled these settings? Once confirmed, we'll move on.
+
+---
+
+### Step 2 — What You'll Need (Prerequisites Overview)
 
 Before we begin, here's everything you'll want to have ready. You don't need all of these right now — we'll walk through each one — but having them handy will make setup faster.
 
@@ -27,7 +42,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 - Your website URL
 - Your brand colors as HEX codes (e.g. `#1A73E8`)
 - Your logo file (PNG, transparent background preferred)
-- Your brand fonts (.ttf files)
+- Your Google Font name (e.g. "Inter", "Montserrat") — browse at https://fonts.google.com
 
 **Required API keys:**
 
@@ -62,7 +77,7 @@ Present this overview to the user, then ask:
 
 ---
 
-### Step 2 — Brand Name & Folder
+### Step 3 — Brand Name & Folder
 
 Ask the user:
 > What is your brand name? This will become the folder name for all your brand assets (e.g. "acme" → `brands/acme/`).
@@ -88,22 +103,22 @@ outputs/{brand}/
 outputs/{brand}/strategy/
 ```
 
-### Step 3 — Website Analysis
+### Step 4 — Website Analysis
 
 Ask the user:
 > What is your website URL? (e.g. https://acme.com)
 
-Use **WebFetch** to analyze (works in both Cowork and terminal — no special permissions needed):
+Use **Claude in Chrome** (preferred in Cowork) to navigate to the site and extract content directly through the user's browser:
 1. Homepage — extract tagline, value propositions, hero copy, CTAs
 2. Pricing page (if exists) — extract plans, pricing, features
 3. About page (if exists) — extract company story, team, mission
 4. Blog/resources (if exists) — extract content themes and topics
 
-If WebFetch cannot access the site (e.g. JavaScript-heavy SPA), ask the user to paste the key content directly.
+If Claude in Chrome is not available, ask the user to paste the key content directly into the chat.
 
 Use the analyzed data to draft the brand context files below. Show the user each draft and let them review/edit before saving.
 
-### Step 4 — Generate Brand Context Files
+### Step 5 — Generate Brand Context Files
 
 Before generating files, ask the user for any details you couldn't extract from the website:
 - **Voice & Tone** — if unclear from the website copy, ask the user to describe it
@@ -202,7 +217,7 @@ This returns all available fields including key events and custom events. Look f
 Show the user the relevant events found and confirm the mapping:
 > I found these key events / custom events that match your funnel: [list]. Can you confirm which event maps to each step?
 
-If Windsor.ai is not connected yet, ask the user for their GA4 key event / custom event names directly. If they don't know, leave event names as `TBD` — they will be discovered during Step 7 (Connection Validation) when Windsor.ai is connected.
+If Windsor.ai is not connected yet, ask the user for their GA4 key event / custom event names directly. If they don't know, leave event names as `TBD` — they will be discovered during Step 8 (Connection Validation) when Windsor.ai is connected.
 
 **Step C — Generate funnel.md with the confirmed mapping:**
 
@@ -264,7 +279,7 @@ Use Argil stock avatars. Rotate across personas for variety.
 Pick avatars that match the brand's target market demographics.
 ```
 
-### Step 5 — Logo & Fonts
+### Step 6 — Logo & Fonts
 
 Ask the user:
 > Please paste your logo image directly into this chat (PNG, transparent background preferred).
@@ -275,7 +290,7 @@ When the user pastes the logo, save it to `brands/{brand}/logo.png`. This file i
 
 Save the font name to `brands/{brand}/brand.md` under the Typography section. The `image_add_text_overlay` gateway tool accepts a `font_family` parameter — pass the Google Font name exactly as it appears on Google Fonts (e.g. "Inter", "Montserrat"). The font is loaded automatically at runtime.
 
-### Step 6 — API Keys & Connections
+### Step 7 — API Keys & Connections
 
 Walk through each integration one by one. For each one, explain what it does and whether it's required or optional. Ask: "Do you have your {integration} ready?" If the user says "not now" or "skip", acknowledge and move on — note it as unconfigured for the summary.
 
@@ -366,9 +381,9 @@ For each, ask:
 
 If yes, proceed. If "not now", acknowledge and move on.
 
-### Step 7 — Validate Connections
+### Step 8 — Validate Connections
 
-**Only validate integrations the user configured in Step 6.** Skip any the user chose not to set up. For each test, show ✅ or ❌ with a clear error message if it fails.
+**Only validate integrations the user configured in Step 7.** Skip any the user chose not to set up. For each test, show ✅ or ❌ with a clear error message if it fails.
 
 **7a. Gateway connector (MUST pass — all other gateway tests depend on this):**
 
@@ -423,7 +438,7 @@ Use gateway MCP tool `image_add_text_overlay`:
 - font_family: "Inter"
 ```
 
-6. **Image logo overlay** (if logo was provided in Step 5 — tests Sharp composite):
+6. **Image logo overlay** (if logo was provided in Step 6 — tests Sharp composite):
 ```
 Use gateway MCP tool `image_add_logo`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -454,7 +469,7 @@ Use gateway MCP tool `dataforseo_search_volume`:
 - location_code: 2702
 ```
 
-**7c. MCP connectors (only if connected in Step 6):**
+**7c. MCP connectors (only if connected in Step 7):**
 
 10. **Slack** (if connected) — Send a test DM:
 ```
@@ -522,7 +537,7 @@ MCP Connectors:
   {✅|⬜} Windsor.ai — {connected|not configured} (Google Ads, Meta Ads, GA4)
 ```
 
-### Step 8 — Summary & Next Steps
+### Step 9 — Summary & Next Steps
 
 Print a completion summary:
 
