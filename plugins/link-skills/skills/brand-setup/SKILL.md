@@ -20,14 +20,29 @@ Run these steps in order. Skip steps the user has already completed. After each 
 
 ### Step 1 — Cowork Setup (one-time, skip if already done)
 
-Before anything else, ensure your Cowork environment is configured:
+Before anything else, ensure your Cowork environment is configured.
+
+#### 1a. Configure settings
 
 > To use this plugin, you'll need to adjust a few settings first. Go to **Settings → Capabilities** and check the following:
 
 1. **Settings → Claude Code → Allow bypass permissions mode** — toggle ON (required for skills to run without interruption)
-2. Confirm all your **MCP connectors** are connected (we'll set these up in Step 7)
 
 > Have you enabled these settings? Once confirmed, we'll move on.
+
+#### 1b. Create a Project folder
+
+All brand assets, outputs, and temp files live in a local folder on your machine. You need a Cowork **Project** pointing to this folder.
+
+> Now let's set up your project folder. In Cowork:
+> 1. Click the **"+"** button in the left navigation panel under **Projects**
+> 2. Choose **"Use existing folder"** if you already have a folder, or **"Start from scratch"** to create a new one
+> 3. Name your project (e.g. your brand name)
+> 4. Point it to a dedicated folder on your machine (e.g. `~/Documents/my-brand/` or `~/Projects/my-brand/`)
+>
+> This folder is where all your brand files (`brands/`, `outputs/`, `tmp/`) will be created.
+
+Confirm the user has a project open and is working inside it before proceeding. All subsequent steps create files relative to this project folder.
 
 ---
 
@@ -46,7 +61,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 |---|---|---|---|
 | 1 | `FIVEAGENTS_API_KEY` | Dashboard logging, credential vault, email sending | 1. Go to https://fiveagents.io and sign in<br>2. Go to Dashboard → API Keys<br>3. Copy your `fa_live_...` key |
 | 2 | `GEMINI_API_KEY` | Image generation (social graphics, backgrounds) | 1. Go to https://aistudio.google.com/apikey<br>2. Click "Create API Key"<br>3. Copy the key (free tier: 10 images/min) |
-| 3 | `LATE_API_KEY` | Social media publishing (Facebook, Instagram, LinkedIn) | 1. Sign up at https://zernio.com<br>2. Connect your social media accounts in Zernio dashboard<br>3. Go to Settings → API → copy your API key |
+| 3 | `LATE_API_KEY` | Social media publishing (Facebook, Instagram, LinkedIn) | 1. Sign up at https://zernio.com<br>2. Create a Profile for your brand<br>3. Connect your social accounts (Facebook, Instagram, LinkedIn) via OAuth<br>4. Go to Settings → API → copy your API key |
 | 4 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | 1. Open Slack<br>2. Click your profile photo → "Profile"<br>3. Click the three dots ⋯ → "Copy member ID" |
 | 5 | `REPORT_EMAIL` | Daily/weekly marketing report delivery | Your work email address |
 
@@ -352,7 +367,81 @@ This connector is required for all skills — it routes Gemini, Zernio, Argil, D
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 5 | `LATE_API_KEY` | Publish to social platforms via Zernio | https://zernio.com — sign up, connect social accounts, go to Settings → API → copy key |
+| 5 | `LATE_API_KEY` | Publish to social platforms via Zernio | See Zernio setup below |
+
+**Zernio setup (social media publishing):**
+
+Walk the user through connecting their social platforms to Zernio. This must be done before the content-generator or social-publisher skills can post.
+
+> To publish content to your social media accounts, we need to set up Zernio. Here's what to do:
+>
+> **Step A — Create account & get API key:**
+> 1. Go to https://zernio.com and sign up for an account
+> 2. Go to **Settings → API** and copy your API key
+> 3. Paste it here — I'll save it as `LATE_API_KEY`
+>
+> **Step B — Create a Profile:**
+> In the Zernio dashboard, create a **Profile** for your brand. A profile groups all your social accounts together.
+> 1. Go to **Profiles** in the Zernio dashboard
+> 2. Click **Create Profile**
+> 3. Name it your brand name (e.g. "NPC Office")
+>
+> **Step C — Connect your social platforms:**
+> For each platform you want to publish to, connect it via OAuth in the Zernio dashboard:
+> 1. In your Profile, click **Connect Account**
+> 2. Select the platform (Facebook, Instagram, LinkedIn, etc.)
+> 3. Authorize Zernio to post on your behalf
+> 4. Repeat for each platform
+>
+> Supported platforms: Facebook, Instagram, LinkedIn, Twitter/X, TikTok, YouTube, Pinterest, Threads, and more.
+>
+> **Important for Instagram:** Instagram requires a Facebook Business Page linked to your Instagram Professional account. If you see an authorization error, check that your Instagram is set to Professional (not Personal) and is connected to a Facebook Page.
+>
+> **Important for LinkedIn:** Connect your personal LinkedIn profile first. To post to a LinkedIn Company Page, you must be an admin of that page.
+>
+> Let me know once you've connected your platforms and I'll automatically detect everything.
+
+**Step D — Auto-discover profile and account IDs:**
+
+After the user confirms they've connected their platforms, use the gateway to discover the profile ID and account IDs automatically:
+
+```
+1. Use gateway MCP tool `late_list_profiles`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   → Returns list of profiles. Pick the profile matching the brand name.
+   → Save the profile `_id`.
+
+2. Use gateway MCP tool `late_list_accounts`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - profile_id: "<profile _id from step 1>"
+   → Returns list of connected accounts with `_id`, `platform`, `username`.
+```
+
+Show the user what was found:
+> I found your Zernio profile and these connected accounts:
+> - Facebook: @{username} (ID: {_id})
+> - Instagram: @{username} (ID: {_id})
+> - LinkedIn: {displayName} (ID: {_id})
+
+Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator and social-publisher skills need these):
+
+```
+{BRAND}_LATE_FB   → Facebook account _id from late_list_accounts
+{BRAND}_LATE_IG   → Instagram account _id from late_list_accounts
+{BRAND}_LATE_LI   → LinkedIn account _id from late_list_accounts
+```
+
+Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`
+
+Only create env vars for platforms that were found. If a platform isn't connected, skip it.
+
+Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
+
+```markdown
+## Social Publishing
+- Zernio Profile ID: {profile_id}
+- Connected platforms: {Facebook (@username), Instagram (@username), LinkedIn (name), etc.}
+```
 
 **Standard (ask for each — skip if not ready):**
 
@@ -456,7 +545,8 @@ Use gateway MCP tool `fiveagents_send_email`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - to: ${REPORT_EMAIL}
 - subject: "✅ Five Agents connected — {brand}"
-- html: "<p>Your Five Agents plugin is set up for <strong>{brand}</strong>.</p>"
+- html_body: "<p>Your Five Agents plugin is set up for <strong>{brand}</strong>.</p>"
+- tag: "brand-setup-test"
 ```
 
 4. **Gemini** (if `GEMINI_API_KEY` configured):
@@ -489,9 +579,14 @@ Use gateway MCP tool `image_add_logo`:
 
 7. **Zernio** (if `LATE_API_KEY` configured):
 ```
-Use gateway MCP tool `late_list_posts`:
+Use gateway MCP tool `late_list_profiles`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- limit: 1
+→ Verify at least one profile exists
+
+Use gateway MCP tool `late_list_accounts`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- profile_id: "<brand's profile ID>"
+→ Verify connected accounts match what's in brands/{brand}/brand.md Social Publishing section
 ```
 
 8. **Argil** (if `ARGIL_API_KEY` configured):
@@ -505,17 +600,12 @@ Use gateway MCP tool `argil_list_avatars`:
 Use gateway MCP tool `dataforseo_search_volume`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - keywords: ["test"]
-- location_code: 2702
+- location_code: <infer from brand timezone/country — e.g. Indonesia=2360, Singapore=2702, Malaysia=2458, US=2840>
 ```
 
 **8c. MCP connectors (only if connected in Step 7):**
 
-10. **Playwright** (if connected) — Navigate to the brand's website and take a snapshot to confirm Playwright can access sites:
-```
-browser_navigate to {brand website URL}
-browser_snapshot
-```
-If it returns page content, Playwright is connected.
+10. **Playwright** — skip validation (already confirmed working in Step 4 website analysis).
 
 11. **Slack** (if connected) — Send a test DM:
 ```
@@ -558,7 +648,7 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 | Zernio | ✅ / ❌ / ⏭ skipped |
 | Argil | ✅ / ❌ / ⏭ skipped |
 | DataforSEO | ✅ / ❌ / ⏭ skipped |
-| Playwright | ✅ / ❌ / ⏭ skipped |
+| Playwright | ✅ (confirmed in Step 4) / ⏭ skipped |
 | Slack | ✅ / ❌ / ⏭ skipped |
 | Notion | ✅ / ❌ / ⏭ skipped |
 | Gmail | ✅ / ❌ / ⏭ skipped |
@@ -566,53 +656,70 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 | Windsor.ai | ✅ / ❌ / ⏭ skipped |
 | Canva | ✅ / ❌ / ⏭ skipped |
 
-**Report results:**
-```
-Connection Status:
+Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving to Step 9. Save all results — they're used in the Step 9 completion email.
 
-Gateway:
-  {✅|❌} FiveAgents gateway — {connected|error}
+### Step 9 — Summary & Completion Email
 
-API Keys (via gateway vault):
-  {✅|⬜} Gemini — {connected|not configured}
-  {✅|⬜} Zernio — {connected|not configured}
-  {✅|⬜} Argil — {connected|not configured (optional)}
-  {✅|⬜} DataforSEO — {connected|not configured}
+Send a completion email to `$REPORT_EMAIL` with the full setup report.
 
-MCP Connectors:
-  {✅|⬜} Playwright — {connected|not configured}
-  {✅|⬜} Slack — {connected|not configured}
-  {✅|⬜} Notion — {connected|not configured}
-  {✅|⬜} Gmail — {connected|not configured}
-  {✅|⬜} Google Calendar — {connected|not configured}
-  {✅|⬜} Windsor.ai — {connected|not configured} (Google Ads, Meta Ads, GA4)
-  {✅|⬜} Canva — {connected|not configured}
-```
-
-### Step 9 — Summary & Next Steps
-
-Print a completion summary:
+⚠️ **Do NOT generate HTML.** Build a JSON object. The server-side template (`brand-setup.ts`) renders the styled email with tables, status badges, and callouts.
 
 ```
-🎉 Brand "{brand}" is set up and ready!
+Use gateway MCP tool `fiveagents_send_email`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- to: ${REPORT_EMAIL}
+- subject: "✅ Brand setup complete — {brand}"
+- html_body: JSON.stringify(payload)
+- tag: "brand-setup"
+```
 
-Brand context files:
-  brands/{brand}/brand.md ✅
-  brands/{brand}/product.md ✅
-  brands/{brand}/audience.md ✅
-  brands/{brand}/competitors.md ✅
-  brands/{brand}/funnel.md ✅
-  brands/{brand}/avatars.md ✅
-  brands/{brand}/logo.png ✅
+⚠️ **`tag` must be exactly `"brand-setup"`** — this routes to the server-side template.
 
-Connections:
-  {list of connected / not connected}
+Build the JSON payload from Step 8 validation results:
 
-To get started, try:
-  /link-skills:social-calendar     — Generate a weekly content calendar
-  /link-skills:content-creation    — Write copy for a campaign
-  /link-skills:research-strategy   — Run competitive analysis
-  /link-skills:creative-designer   — Create visuals for a post
+```json
+{
+  "brand": "{brand}",
+  "files": [
+    { "file": "brands/{brand}/brand.md", "status": "created" },
+    { "file": "brands/{brand}/product.md", "status": "created" },
+    { "file": "brands/{brand}/audience.md", "status": "created" },
+    { "file": "brands/{brand}/competitors.md", "status": "created" },
+    { "file": "brands/{brand}/funnel.md", "status": "created" },
+    { "file": "brands/{brand}/avatars.md", "status": "created" },
+    { "file": "brands/{brand}/logo.png", "status": "created | missing" }
+  ],
+  "connections": [
+    { "integration": "Five Agents gateway", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Credential vault", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Email (Postmark)", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Gemini", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Image text overlay", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Image logo overlay", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Zernio", "status": "pass | fail | skipped", "notes": "Connected: Facebook, Instagram, LinkedIn" },
+    { "integration": "Argil", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "DataforSEO", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Playwright", "status": "pass", "notes": "Confirmed during website analysis (Step 4)" },
+    { "integration": "Slack", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Notion", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Gmail", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Google Calendar", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Windsor.ai", "status": "pass | fail | skipped", "notes": "Connected: Google Ads, Meta Ads, GA4" },
+    { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" }
+  ],
+  "action_items": [
+    { "integration": "{name}", "message": "{what failed or was skipped and how to fix / which skill needs it}" }
+  ]
+}
+```
 
-To add more brands later, run /link-skills:brand-setup again.
+Use `"status": "pass"` for ✅, `"fail"` for ❌, `"skipped"` for ⏭. Only include `action_items` entries for failures and skips that affect skill functionality.
+
+Also print the same summary to the chat and send a Slack notification to `$SLACK_NOTIFY_USER`:
+
+```
+✅ Brand "{brand}" setup complete
+• {N}/16 integrations connected
+• {N} action items (see email for details)
+• Brand files: brands/{brand}/
 ```

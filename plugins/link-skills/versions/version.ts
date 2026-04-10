@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.0';
+const DEFAULT_VERSION = 'v2.2.1';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,26 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.1',
+    date: 'April 10, 2026',
+    changes: [
+      'brand-setup: Step 1b — added Cowork Project folder setup (user creates/selects project before brand files are created)',
+      'brand-setup: Step 7b — full Zernio onboarding flow (account signup, profile creation, OAuth social platform connection)',
+      'brand-setup: Step 7b — auto-discover Zernio profile ID and account IDs via late_list_profiles + late_list_accounts',
+      'brand-setup: Step 7b — save per-platform account IDs as {BRAND}_LATE_FB/IG/LI env vars + Social Publishing section in brand.md',
+      'brand-setup: Step 8 — removed redundant Playwright validation (already confirmed in Step 4)',
+      'brand-setup: Step 8 — fixed email test param (html → html_body), DataforSEO location_code now dynamic from brand locale',
+      'brand-setup: Step 8 — removed duplicate text report block (summary table is sufficient)',
+      'brand-setup: Step 9 — completion email via brand-setup.ts server-side template (JSON payload, styled tables, status badges, action items)',
+      'brand-setup: Step 1a — removed premature MCP connectors confirmation (moved to Step 7)',
+      'fiveagents.io: new lib/email/templates/brand-setup.ts — styled email renderer for setup completion report',
+      'fiveagents.io: registered brand-setup tag in email template index',
+      'fiveagents-gateway: new late_list_profiles tool (GET /v1/profiles)',
+      'fiveagents-gateway: new late_list_accounts tool (GET /v1/accounts with profileId filter)',
+      'fiveagents-gateway: updated docs — 22 tools total',
+    ],
+  },
   {
     version: 'v2.2.0',
     date: 'April 10, 2026',
