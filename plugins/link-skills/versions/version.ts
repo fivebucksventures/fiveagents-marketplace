@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.1';
+const DEFAULT_VERSION = 'v2.2.2';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,24 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.2',
+    date: 'April 10, 2026',
+    changes: [
+      'creative-designer: gemini_generate_image result auto-saved to temp file — Python decodes to PNG on disk',
+      'creative-designer: replaced image_add_text_overlay and image_add_logo gateway MCP tools with Python Pillow',
+      'creative-designer: replaced late_upload_media MCP with Python requests.put to presigned S3 URL',
+      'content-generator: same — gemini_generate_image result decoded via Python, Pillow for overlays, requests.put for upload',
+      'background-generator: gemini_generate_image result decoded via Python to brands/{brand}/backgrounds/',
+      'social-publisher: removed late_upload_media from tools list, added requests.put note',
+      'brand-setup: updated logo step — references Python Pillow instead of image_add_logo gateway tool',
+      'brand-setup: validation tests 5 & 6 now test Python Pillow instead of gateway MCP tools',
+      'agents/link.md: updated tool list — removed image_add_text_overlay, image_add_logo, late_upload_media; added late_list_profiles, late_list_accounts',
+      'fiveagents-gateway: removed image_add_text_overlay, image_add_logo tools (media.ts stubbed)',
+      'fiveagents-gateway: removed late_upload_media tool from late.ts',
+      'fiveagents-gateway: removed registerMediaTools from route.ts',
+    ],
+  },
   {
     version: 'v2.2.1',
     date: 'April 10, 2026',

@@ -83,10 +83,10 @@ All external API calls go through the fiveagents-gateway remote MCP server (`htt
 
 - **Gemini API** — image generation → `gemini_generate_image` / `gemini_generate_text`
 - **Argil API** — AI avatar video → `argil_create_video` / `argil_render_video` / `argil_get_video` / `argil_list_avatars` / `argil_list_voices`
-- **Zernio API** — social publishing → `late_presign_upload` / `late_upload_media` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post`
+- **Zernio API** — social publishing → `late_presign_upload` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post` / `late_list_profiles` / `late_list_accounts`
 - **DataforSEO API** — keywords → `dataforseo_search_volume` / `dataforseo_keyword_suggestions`
 - **FiveAgents** — `fiveagents_log_run` / `fiveagents_store_credential` / `fiveagents_send_email`
-- **Image processing** — `image_add_text_overlay` / `image_add_logo`
+- **Image processing** — Python Pillow (local) for text overlay and logo compositing; media uploaded via `requests.put` to presigned S3 URL
 
 ### Agent Run Logging
 All skills log to fiveagents.io dashboard at the end of execution via `fiveagents_log_run` gateway tool. See `docs/new_agent_onboarding/metrics-spec.md` for the metrics JSONB contract.

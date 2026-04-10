@@ -66,11 +66,17 @@ Use gateway MCP tool `gemini_generate_image`:
 - aspect_ratio: "1:1" (default for background library; content-generator crops to target canvas at overlay time)
 - model: "gemini-3.1-flash-image-preview"
 
-Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
-Parse the JSON, extract image_base64, decode and save to `brands/{brand}/backgrounds/{descriptive_filename}.png`.
+Result is auto-saved to a temp file. Use Python to locate, decode, and save to disk:
+```python
+import glob, json, base64, os
+result_file = max(glob.glob('/sessions/*/mnt/.claude/projects/*/tool-results/mcp-*gemini_generate_image*.txt'), key=os.path.getmtime)
+with open(result_file) as f:
+    parsed = json.loads(json.load(f)[0]['text'])
+with open('brands/{brand}/backgrounds/{descriptive_filename}.png', 'wb') as f:
+    f.write(base64.b64decode(parsed['image_base64']))
 ```
 
-Do NOT fall back to Python PIL. The gateway handles all image generation.
+If user has selected a folder, save directly to `brands/{brand}/backgrounds/` — not a temp path.
 
 Wait 6 seconds between calls (rate limit: ~10 requests per minute).
 

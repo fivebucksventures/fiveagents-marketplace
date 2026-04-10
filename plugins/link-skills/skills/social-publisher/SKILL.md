@@ -47,7 +47,9 @@ Example: `${BRAND}_LATE_FB`, `${BRAND}_LATE_IG`, `${BRAND}_LATE_LI`
 
 All Late API calls go through the gateway MCP tools. Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`.
 
-Available Late tools: `late_list_posts`, `late_create_post`, `late_update_post`, `late_delete_post`, `late_presign_upload`, `late_upload_media`.
+Available Late tools: `late_list_posts`, `late_create_post`, `late_update_post`, `late_delete_post`, `late_presign_upload`.
+
+For media uploads, use Python `requests.put` with the presigned URL from `late_presign_upload` — do NOT use `late_upload_media`.
 
 ---
 

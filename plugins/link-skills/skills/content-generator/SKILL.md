@@ -210,7 +210,7 @@ List available backgrounds in `brands/{brand}/backgrounds/`. Pick the closest ma
 
 **Don't reuse the same background for consecutive posts on the same platform.**
 
-Read the chosen background, encode to base64, and pass directly to `image_add_text_overlay` in Step 4d — the gateway tool handles resize + center-crop to the target canvas automatically.
+Read the chosen background and pass its file path to the Pillow `add_text_overlay` function in Step 4d — Pillow handles resize + center-crop to the target canvas.
 
 **Option 2 (fallback): Generate via Gemini**
 
@@ -223,40 +223,91 @@ Use gateway MCP tool `gemini_generate_image`:
 - aspect_ratio: match target canvas from Step 4a (e.g. "1:1" for IG square, "9:16" for Story/Reel, "191:100" for LinkedIn)
 - model: "gemini-3.1-flash-image-preview"
 
-Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
-Parse the JSON and extract image_base64 — pass directly to image_add_text_overlay in Step 4d.
+Result is auto-saved to a temp file. Use Python to locate, decode, and save to disk:
+```python
+import glob, json, base64, os
+result_file = max(glob.glob('/sessions/*/mnt/.claude/projects/*/tool-results/mcp-*gemini_generate_image*.txt'), key=os.path.getmtime)
+with open(result_file) as f:
+    parsed = json.loads(json.load(f)[0]['text'])
+with open('brands/{brand}/backgrounds/{descriptive_filename}.png', 'wb') as f:
+    f.write(base64.b64decode(parsed['image_base64']))
 ```
+
+If user has selected a folder, save directly to `brands/{brand}/backgrounds/` — not a temp path.
 
 Important prompt rules for generated backgrounds:
 - Always include "no text, no people" — text and logo are added in Steps 4d/4e
 - Match the brand's visual style and color palette from `brand.md`
 - Keep it clean and uncluttered — the text overlay needs readable space at the bottom
 
-Do NOT fall back to Python PIL. The gateway handles all image generation.
-
 Save the generated image to `brands/{brand}/backgrounds/` for reuse by future posts.
 
-### Step 4d — Apply text overlay
+### Step 4d — Apply text overlay — USE PILLOW
 
-Use gateway MCP tool `image_add_text_overlay`:
-- `image_base64`: base64-encoded background image — either read from file and encoded directly (pre-stored), or image_base64 parsed from gemini_generate_image JSON response (on-the-fly fallback)
+Use Python Pillow to add gradient scrim + headline + subline. Do NOT use `image_add_text_overlay` gateway MCP tool.
+
+```python
+from PIL import Image, ImageDraw, ImageFont
+
+def add_text_overlay(input_path, output_path, headline, subline, target_w, target_h, text_align='center'):
+    img = Image.open(input_path).convert('RGBA')
+    r = img.width / img.height; tr = target_w / target_h
+    if r > tr: nw = int(img.width * target_h / img.height); nh = target_h
+    else: nw = target_w; nh = int(img.height * target_w / img.width)
+    img = img.resize((nw, nh), Image.LANCZOS)
+    img = img.crop(((nw-target_w)//2, (nh-target_h)//2, (nw-target_w)//2+target_w, (nh-target_h)//2+target_h))
+    scrim = Image.new('RGBA', (target_w, target_h), (0,0,0,0))
+    ds = ImageDraw.Draw(scrim)
+    ss = int(target_h * 0.55)
+    for y in range(ss, target_h):
+        ds.line([(0,y),(target_w,y)], fill=(0,0,0,int(185*(y-ss)/(target_h-ss))))
+    img = Image.alpha_composite(img, scrim)
+    draw = ImageDraw.Draw(img)
+    hs = max(36, int(target_w * 0.048)); ss2 = max(22, int(target_w * 0.026))
+    try:
+        fh = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', hs)
+        fs = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', ss2)
+    except: fh = fs = ImageFont.load_default()
+    # Draw wrapped text (white headline, pink #ec4899 subline)
+    pad = int(target_w * 0.05)
+    # ... (word-wrap and draw logic)
+    img.convert('RGB').save(output_path, 'PNG', optimize=True)
+```
+
 - `headline`: max 6–8 words, title case or all caps — use the post hook (NOT the topic name verbatim)
 - `subline`: **always provide a subline** — never pass `""`. Use a short supporting line: brand tagline, key benefit, or CTA teaser (read from `brands/{brand}/brand.md`)
 - `target_w`, `target_h`: canvas dimensions from Step 4a
 - `text_align`: from day-of-week rotation (Step 4b)
-- `text_position`: bottom (always)
+- Text position: always bottom. Save output as `_with_text.png`.
 
-Tool returns JSON text: { "image_base64": "...", "mime_type": "..." } — parse and extract `image_base64` for Step 4e.
+### Step 4e — Apply logo overlay — USE PILLOW
 
-### Step 4e — Apply logo overlay
+Use Python Pillow to composite the logo. Do NOT use `image_add_logo` gateway MCP tool.
 
-Use gateway MCP tool `image_add_logo`:
-- `image_base64`: image_base64 parsed from image_add_text_overlay JSON response
-- `logo_base64`: base64-encoded logo PNG (read `brands/{brand}/logo.png` and encode)
-- `position`: from day-of-week rotation table (Step 4b)
-- `scale`: 0.18 (18% of image width)
+```python
+from PIL import Image
 
-Tool returns JSON text: { "image_base64": "...", "mime_type": "..." } — parse and extract `image_base64`. Save as `_final.png`.
+def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.18):
+    img = Image.open(image_path).convert('RGBA')
+    logo = Image.open(logo_path).convert('RGBA')
+    w, h = img.size
+    logo_w = int(w * scale)
+    logo_h = int(logo.height * logo_w / logo.width)
+    logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
+    margin = int(w * 0.03)
+    positions = {
+        'top-right':    (w - logo_w - margin, margin),
+        'top-left':     (margin, margin),
+        'bottom-right': (w - logo_w - margin, h - logo_h - margin),
+        'bottom-left':  (margin, h - logo_h - margin),
+    }
+    x, y = positions[position]
+    img.paste(logo, (x, y), logo)
+    img.convert('RGB').save(output_path, 'PNG', optimize=True)
+```
+
+- Logo path: `brands/{brand}/logo.png`. Scale: 0.18. Position: from day-of-week rotation.
+- Save as `_final.png`.
 
 ### Step 4f — Save final image
 
@@ -291,11 +342,12 @@ For each post, use gateway MCP tools:
    - content_type: "image/png" (or "video/mp4")
    → Returns uploadUrl + publicUrl
 
-2. Use `late_upload_media`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-   - upload_url: <uploadUrl from step 1>
-   - base64_data: <base64 encoded file>
-   - content_type: "image/png" (or "video/mp4")
+2. Use Python requests to upload the file directly to S3 (do NOT use `late_upload_media` MCP — it requires passing large base64 through context):
+```python
+import requests
+with open('path/to/final_image.png', 'rb') as f:
+    requests.put(uploadUrl, data=f, headers={'Content-Type': 'image/png'})
+```
 
 3. Use `late_create_post`:
    - fiveagents_api_key: ${FIVEAGENTS_API_KEY}

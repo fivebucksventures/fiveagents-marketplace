@@ -130,14 +130,25 @@ Use gateway MCP tool `gemini_generate_image`:
 - model: "gemini-3.1-flash-image-preview"
 
 Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
-Parse the JSON and pass `image_base64` to `image_add_text_overlay` in the next step.
+Result is auto-saved to a temp file. Use Python to locate and decode it:
+
+```python
+import glob, json, base64, os
+result_file = max(glob.glob('/sessions/*/mnt/.claude/projects/*/tool-results/mcp-*gemini_generate_image*.txt'), key=os.path.getmtime)
+with open(result_file) as f:
+    parsed = json.loads(json.load(f)[0]['text'])
+with open('outputs/{brand}/posts/{Platform}/tmp_image.png', 'wb') as f:
+    f.write(base64.b64decode(parsed['image_base64']))
+```
+
+If user has selected a folder, save directly to `outputs/{brand}/posts/{Platform}/` — not a temp path.
 ```
 
 If the tool returns a rate limit error, wait 60 seconds and retry once.
 
-**Do NOT fall back to Python PIL.** The gateway tools handle all image generation, text overlay, and logo compositing.
+**IMPORTANT — Never use Nano Banana / `continue_editing` for text overlays.**
 
-**IMPORTANT — Never use Nano Banana / `continue_editing` for text overlays.** Use `image_add_text_overlay` and `image_add_logo` gateway tools instead.
+Use **Python Pillow** for all text overlay and logo compositing (see Steps 2 and 3 below). Do NOT use `image_add_text_overlay` or `image_add_logo` gateway MCP tools — they require passing large base64 strings through context, which exceeds Cowork limits.
 
 **5 proven image patterns (adapt messaging to active brand):**
 
@@ -170,7 +181,7 @@ If the tool returns a rate limit error, wait 60 seconds and retry once.
 - Include **lighting/mood**: "dimly lit, blue screen glow, night" or "bright, clean, modern office"
 - **No text, no logos, no brand name in the image** — text and logo are composited after using gateway tools
 - Always end prompt with: **"No text in the image. No logos. No watermarks."**
-- Do NOT use `continue_editing` for text — use `image_add_text_overlay` gateway tool instead
+- Do NOT use `continue_editing` for text — use Python Pillow (Step 2) instead
 
 **Example prompts by pattern:**
 
@@ -195,21 +206,45 @@ Never generate multiple images in parallel or back-to-back. One at a time with a
 
 **Step 1 — Generate image:**
 ```
-gemini_generate_image → parse JSON → extract image_base64
+gemini_generate_image → result auto-saved to temp file → Python decodes to PNG on disk
+```
+See instructions above for the Python decode snippet. Save the PNG to `outputs/{brand}/posts/{Platform}/` immediately.
+
+**Step 2 — Text overlay (gradient scrim + headline + subline) — USE PILLOW:**
+
+```python
+from PIL import Image, ImageDraw, ImageFont
+
+def add_text_overlay(input_path, output_path, headline, subline, target_w, target_h, text_align='center'):
+    img = Image.open(input_path).convert('RGBA')
+    # Scale and center-crop to exact canvas
+    r = img.width / img.height; tr = target_w / target_h
+    if r > tr: nw = int(img.width * target_h / img.height); nh = target_h
+    else: nw = target_w; nh = int(img.height * target_w / img.width)
+    img = img.resize((nw, nh), Image.LANCZOS)
+    img = img.crop(((nw-target_w)//2, (nh-target_h)//2, (nw-target_w)//2+target_w, (nh-target_h)//2+target_h))
+    # Gradient scrim — bottom 45%
+    scrim = Image.new('RGBA', (target_w, target_h), (0,0,0,0))
+    ds = ImageDraw.Draw(scrim)
+    ss = int(target_h * 0.55)
+    for y in range(ss, target_h):
+        ds.line([(0,y),(target_w,y)], fill=(0,0,0,int(185*(y-ss)/(target_h-ss))))
+    img = Image.alpha_composite(img, scrim)
+    draw = ImageDraw.Draw(img)
+    # Fonts
+    hs = max(36, int(target_w * 0.048)); ss2 = max(22, int(target_w * 0.026))
+    try:
+        fh = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', hs)
+        fs = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', ss2)
+    except: fh = fs = ImageFont.load_default()
+    # Draw wrapped text (white headline, pink #ec4899 subline)
+    pad = int(target_w * 0.05)
+    # ... (word-wrap and draw logic)
+    img.convert('RGB').save(output_path, 'PNG', optimize=True)
 ```
 
-**Step 2 — Text overlay (gradient scrim, drop shadow):**
-
-Use gateway MCP tool `image_add_text_overlay`:
-- `image_base64`: image_base64 parsed from gemini_generate_image JSON response
-- `headline`: max 6-8 words, title case or all caps
-- `subline`: brand tagline or CTA teaser
-- `target_w`, `target_h`: canvas dimensions (see table below)
-- `text_align`: left/center/right (from day-of-week rotation)
-- `text_position`: bottom (always)
-
-Tool returns JSON text: { "image_base64": "...", "mime_type": "..." }
-Parse and extract `image_base64` for the next step.
+Font: DejaVuSans-Bold for headline (white), DejaVuSans for subline (pink `#ec4899`).
+Text position: always bottom. text_align from day-of-week rotation.
 
 | Format | target_w | target_h |
 |--------|----------|----------|
@@ -230,19 +265,31 @@ Parse and extract `image_base64` for the next step.
 | Fri | center | bottom | top-right |
 | Sat | right | bottom | top-left |
 
-- Font: system sans-serif (gateway uses sharp SVG rendering).
-- Tool resizes via scale-to-fill + center-crop to hit exact target canvas.
+**Step 3 — Logo overlay (brand mark) — USE PILLOW:**
 
-**Step 3 — Logo overlay (brand mark):**
+```python
+from PIL import Image
 
-Use gateway MCP tool `image_add_logo`:
-- `image_base64`: image_base64 parsed from image_add_text_overlay JSON response
-- `logo_base64`: base64-encoded logo PNG (read `brands/{brand}/logo.png` and encode)
-- `position`: from day-of-week rotation (top-right/top-left)
-- `scale`: 0.18 (18% of image width)
+def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.18):
+    img = Image.open(image_path).convert('RGBA')
+    logo = Image.open(logo_path).convert('RGBA')
+    w, h = img.size
+    logo_w = int(w * scale)
+    logo_h = int(logo.height * logo_w / logo.width)
+    logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
+    margin = int(w * 0.03)
+    positions = {
+        'top-right':    (w - logo_w - margin, margin),
+        'top-left':     (margin, margin),
+        'bottom-right': (w - logo_w - margin, h - logo_h - margin),
+        'bottom-left':  (margin, h - logo_h - margin),
+    }
+    x, y = positions[position]
+    img.paste(logo, (x, y), logo)
+    img.convert('RGB').save(output_path, 'PNG', optimize=True)
+```
 
-Tool returns JSON text: { "image_base64": "...", "mime_type": "..." }
-Parse and extract `image_base64` — this is the final composited image.
+Logo path: `brands/{brand}/logo.png`. Scale: 0.18. Position: from day-of-week rotation.
 This is the standard final step for ALL social images.
 
 **Step 4 — Upload to Zernio (for social posts):**
@@ -253,11 +300,12 @@ This is the standard final step for ALL social images.
    - content_type: "image/png"
    → Returns uploadUrl + publicUrl
 
-2. Use gateway MCP tool `late_upload_media`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-   - upload_url: <uploadUrl from step 1>
-   - base64_data: image_base64 from image_add_logo JSON response
-   - content_type: "image/png"
+2. Use Python requests to upload the file directly to S3 (do NOT use `late_upload_media` MCP — it requires passing large base64 through context):
+```python
+import requests
+with open('path/to/final_image.png', 'rb') as f:
+    requests.put(uploadUrl, data=f, headers={'Content-Type': 'image/png'})
+```
 
 3. Use gateway MCP tool `late_create_post`:
    - media_items: [{ url: publicUrl from step 1 }]

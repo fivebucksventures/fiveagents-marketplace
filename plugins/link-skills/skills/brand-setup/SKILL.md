@@ -334,7 +334,7 @@ Pick avatars that match the brand's target market demographics.
 Ask the user:
 > Please paste your logo image directly into this chat (PNG, transparent background preferred).
 
-When the user pastes the logo, save it to `brands/{brand}/logo.png`. This file is read and passed as base64 to the `image_add_logo` gateway tool.
+When the user pastes the logo, save it to `brands/{brand}/logo.png`. This file is read by Python Pillow in content-generator and creative-designer for logo compositing.
 
 Note: Google Font and brand colors were already discovered and saved to `brands/{brand}/brand.md` in Step 4.
 
@@ -557,24 +557,25 @@ Use gateway MCP tool `gemini_generate_text`:
 - model: "gemini-2.5-flash"
 ```
 
-5. **Image text overlay** (if `GEMINI_API_KEY` configured — tests Satori + Sharp):
-```
-Use gateway MCP tool `image_add_text_overlay`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- image_base64: "<any small test image base64>"
-- text: "Test"
-- position: "bottom-center"
-- font_family: "Inter"
+5. **Image text overlay** (if `GEMINI_API_KEY` configured — tests Python Pillow):
+```python
+from PIL import Image, ImageDraw
+img = Image.new('RGB', (100, 100), color='gray')
+draw = ImageDraw.Draw(img)
+draw.text((10, 10), "Test", fill='white')
+img.save('/tmp/test_overlay.png')
+# If no error, Pillow is working
 ```
 
-6. **Image logo overlay** (if logo was provided in Step 6 — tests Sharp composite):
-```
-Use gateway MCP tool `image_add_logo`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- image_base64: "<any small test image base64>"
-- logo_base64: "<logo base64 from brands/{brand}/logo.png>"
-- position: "bottom-right"
-- logo_width: 80
+6. **Image logo overlay** (if logo was provided in Step 6 — tests Python Pillow composite):
+```python
+from PIL import Image
+img = Image.new('RGBA', (100, 100), color='gray')
+logo = Image.open('brands/{brand}/logo.png').convert('RGBA')
+logo = logo.resize((20, 20), Image.LANCZOS)
+img.paste(logo, (5, 5), logo)
+img.save('/tmp/test_logo.png')
+# If no error, logo compositing is working
 ```
 
 7. **Zernio** (if `LATE_API_KEY` configured):
