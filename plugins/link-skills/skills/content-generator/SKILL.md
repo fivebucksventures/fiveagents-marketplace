@@ -221,6 +221,10 @@ Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - prompt: Build from: brand visual style (from brand.md), post topic, mood, and ImageBrief from the Notion calendar entry. Example: "Professional clean desk workspace with laptop showing analytics dashboard, soft natural lighting, warm tones, no text, no people, bokeh background"
 - aspect_ratio: match target canvas from Step 4a (e.g. "1:1" for IG square, "9:16" for Story/Reel, "191:100" for LinkedIn)
+- model: "gemini-3.1-flash-image-preview"
+
+Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
+Parse the JSON and extract image_base64 — pass directly to image_add_text_overlay in Step 4d.
 ```
 
 Important prompt rules for generated backgrounds:
@@ -228,29 +232,31 @@ Important prompt rules for generated backgrounds:
 - Match the brand's visual style and color palette from `brand.md`
 - Keep it clean and uncluttered — the text overlay needs readable space at the bottom
 
+Do NOT fall back to Python PIL. The gateway handles all image generation.
+
 Save the generated image to `brands/{brand}/backgrounds/` for reuse by future posts.
 
 ### Step 4d — Apply text overlay
 
 Use gateway MCP tool `image_add_text_overlay`:
-- `image_base64`: base64-encoded raw image (from Step 4c output)
+- `image_base64`: base64-encoded background image — either read from file and encoded directly (pre-stored), or image_base64 parsed from gemini_generate_image JSON response (on-the-fly fallback)
 - `headline`: max 6–8 words, title case or all caps — use the post hook (NOT the topic name verbatim)
 - `subline`: **always provide a subline** — never pass `""`. Use a short supporting line: brand tagline, key benefit, or CTA teaser (read from `brands/{brand}/brand.md`)
 - `target_w`, `target_h`: canvas dimensions from Step 4a
 - `text_align`: from day-of-week rotation (Step 4b)
 - `text_position`: bottom (always)
 
-Returns base64-encoded PNG with text overlay.
+Tool returns JSON text: { "image_base64": "...", "mime_type": "..." } — parse and extract `image_base64` for Step 4e.
 
 ### Step 4e — Apply logo overlay
 
 Use gateway MCP tool `image_add_logo`:
-- `image_base64`: base64-encoded image from Step 4d output
+- `image_base64`: image_base64 parsed from image_add_text_overlay JSON response
 - `logo_base64`: base64-encoded logo PNG (read `brands/{brand}/logo.png` and encode)
 - `position`: from day-of-week rotation table (Step 4b)
 - `scale`: 0.18 (18% of image width)
 
-Returns base64-encoded final PNG. Save this as the `_final.png`.
+Tool returns JSON text: { "image_base64": "...", "mime_type": "..." } — parse and extract `image_base64`. Save as `_final.png`.
 
 ### Step 4f — Save final image
 

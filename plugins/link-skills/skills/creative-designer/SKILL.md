@@ -126,12 +126,16 @@ Use **Gemini image generation** for assets that need real imagery — scenes, pe
 Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - prompt: "<your image prompt>"
-- model: "gemini-2.0-flash-exp"
+- aspect_ratio: match target canvas (e.g. "1:1" for IG square, "9:16" for Story/Reel, "191:100" for LinkedIn)
+- model: "gemini-3.1-flash-image-preview"
 
-Tool returns base64 image directly — use it as input for `image_add_text_overlay` in the next step.
+Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
+Parse the JSON and pass `image_base64` to `image_add_text_overlay` in the next step.
 ```
 
 If the tool returns a rate limit error, wait 60 seconds and retry once.
+
+**Do NOT fall back to Python PIL.** The gateway tools handle all image generation, text overlay, and logo compositing.
 
 **IMPORTANT — Never use Nano Banana / `continue_editing` for text overlays.** Use `image_add_text_overlay` and `image_add_logo` gateway tools instead.
 
@@ -187,19 +191,25 @@ If the tool returns a rate limit error, wait 60 seconds and retry once.
 
 Never generate multiple images in parallel or back-to-back. One at a time with a short pause. If a 429 RESOURCE_EXHAUSTED error occurs, wait 60 seconds and retry once.
 
-**After every image generation, run BOTH steps in order:**
+**Full pipeline — run ALL steps in order for every image:**
 
-**Step 1 — Text overlay (gradient scrim, drop shadow):**
+**Step 1 — Generate image:**
+```
+gemini_generate_image → parse JSON → extract image_base64
+```
+
+**Step 2 — Text overlay (gradient scrim, drop shadow):**
 
 Use gateway MCP tool `image_add_text_overlay`:
-- `image_base64`: base64-encoded raw image (from `gemini_generate_image` output)
+- `image_base64`: image_base64 parsed from gemini_generate_image JSON response
 - `headline`: max 6-8 words, title case or all caps
 - `subline`: brand tagline or CTA teaser
 - `target_w`, `target_h`: canvas dimensions (see table below)
 - `text_align`: left/center/right (from day-of-week rotation)
 - `text_position`: bottom (always)
 
-Returns base64-encoded PNG with text overlay applied.
+Tool returns JSON text: { "image_base64": "...", "mime_type": "..." }
+Parse and extract `image_base64` for the next step.
 
 | Format | target_w | target_h |
 |--------|----------|----------|
@@ -210,7 +220,7 @@ Returns base64-encoded PNG with text overlay applied.
 | Instagram / Facebook Reel | 1080 | 1920 |
 | Instagram / Facebook Story | 1080 | 1920 |
 
-**Day-of-week layout rotation** (text_align: left/center/right — text_position: bottom/top):
+**Day-of-week layout rotation** (text_align: left/center/right — text_position: always bottom):
 | Day | text_align | text_position | logo_position |
 |-----|------------|---------------|---------------|
 | Mon | left | bottom | top-right |
@@ -223,18 +233,19 @@ Returns base64-encoded PNG with text overlay applied.
 - Font: system sans-serif (gateway uses sharp SVG rendering).
 - Tool resizes via scale-to-fill + center-crop to hit exact target canvas.
 
-**Step 2 — Logo overlay (brand mark):**
+**Step 3 — Logo overlay (brand mark):**
 
 Use gateway MCP tool `image_add_logo`:
-- `image_base64`: base64-encoded image from step 1 output
+- `image_base64`: image_base64 parsed from image_add_text_overlay JSON response
 - `logo_base64`: base64-encoded logo PNG (read `brands/{brand}/logo.png` and encode)
 - `position`: from day-of-week rotation (top-right/top-left)
 - `scale`: 0.18 (18% of image width)
 
-Returns base64-encoded final PNG. Logo transparent padding is auto-cropped so gaps are visually equal.
+Tool returns JSON text: { "image_base64": "...", "mime_type": "..." }
+Parse and extract `image_base64` — this is the final composited image.
 This is the standard final step for ALL social images.
 
-**Step 3 — Upload to Zernio (for social posts):**
+**Step 4 — Upload to Zernio (for social posts):**
 ```
 1. Use gateway MCP tool `late_presign_upload`:
    - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -245,8 +256,11 @@ This is the standard final step for ALL social images.
 2. Use gateway MCP tool `late_upload_media`:
    - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
    - upload_url: <uploadUrl from step 1>
-   - base64_data: <base64 encoded image>
+   - base64_data: image_base64 from image_add_logo JSON response
    - content_type: "image/png"
+
+3. Use gateway MCP tool `late_create_post`:
+   - media_items: [{ url: publicUrl from step 1 }]
 ```
 Use `publicUrl` from step 1 in `late_create_post` media array.
 
@@ -268,7 +282,7 @@ Place generated images into the asset HTML using `<img>` tags or reference them 
 
 ---
 
-### Step 5: Generate AI avatar videos via Argil API
+### Step 6: Generate AI avatar videos via Argil API
 
 Use **Argil API** to generate talking-head video ads. Only for Reels tagged `(Argil)` by social-calendar (1 per brand per week). Best for high-conversion Reel content on FB/IG.
 

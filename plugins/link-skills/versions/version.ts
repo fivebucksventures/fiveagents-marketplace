@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.1.4';
+const DEFAULT_VERSION = 'v2.1.5';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,28 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.1.5',
+    date: 'April 10, 2026',
+    changes: [
+      'content-generator: gemini_generate_image returns JSON — parse image_base64 before passing to image_add_text_overlay',
+      'content-generator: image_add_text_overlay returns JSON — parse image_base64 before passing to image_add_logo',
+      'content-generator: image_add_logo returns JSON — parse image_base64 for upload',
+      'content-generator: model updated to gemini-3.1-flash-image-preview',
+      'content-generator: clarified image_base64 source for pre-stored vs generated backgrounds in Step 4d',
+      'creative-designer: gemini_generate_image returns JSON — parse image_base64 for pipeline',
+      'creative-designer: image_add_text_overlay and image_add_logo return JSON — parse between steps',
+      'creative-designer: model updated to gemini-3.1-flash-image-preview',
+      'creative-designer: added aspect_ratio param to gemini_generate_image call',
+      'creative-designer: fixed duplicate Step 5 heading — Argil section renumbered to Step 6',
+      'creative-designer: fixed day-of-week rotation label (bottom/top → always bottom)',
+      'creative-designer: added No Python PIL fallback note',
+      'background-generator: gemini_generate_image returns JSON — parse image_base64 to save file',
+      'background-generator: model updated to gemini-3.1-flash-image-preview',
+      'background-generator: fixed "Nano Banana" reference → Gemini in prompt rules',
+      'background-generator: added No Python PIL fallback note',
+    ],
+  },
   {
     version: 'v2.1.4',
     date: 'April 10, 2026',

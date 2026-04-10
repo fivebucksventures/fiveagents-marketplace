@@ -49,7 +49,7 @@ Take up to 20 unique ImageBriefs from Step 1. If fewer than 20, create variation
 
 **Prompt rules:**
 - Use the `ImageBrief` exactly as written in the calendar
-- NEVER use the word "portrait" — Nano Banana generates actual portrait photos
+- NEVER use the word "portrait" — Gemini generates actual portrait photos
 - Every prompt must end with: "No text. No logos. No watermarks."
 
 ---
@@ -63,10 +63,14 @@ For each image:
 Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - prompt: "{ImageBrief}"
-- model: "gemini-2.0-flash-exp"
+- aspect_ratio: "1:1" (default for background library; content-generator crops to target canvas at overlay time)
+- model: "gemini-3.1-flash-image-preview"
 
-Tool returns base64 image. Save to `brands/{brand}/backgrounds/{descriptive_filename}.png`.
+Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
+Parse the JSON, extract image_base64, decode and save to `brands/{brand}/backgrounds/{descriptive_filename}.png`.
 ```
+
+Do NOT fall back to Python PIL. The gateway handles all image generation.
 
 Wait 6 seconds between calls (rate limit: ~10 requests per minute).
 
