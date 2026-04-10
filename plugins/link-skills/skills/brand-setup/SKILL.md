@@ -25,8 +25,7 @@ Before anything else, ensure your Cowork environment is configured:
 > To use this plugin, you'll need to adjust a few settings first. Go to **Settings → Capabilities** and check the following:
 
 1. **Settings → Claude Code → Allow bypass permissions mode** — toggle ON (required for skills to run without interruption)
-2. **Settings → Claude in Chrome → Allow extension** — toggle ON (required for website analysis)
-3. Confirm all your **MCP connectors** are connected (we'll set these up in Step 2)
+2. Confirm all your **MCP connectors** are connected (we'll set these up in Step 7)
 
 > Have you enabled these settings? Once confirmed, we'll move on.
 
@@ -63,12 +62,13 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | # | MCP | What it's for | How to connect |
 |---|---|---|---|
 | 1 | **FiveAgents** | All external API calls (Gemini, Zernio, Argil, DataforSEO, email, logging) | 1. In Claude, go to Settings → Connectors<br>2. Click "Add custom connector"<br>3. Name: `FiveAgents`<br>4. URL: `https://gateway.fiveagents.io/api/mcp`<br>5. Click Connect |
-| 2 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
-| 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
-| 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
-| 5 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
-| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads (Facebook Ads), and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
-| 7 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
+| 2 | **Playwright** | Website analysis — browses your site to extract content, colors, and fonts | Settings → Connected Apps → Playwright → Authorize |
+| 3 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
+| 4 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
+| 5 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
+| 6 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
+| 7 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads (Facebook Ads), and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
+| 8 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
@@ -105,16 +105,32 @@ outputs/{brand}/strategy/
 Ask the user:
 > What is your website URL? (e.g. https://acme.com)
 
-Use **Claude in Chrome** to navigate to the site and extract content directly through the user's browser:
-1. Homepage — extract tagline, value propositions, hero copy, CTAs
-2. Read the navbar/menu to discover all top-level pages
-3. Visit each page found in the navbar (e.g. Pricing, Services, Portfolio, About, Contact, Blog) and extract key content from each
+Use **Playwright MCP** to navigate to the site and extract content:
 
-If Claude in Chrome is not available, ask the user to paste the key content directly into the chat.
+1. `browser_navigate` to the homepage — extract tagline, value propositions, hero copy, CTAs
+2. `browser_snapshot` to read the DOM and discover all top-level navbar links
+3. Visit each navbar page (e.g. Pricing, Services, Portfolio, About, Contact, Blog) using `browser_navigate` + `browser_snapshot` and extract key content from each
 
 While browsing, also extract the brand's visual identity:
-- **Colors** — inspect CSS variables, button/header/link colors to find primary, secondary, and accent HEX codes
-- **Fonts** — check `<link>` tags for Google Fonts URLs and `font-family` on headings/body text
+- **Colors** — use `browser_evaluate` to inspect computed CSS styles on buttons, headings, and nav elements to find primary, secondary, and accent HEX codes:
+  ```js
+  {
+    button: getComputedStyle(document.querySelector('button, .btn, [class*="btn"]') || document.body).backgroundColor,
+    heading: getComputedStyle(document.querySelector('h1, h2') || document.body).color,
+    nav: getComputedStyle(document.querySelector('nav, header') || document.body).backgroundColor,
+    link: getComputedStyle(document.querySelector('a') || document.body).color
+  }
+  ```
+- **Fonts** — use `browser_evaluate` to check `<link>` tags for Google Fonts URLs and `font-family` on headings/body:
+  ```js
+  {
+    googleFonts: [...document.querySelectorAll('link[href*="fonts.googleapis.com"]')].map(l => l.href),
+    headingFont: getComputedStyle(document.querySelector('h1, h2') || document.body).fontFamily,
+    bodyFont: getComputedStyle(document.body).fontFamily
+  }
+  ```
+
+If Playwright MCP is unavailable, blocked (e.g. Cloudflare protection), or fails to load the site, ask the user to paste the key content directly into the chat and provide their brand colors (HEX codes) and Google Font name manually.
 
 Present the discovered colors and fonts to the user for confirmation:
 > I found these brand colors on your site: Primary: `#1A73E8`, Secondary: `#34A853`, Accent: `#FBBC04`. Are these correct?
@@ -219,19 +235,14 @@ Generated from research-strategy output. No need to ask the user — competitors
 > What does your conversion funnel look like? What happens after someone clicks your ad?
 > (e.g. "website visit → WhatsApp chat → close deal" or "visit → trial signup → paid conversion")
 
-**Step B — Discover actual GA4 events (if Windsor.ai is connected):**
+**Step B — Discover actual GA4 events:**
 
-```
-Use Windsor.ai MCP tool `get_fields`:
-- source: "googleanalytics4"
-```
+Windsor.ai is set up in Step 7, so at this point it is likely not connected yet. Ask the user for their GA4 key event / custom event names directly. If they don't know, leave event names as `TBD` — they will be discovered and filled in during Step 8 (Connection Validation) once Windsor.ai is connected.
 
-This returns all available fields including key events and custom events. Look for event names that match the user's described funnel actions (e.g. `click_whatsapp`, `click_email`, `schedule_call`, `signup_form_submit`, `trial_activated`, `purchase`).
+If Windsor.ai happens to already be connected (e.g. returning user), use Windsor MCP tool `get_fields` with `source: "googleanalytics4"` to discover actual events now. Look for event names that match the user's described funnel actions (e.g. `click_whatsapp`, `click_email`, `schedule_call`, `signup_form_submit`, `trial_activated`, `purchase`).
 
 Show the user the relevant events found and confirm the mapping:
 > I found these key events / custom events that match your funnel: [list]. Can you confirm which event maps to each step?
-
-If Windsor.ai is not connected yet, ask the user for their GA4 key event / custom event names directly. If they don't know, leave event names as `TBD` — they will be discovered during Step 8 (Connection Validation) when Windsor.ai is connected.
 
 **Step C — Generate funnel.md with the confirmed mapping:**
 
@@ -314,7 +325,7 @@ Ask the user to add the Five Agents connector in Claude:
 3. URL: `https://gateway.fiveagents.io/api/mcp`
 4. Click Connect
 
-If the user is on terminal (Claude Code), they can skip this — terminal skills use env vars directly.
+This connector is required for all skills — it routes Gemini, Zernio, Argil, DataforSEO, email, and logging calls through the gateway.
 
 **7b. API Keys:**
 
@@ -381,14 +392,15 @@ Walk the user through each one. Explain what it does, ask the user to confirm th
 
 | # | MCP | What it does | How to connect |
 |---|---|---|---|
-| 1 | **Notion** | Content calendar, strategies & briefs | Settings → Connected Apps → Notion → Authorize |
-| 2 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
-| 3 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
-| 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
-| 5 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads, and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
-| 6 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
+| 1 | **Playwright** | Website analysis — browses your site to extract content, colors, and fonts | Settings → Connected Apps → Playwright → Authorize |
+| 2 | **Notion** | Content calendar, strategies & briefs | Settings → Connected Apps → Notion → Authorize |
+| 3 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
+| 4 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
+| 5 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
+| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads, and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
+| 7 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
-For Notion, Slack, Gmail, Google Calendar, and Canva, ask:
+For Playwright, Notion, Slack, Gmail, Google Calendar, and Canva, ask:
 > Have you connected {MCP name} in your Claude settings? (Settings → Connected Apps)
 
 For Windsor.ai specifically, walk the user through all 3 steps before asking if they're done:
@@ -488,21 +500,30 @@ Use gateway MCP tool `dataforseo_search_volume`:
 
 **8c. MCP connectors (only if connected in Step 7):**
 
-10. **Slack** (if connected) — Send a test DM:
+10. **Playwright** (if connected) — Navigate to the brand's website and take a snapshot to confirm Playwright can access sites:
+```
+browser_navigate to {brand website URL}
+browser_snapshot
+```
+If it returns page content, Playwright is connected.
+
+11. **Slack** (if connected) — Send a test DM:
 ```
 slack_send_message to channel $SLACK_NOTIFY_USER:
 "✅ Link plugin connected successfully for brand: {brand}"
 ```
 
-11. **Notion** (if connected) — Try `notion-search` for any page. If it returns results, Notion is connected.
+12. **Notion** (if connected) — Try `notion-search` for any page. If it returns results, Notion is connected.
 
-12. **Gmail** (if connected) — Try `gmail_get_profile`. If it returns the user's email, Gmail is connected.
+13. **Gmail** (if connected) — Try `gmail_get_profile`. If it returns the user's email, Gmail is connected.
 
-13. **Google Calendar** (if connected) — Try `gcal_list_calendars`. If it returns calendars, Google Calendar is connected.
+14. **Google Calendar** (if connected) — Try `gcal_list_calendars`. If it returns calendars, Google Calendar is connected.
 
-14. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
+15. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
 
-15. **GA4 event discovery** (if Windsor.ai connected AND funnel.md has TBD events) — Discover the client's actual GA4 conversion events:
+16. **Canva** (if connected) — Try `list-brand-kits`. If it returns results (even empty), Canva is connected.
+
+17. **GA4 event discovery** (if Windsor.ai connected AND funnel.md has TBD events) — Discover the client's actual GA4 conversion events:
 ```
 Use Windsor.ai MCP tool `get_fields`:
 - source: "googleanalytics4"
@@ -527,6 +548,7 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 | Zernio | ✅ / ❌ / ⏭ skipped |
 | Argil | ✅ / ❌ / ⏭ skipped |
 | DataforSEO | ✅ / ❌ / ⏭ skipped |
+| Playwright | ✅ / ❌ / ⏭ skipped |
 | Slack | ✅ / ❌ / ⏭ skipped |
 | Notion | ✅ / ❌ / ⏭ skipped |
 | Gmail | ✅ / ❌ / ⏭ skipped |
@@ -548,6 +570,7 @@ API Keys (via gateway vault):
   {✅|⬜} DataforSEO — {connected|not configured}
 
 MCP Connectors:
+  {✅|⬜} Playwright — {connected|not configured}
   {✅|⬜} Slack — {connected|not configured}
   {✅|⬜} Notion — {connected|not configured}
   {✅|⬜} Gmail — {connected|not configured}
@@ -570,6 +593,7 @@ Brand context files:
   brands/{brand}/competitors.md ✅
   brands/{brand}/funnel.md ✅
   brands/{brand}/avatars.md ✅
+  brands/{brand}/logo.png ✅
 
 Connections:
   {list of connected / not connected}

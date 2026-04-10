@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.1.3';
+const DEFAULT_VERSION = 'v2.1.4';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,23 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.1.4',
+    date: 'April 10, 2026',
+    changes: [
+      'brand-setup: Step 4 switched from Claude in Chrome to Playwright MCP for website analysis',
+      'brand-setup: improved browser_evaluate color selectors (h1, nav, a, button) — more reliable than body fallback',
+      'brand-setup: added Cloudflare/blocked-site fallback note in Step 4',
+      'brand-setup: Step 1 corrected MCP connectors reference from Step 2 to Step 7',
+      'brand-setup: added Playwright to Step 2 prerequisites MCP table',
+      'brand-setup: Step 5 GA4 event discovery now defers to Step 8 by default (Windsor.ai not yet set up)',
+      'brand-setup: Step 7a removed incorrect "Claude Code users can skip connector" note',
+      'brand-setup: added Playwright to Step 7c MCP connectors table',
+      'brand-setup: added Playwright test (#10) and Canva test (#16) in Step 8 validation',
+      'brand-setup: added Playwright to Step 8 summary table and report block',
+      'brand-setup: added logo.png to Step 9 brand context files summary',
+    ],
+  },
   {
     version: 'v2.1.3',
     date: 'April 10, 2026',
