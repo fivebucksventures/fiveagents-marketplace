@@ -24,10 +24,9 @@ Before anything else, ensure your Cowork environment is configured:
 
 > To use this plugin, you'll need to adjust a few settings first. Go to **Settings → Capabilities** and check the following:
 
-1. **Cloud code execution and file creation** — toggle ON (required for skills)
-2. **Allow network egress** — toggle ON (required for API calls)
-3. **Claude in Chrome** — go to Settings → Claude in Chrome → enable and install the extension (required for website analysis)
-4. Confirm all your **MCP connectors** are connected (we'll set these up in Step 2)
+1. **Settings → Claude Code → Allow bypass permissions mode** — toggle ON (required for skills to run without interruption)
+2. **Settings → Claude in Chrome → Allow extension** — toggle ON (required for website analysis)
+3. Confirm all your **MCP connectors** are connected (we'll set these up in Step 2)
 
 > Have you enabled these settings? Once confirmed, we'll move on.
 
@@ -39,10 +38,8 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 
 **Brand basics:**
 - Your brand name
-- Your website URL
-- Your brand colors as HEX codes (e.g. `#1A73E8`)
+- Your website URL (we'll auto-detect colors and fonts from your site)
 - Your logo file (PNG, transparent background preferred)
-- Your Google Font name (e.g. "Inter", "Montserrat") — browse at https://fonts.google.com
 
 **Required API keys:**
 
@@ -93,7 +90,6 @@ brands/{brand}/
 ├── competitors.md
 ├── funnel.md
 ├── avatars.md
-├── fonts/
 └── backgrounds/
 ```
 
@@ -108,23 +104,27 @@ outputs/{brand}/strategy/
 Ask the user:
 > What is your website URL? (e.g. https://acme.com)
 
-Use **Claude in Chrome** (preferred in Cowork) to navigate to the site and extract content directly through the user's browser:
+Use **Claude in Chrome** to navigate to the site and extract content directly through the user's browser:
 1. Homepage — extract tagline, value propositions, hero copy, CTAs
-2. Pricing page (if exists) — extract plans, pricing, features
-3. About page (if exists) — extract company story, team, mission
-4. Blog/resources (if exists) — extract content themes and topics
+2. Read the navbar/menu to discover all top-level pages
+3. Visit each page found in the navbar (e.g. Pricing, Services, Portfolio, About, Contact, Blog) and extract key content from each
 
 If Claude in Chrome is not available, ask the user to paste the key content directly into the chat.
 
-Use the analyzed data to draft the brand context files below. Show the user each draft and let them review/edit before saving.
+While browsing, also extract the brand's visual identity:
+- **Colors** — inspect CSS variables, button/header/link colors to find primary, secondary, and accent HEX codes
+- **Fonts** — check `<link>` tags for Google Fonts URLs and `font-family` on headings/body text
 
-### Step 5 — Generate Brand Context Files
+Present the discovered colors and fonts to the user for confirmation:
+> I found these brand colors on your site: Primary: `#1A73E8`, Secondary: `#34A853`, Accent: `#FBBC04`. Are these correct?
+> Your site uses the Google Font **Inter** for headings and **Roboto** for body text. Should I use these?
 
-Before generating files, ask the user for any details you couldn't extract from the website:
+If colors or fonts couldn't be extracted, ask the user directly:
+- **Brand Colors** — "What are your brand colors? Please provide HEX codes (e.g. #1A73E8)."
+- **Google Font** — "What Google Font does your brand use? Browse at https://fonts.google.com"
 - **Voice & Tone** — if unclear from the website copy, ask the user to describe it
-- **Brand Colors as HEX codes** — ask: "What are your brand colors? Please provide HEX codes (e.g. #1A73E8)." Do NOT ask for color names like "Green" or "Blue" — always request HEX codes.
 
-Using the analyzed data + any corrections from the user, generate:
+Using the analyzed data + any corrections from the user, generate **two files**:
 
 **`brands/{brand}/brand.md`**
 ```markdown
@@ -148,23 +148,6 @@ Using the analyzed data + any corrections from the user, generate:
 - {common mistakes to avoid — infer from brand positioning}
 ```
 
-**`brands/{brand}/product.md`**
-```markdown
-# {Brand Name} — Product
-
-## Overview
-{1-2 sentence summary}
-
-## Features
-{extracted from website}
-
-## Pricing
-{extracted from pricing page or "Ask user"}
-
-## Differentiators
-{what makes this product unique}
-```
-
 **`brands/{brand}/audience.md`**
 ```markdown
 # {Brand Name} — Target Audience
@@ -183,11 +166,38 @@ Using the analyzed data + any corrections from the user, generate:
 
 Generate 3-6 personas based on the website's messaging and target market.
 
-**`brands/{brand}/competitors.md`**
-Ask the user:
-> Who are your top 3-5 competitors?
+Show the user each draft and let them review/edit before saving.
 
-Then use WebSearch to research each competitor and generate:
+### Step 5 — Research & Context Generation
+
+Now that `brand.md` and `audience.md` exist, run `/link-skills:research-strategy` to fill in the remaining context files. The research skill will:
+- Read brand.md + audience.md for context
+- Research competitors automatically (no need to ask the user)
+- Analyze market positioning, strengths, weaknesses
+- Run keyword research (if DataforSEO is configured)
+
+Read the research output from `outputs/{brand}/strategy/` and use it to generate:
+
+**`brands/{brand}/product.md`**
+```markdown
+# {Brand Name} — Product
+
+## Overview
+{1-2 sentence summary}
+
+## Features
+{extracted from website in Step 4}
+
+## Pricing
+{extracted from pricing page or "Ask user"}
+
+## Differentiators
+{what makes this product unique — informed by competitive research}
+```
+
+**`brands/{brand}/competitors.md`**
+
+Generated from research-strategy output. No need to ask the user — competitors are discovered automatically:
 ```markdown
 # {Brand Name} — Competitive Landscape
 
@@ -197,6 +207,9 @@ Then use WebSearch to research each competitor and generate:
 - **Strengths:** {what they do well}
 - **Weaknesses:** {where they fall short}
 - **Counter-messaging:** {how to position against them}
+
+## {Competitor 2}
+...
 ```
 
 **`brands/{brand}/funnel.md`**
@@ -279,22 +292,20 @@ Use Argil stock avatars. Rotate across personas for variety.
 Pick avatars that match the brand's target market demographics.
 ```
 
-### Step 6 — Logo & Fonts
+### Step 6 — Logo
 
 Ask the user:
 > Please paste your logo image directly into this chat (PNG, transparent background preferred).
-> What Google Font does your brand use? (e.g. "Inter", "Montserrat", "Poppins", "Roboto")
-> Browse fonts at https://fonts.google.com
 
 When the user pastes the logo, save it to `brands/{brand}/logo.png`. This file is read and passed as base64 to the `image_add_logo` gateway tool.
 
-Save the font name to `brands/{brand}/brand.md` under the Typography section. The `image_add_text_overlay` gateway tool accepts a `font_family` parameter — pass the Google Font name exactly as it appears on Google Fonts (e.g. "Inter", "Montserrat"). The font is loaded automatically at runtime.
+Note: Google Font and brand colors were already discovered and saved to `brands/{brand}/brand.md` in Step 4.
 
 ### Step 7 — API Keys & Connections
 
 Walk through each integration one by one. For each one, explain what it does and whether it's required or optional. Ask: "Do you have your {integration} ready?" If the user says "not now" or "skip", acknowledge and move on — note it as unconfigured for the summary.
 
-**6a. Five Agents custom connector (MUST be first — all gateway tools depend on this):**
+**7a. Five Agents custom connector (MUST be first — all gateway tools depend on this):**
 
 Ask the user to add the Five Agents connector in Claude:
 1. Go to Settings → Connectors → "Add custom connector"
@@ -304,7 +315,7 @@ Ask the user to add the Five Agents connector in Claude:
 
 If the user is on terminal (Claude Code), they can skip this — terminal skills use env vars directly.
 
-**6b. API Keys:**
+**7b. API Keys:**
 
 **Required:**
 
@@ -363,7 +374,7 @@ Note: Google Ads, Meta Ads, and GA4 credentials are handled by the Windsor.ai MC
 
 Keys are encrypted via Supabase Vault and can never be retrieved after storage. If the user needs to update a key later, they can re-run this step or use the dashboard UI at fiveagents.io.
 
-**6c. MCP Connectors (user connects in Claude settings → Connected Apps):**
+**7c. MCP Connectors (user connects in Claude settings → Connected Apps):**
 
 Walk the user through each one. Explain what it does, ask the user to confirm they've connected it. If "not now", move on and note as unconfigured.
 
@@ -385,7 +396,7 @@ If yes, proceed. If "not now", acknowledge and move on.
 
 **Only validate integrations the user configured in Step 7.** Skip any the user chose not to set up. For each test, show ✅ or ❌ with a clear error message if it fails.
 
-**7a. Gateway connector (MUST pass — all other gateway tests depend on this):**
+**8a. Gateway connector (MUST pass — all other gateway tests depend on this):**
 
 1. **Five Agents gateway** — Log a test run:
 ```
@@ -401,7 +412,7 @@ Use gateway MCP tool `fiveagents_log_run`:
 ```
 If error → tell user to verify their `FIVEAGENTS_API_KEY` and that the Five Agents connector URL is correct (`https://gateway.fiveagents.io/api/mcp`). Do NOT proceed with other gateway tests until this passes.
 
-**7b. Gateway API key tests (only if configured in Step 6):**
+**8b. Gateway API key tests (only if configured in Step 7):**
 
 2. **Credential vault** — Store a test value and confirm it works:
 ```
@@ -469,7 +480,7 @@ Use gateway MCP tool `dataforseo_search_volume`:
 - location_code: 2702
 ```
 
-**7c. MCP connectors (only if connected in Step 7):**
+**8c. MCP connectors (only if connected in Step 7):**
 
 10. **Slack** (if connected) — Send a test DM:
 ```

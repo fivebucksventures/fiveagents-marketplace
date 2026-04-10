@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.1.1';
-const DEFAULT_DATE = 'April 11, 2026';
+const DEFAULT_VERSION = 'v2.1.2';
+const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -10,8 +10,21 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
   {
+    version: 'v2.1.2',
+    date: 'April 10, 2026',
+    changes: [
+      'brand-setup: Claude in Chrome traverses homepage + all 1st-level navbar pages',
+      'brand-setup: auto-detects primary/secondary colors and Google Fonts from computed styles',
+      'brand-setup: Step 5 runs /research-strategy to fill product.md and competitors.md',
+      'brand-setup: Step 6 is logo-only (fonts no longer asked separately)',
+      'brand-setup: prerequisites no longer asks for colors/fonts (auto-detected in Step 4)',
+      'brand-setup: fixed sub-step labels 7a/7b/7c and 8a/8b/8c',
+      'brand-setup: removed fonts/ from folder structure (Google Fonts replaces local .ttf)',
+    ],
+  },
+  {
     version: 'v2.1.1',
-    date: 'April 11, 2026',
+    date: 'April 10, 2026',
     changes: [
       'brand-setup: added Step 1 Cowork Setup (capabilities, Claude in Chrome, connectors)',
       'brand-setup: website analysis uses Claude in Chrome instead of WebFetch',
