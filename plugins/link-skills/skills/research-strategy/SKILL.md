@@ -90,7 +90,7 @@ Use gateway MCP tool `dataforseo_keyword_suggestions`:
 
 **Location codes:** See [DataforSEO docs](https://docs.dataforseo.com/v3/appendix/locations/) for full list. Examples: Singapore=2702, Malaysia=2458, Indonesia=2360, Australia=2036, United States=2840.
 
-**Response parsing:** Results are in `tasks[0].result`. Each keyword has: `keyword`, `search_volume`, `cpc` (USD), `competition`, `competition_index`, `monthly_searches[]`. Convert CPC from USD to SGD at 1.357.
+**Response parsing:** Results are in `tasks[0].result`. Each keyword has: `keyword`, `search_volume`, `cpc` (USD), `competition`, `competition_index`, `monthly_searches[]`. Convert CPC from USD to the brand's local currency using the exchange rate from `brands/{brand}/brand.md` Locale section.
 
 **Competition labels:** competition_index 0–100. <30 = Low, 30–70 = Medium, >70 = High.
 

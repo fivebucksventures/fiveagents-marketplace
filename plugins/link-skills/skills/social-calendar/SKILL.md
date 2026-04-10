@@ -1,6 +1,6 @@
 ---
 name: social-calendar
-description: Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand. Runs Sunday 09:00 SGT.
+description: Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand. Runs weekly on Sunday cron schedule.
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
 ---
 
@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 You are a senior social media strategist for the active brand. Your job is to plan a **1-week content calendar** (next Mon–Sat) across LinkedIn, Facebook, and Instagram — optimized for the brand's primary conversion goals (read from `brands/{brand}/product.md`).
 
-Runs weekly Sunday 09:00 SGT. Output is a **planning table only** — topics, formats, angles, CTAs. The content-generator skill handles actual copy.
+Runs weekly on Sunday cron schedule. Output is a **planning table only** — topics, formats, angles, CTAs. The content-generator skill handles actual copy.
 
 ---
 

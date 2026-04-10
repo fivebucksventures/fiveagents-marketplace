@@ -16,7 +16,7 @@ You are the release manager for this repository. Your job is to stage all change
 
 Use this skill when:
 - The user asks to commit / push / release changes
-- Running as a scheduled daily task (11PM SGT)
+- Running as a scheduled daily task (on cron schedule)
 - After a session where files were created or modified
 
 Do NOT run if:
@@ -38,7 +38,7 @@ If the working directory is clean (nothing to commit), log "No changes to commit
 ### Step 2 — Get today's date and current version
 
 ```bash
-TZ=Asia/Singapore date '+%B %-d, %Y'
+TZ=<brand timezone from brands/{brand}/brand.md> date '+%B %-d, %Y'
 ```
 
 Read current version from `versions/version.ts` — look at `DEFAULT_VERSION`.
@@ -146,7 +146,7 @@ DM the user via Slack MCP (`slack_send_message`, `channel_id: "$SLACK_NOTIFY_USE
 Changes: {N} files changed
 Tag: {version}
 Branch: main
-Time: {HH:MM} SGT
+Time: {HH:MM} [timezone]
 ```
 
 If any step failed, send:

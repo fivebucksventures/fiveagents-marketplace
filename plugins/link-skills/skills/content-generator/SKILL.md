@@ -1,6 +1,6 @@
 ---
 name: content-generator
-description: Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack. Runs daily 09:00 SGT.
+description: Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack. Runs daily on cron schedule.
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
@@ -10,7 +10,7 @@ allowed-tools: Read, Grep, Glob, Bash
 
 You are a content production agent for the active brand. Your job is to generate copy and images for today's scheduled social media posts from the Notion Social Calendar, save all outputs, update Notion, and notify via Slack.
 
-Runs daily Mon–Sun at 09:00 SGT. Targets posts scheduled for **today**.
+Runs daily Mon–Sun on cron schedule. Targets posts scheduled for **today** (in the brand's timezone from `brands/{brand}/brand.md` Locale section).
 
 ---
 
@@ -25,7 +25,7 @@ Runs daily Mon–Sun at 09:00 SGT. Targets posts scheduled for **today**.
 
 ## Step 1 — Find tomorrow's posts in Notion
 
-**Target date**: today in SGT (`TZ=Asia/Singapore date '+%d %b %Y'`)
+**Target date**: today in the brand's timezone (read from `brands/{brand}/brand.md` Locale section, e.g. `TZ=Asia/Jakarta date '+%d %b %Y'`)
 
 ### Find the active Social Calendar page
 
@@ -50,7 +50,7 @@ Each table row has cells in this order (column index):
 `[0] Date`, `[1] Platform`, `[2] Format`, `[3] Topic`, `[4] Persona`, `[5] ContentAngle`, `[6] CTA`, `[7] Hashtags`, `[8] ImageBrief`, `[9] Status`
 
 Skip the header row (index 0). Filter rows where:
-- `Date` matches today's date (SGT: `TZ=Asia/Singapore date '+%d %b %Y'`)
+- `Date` matches today's date (in brand timezone)
 - `Status` == `"Planned"`
 
 Save each row's block ID as `_row_id` — needed for Step 6 status update.

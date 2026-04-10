@@ -111,7 +111,12 @@ Use **Playwright MCP** to navigate to the site and extract content:
 2. `browser_snapshot` to read the DOM and discover all top-level navbar links
 3. Visit each navbar page (e.g. Pricing, Services, Portfolio, About, Contact, Blog) using `browser_navigate` + `browser_snapshot` and extract key content from each
 
-While browsing, also extract the brand's visual identity:
+While browsing, also extract the brand's **locale** and **visual identity**:
+- **Locale** — infer from the website's TLD (e.g. `.co.id` → Indonesia), language, physical address, phone number country code, or currency symbols on the page. Determine:
+  - Currency code and symbol (e.g. `Rp` for IDR, `SGD`, `$` for USD)
+  - Timezone (e.g. `Asia/Jakarta`, `Asia/Singapore`)
+  - Meta Ads USD exchange rate (Facebook spend is always USD — this rate converts to local currency)
+  If ambiguous, confirm with the user.
 - **Colors** — use `browser_evaluate` to inspect computed CSS styles on buttons, headings, and nav elements to find primary, secondary, and accent HEX codes:
   ```js
   {
@@ -157,6 +162,11 @@ Using the analyzed data + any corrections from the user, generate **two files**:
 - Primary: {extract HEX from website if possible, otherwise ask user for HEX code e.g. #1A73E8}
 - Secondary: {extract HEX or ask user for HEX code}
 - Accent: {extract HEX or ask user for HEX code}
+
+## Locale
+- Currency: {e.g. Rp, SGD, USD — infer from website/country}
+- Timezone: {e.g. Asia/Jakarta, Asia/Singapore — infer from location}
+- Meta USD exchange rate: {e.g. 16200 for IDR, 1.36 for SGD — USD to local currency}
 
 ## Approved Phrases
 - {key phrases from the website}
@@ -274,7 +284,7 @@ Show the user the relevant events found and confirm the mapping:
 {...same conversion actions, different source filter}
 
 ## Cost Benchmarks
-| Metric | Target (SGD) |
+| Metric | Target ({currency from brand.md Locale}) |
 |---|---|
 | Cost per {Conversion Action 1} | {X} |
 | Cost per {Conversion Action 2} | {X} |

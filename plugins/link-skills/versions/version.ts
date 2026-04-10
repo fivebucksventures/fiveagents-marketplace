@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.1.5';
+const DEFAULT_VERSION = 'v2.2.0';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,29 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.0',
+    date: 'April 10, 2026',
+    changes: [
+      'digital-marketing-analyst: agent now sends structured JSON instead of HTML — server-side template renders styled email',
+      'digital-marketing-analyst: fixed double title bug (wrapInTemplate no longer renders subject as heading)',
+      'digital-marketing-analyst: intermediate JSON schemas updated to match template (notes, top_recommendation, reach instead of lp_views)',
+      'digital-marketing-analyst: removed all hardcoded currency (SGD), timezone (SGT), exchange rate (1.36) — reads from brands/{brand}/brand.md Locale',
+      'brand-setup: added Locale section to brand.md template (Currency, Timezone, Meta USD exchange rate)',
+      'brand-setup: Step 4 website analysis now infers locale from TLD, address, phone country code, currency symbols',
+      'brand-setup: funnel.md cost benchmarks reference brand.md currency instead of hardcoded SGD',
+      'social-publisher: replaced hardcoded Asia/Singapore timezone and SGT publish times with brand timezone from brand.md',
+      'content-generator: replaced hardcoded 09:00 SGT and TZ=Asia/Singapore with brand timezone from brand.md',
+      'social-calendar: replaced hardcoded 09:00 SGT with cron schedule reference',
+      'research-strategy: replaced hardcoded USD→SGD 1.357 CPC conversion with brand.md exchange rate',
+      'data-analysis: replaced hardcoded SGD/1.36 currency conversion with brand.md Locale',
+      'commit-to-git: replaced hardcoded 11PM SGT and TZ=Asia/Singapore with brand timezone',
+      'fiveagents.io email/send/route.ts: template routing — tag-based renderer dispatch (paid-ads-daily/weekly → paid-ads-brief.ts)',
+      'fiveagents.io email/send/route.ts: wrapInTemplate simplified to logo + footer only (no duplicate title)',
+      'fiveagents.io: new lib/email/templates/paid-ads-brief.ts — server-side HTML renderer ported from Link render_brief.py',
+      'fiveagents.io: new lib/email/templates/index.ts — template registry for future skill renderers',
+    ],
+  },
   {
     version: 'v2.1.5',
     date: 'April 10, 2026',

@@ -106,8 +106,8 @@ Use gateway MCP tool `late_update_post`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - post_id: "<draft_id>"
 - is_draft: false
-- scheduled_for: "2026-03-13T01:00:00Z"
-- timezone: "Asia/Singapore"
+- scheduled_for: "<ISO 8601 UTC datetime>"
+- timezone: "<read from brands/{brand}/brand.md Locale section>
 ```
 
 **Note on Reels/Stories:**
@@ -116,12 +116,12 @@ Use gateway MCP tool `late_update_post`:
 - Stories accept both images and video. When in doubt, use Story over Reel for static images.
 - Use PUT (not PATCH) for all Late API updates.
 
-Default publish times (SGT → UTC):
-| Platform | SGT | UTC |
+Default publish times (convert from brand timezone to UTC using `brands/{brand}/brand.md` Locale):
+| Platform | Local Time | Notes |
 |---|---|---|
-| LinkedIn | 09:00 | 01:00 |
-| Facebook | 12:00 | 04:00 |
-| Instagram | 18:00 | 10:00 |
+| LinkedIn | 09:00 | Morning — professional audience |
+| Facebook | 12:00 | Lunch break — casual browsing |
+| Instagram | 18:00 | Evening — peak engagement |
 
 ### Step 4 — Log result
 
@@ -144,8 +144,8 @@ Send a summary to the user via Slack MCP (`slack_send_message`, `channel_id: "$S
 🚀 [{brand}] Posts published for [DD Mon YYYY]
 
 ✅ LinkedIn — [Topic] — live
-📅 Facebook — [Topic] — scheduled 12:00 SGT
-📅 Instagram — [Topic] — scheduled 18:00 SGT
+📅 Facebook — [Topic] — scheduled 12:00 [timezone]
+📅 Instagram — [Topic] — scheduled 18:00 [timezone]
 ```
 
 ---
@@ -155,7 +155,7 @@ Send a summary to the user via Slack MCP (`slack_send_message`, `channel_id: "$S
 - [ ] Drafts listed and shown to user before any action
 - [ ] User confirmed which posts to publish and when
 - [ ] No copy changes made (publish as-is from draft)
-- [ ] Correct publish time in UTC (convert from SGT)
+- [ ] Correct publish time in UTC (convert from brand timezone)
 - [ ] Publish log saved to `outputs/{brand}/published/`
 - [ ] Slack notification sent after publish
 - [ ] Agent run logged to dashboard

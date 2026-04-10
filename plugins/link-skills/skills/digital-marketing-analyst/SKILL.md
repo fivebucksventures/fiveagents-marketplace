@@ -1,6 +1,6 @@
 ---
 name: digital-marketing-analyst
-description: Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with HTML email briefs for any active brand
+description: Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
 ---
 
@@ -16,16 +16,16 @@ The daily brief runs as **3 separate cron jobs** to stay within the 5-minute exe
 
 | Job | Cron | What it does | Output |
 |---|---|---|---|
-| `gads-data-pull` | 01:00 SGT daily | Google Ads + GA4 pull + analysis | `tmp/gads-{YYYY-MM-DD}.json` |
-| `meta-data-pull` | 01:00 SGT daily | Meta Ads pull + analysis | `tmp/meta-{YYYY-MM-DD}.json` |
-| `paid-ads-email-sender` | 01:15 SGT daily | Reads both JSONs, renders HTML, sends email | Email to $REPORT_EMAIL |
+| `gads-data-pull` | cron schedule daily | Google Ads + GA4 pull + analysis | `tmp/gads-{YYYY-MM-DD}.json` |
+| `meta-data-pull` | cron schedule daily | Meta Ads pull + analysis | `tmp/meta-{YYYY-MM-DD}.json` |
+| `paid-ads-email-sender` | cron schedule + 15min daily | Reads both JSONs, builds JSON payload, sends via Postmark | Email to $REPORT_EMAIL |
 
 Jobs 1 & 2 run in parallel. Job 3 waits 15 minutes to ensure both files exist before sending.
 
-The **weekly brief** runs as the same 3-job pattern (Saturdays 01:00/01:15 SGT) — see Weekly Workflow section.
+The **weekly brief** runs as the same 3-job pattern (Saturdays) — see Weekly Workflow section.
 
-### HTML generation
-Claude generates the email HTML directly — no render script needed. After analyzing all data in Phase 1 + 2, Claude writes the complete HTML brief following the email structure defined in Phase 3 Step 2. Save the HTML to `tmp/paid_ads_brief_{date}.html` before building the .eml file.
+### Email rendering
+The agent sends **structured JSON** (not HTML) as `html_body` to `fiveagents_send_email`. The fiveagents.io server renders the JSON into styled HTML using a dedicated template (`paid-ads-brief.ts`) matched by the `tag` parameter. The agent's job is to build the correct JSON structure — all styling, tables, and layout are handled server-side.
 
 ### Date rule — never fall back to older data
 
@@ -58,7 +58,7 @@ Use Windsor.ai MCP tool `get_data`:
 ⚠️ **Known issues:**
 - `keyword` field returns null — omit keyword table
 - `ad_group` returns raw resource paths, not human-readable names
-- `cost` is already in SGD (no conversion needed)
+- `cost` is returned in the account's local currency (no conversion needed)
 
 Pull data for **two dates** — most recent available date + prior day for DoD comparison.
 
@@ -149,8 +149,7 @@ Example benchmarks for SaaS trial funnel:
 - Form Start-to-Submit: >50%
 - Form Submit-to-Trial: >70%
 - Trial-to-Paid: 15–25%
-- Cost/trial: SGD 130–260 target
-- Cost/paid: SGD 200–780 acceptable
+- Cost/trial and Cost/paid: read target ranges from `brands/{brand}/funnel.md`
 
 #### Example B — Lead gen flow (3 stages):
 1. Sessions (pageview)
@@ -167,7 +166,9 @@ Status: 🟢 on/above benchmark · 🟡 within 20% below · 🔴 below or critic
 
 ### Step 5 — Save Intermediate JSON
 
-Save all data to `tmp/gads-{YYYY-MM-DD}.json` where the date is **yesterday's date** (the report period):
+Save all data to `tmp/gads-{YYYY-MM-DD}.json` where the date is **yesterday's date** (the report period).
+
+⚠️ **This schema must match what the email template (`paid-ads-brief.ts`) expects.** The stitcher merges these files into the final email JSON payload.
 
 ```json
 {
@@ -183,10 +184,10 @@ Save all data to `tmp/gads-{YYYY-MM-DD}.json` where the date is **yesterday's da
       "conversions": 0,
       "cpa_sgd": 0.0
     },
-    "account_dod": { "spend": "▲ +5%", "clicks": "▼ -8%", "conv": "—" },
+    "account_dod": { "spend": "▲ +5%", "clicks": "▼ -8%", "conv": "—", "ctr": "—", "cpa": "—", "impressions": "—" },
     "campaigns": [
       {
-        "name": "ID – Lead Gen", "status": "Eligible",
+        "name": "Campaign Name", "status": "Eligible",
         "spend_sgd": 0.0, "clicks": 0, "impr": 0, "ctr_pct": 0.0,
         "conv": 0, "cpa_sgd": 0.0, "dod": "▲ +5%"
       }
@@ -198,7 +199,9 @@ Save all data to `tmp/gads-{YYYY-MM-DD}.json` where the date is **yesterday's da
       "urgent": ["flag text"],
       "optimize": ["flag text"],
       "monitoring": ["flag text"]
-    }
+    },
+    "notes": ["any data warnings, e.g. 'GA4 data unavailable'"],
+    "top_recommendation": "Best single action for this platform"
   },
   "ga4": {
     "date": "YYYY-MM-DD",
@@ -206,23 +209,13 @@ Save all data to `tmp/gads-{YYYY-MM-DD}.json` where the date is **yesterday's da
     "paid_search_sessions": 0,
     "meta_sessions": 0,
     "funnel": {
-      // Keys match the funnel stages defined in brands/{brand}/funnel.md
-      // Example keys for a SaaS trial funnel:
-      "impressions": 0,
-      "clicks": 0,
-      "paid_search_sessions": 0,
-      "trial_cta_click": 0,
-      "signup_form_start": 0,
-      "signup_form_submit": 0,
-      "profile_form_start": 0,
-      "profile_form_submit": 0,
-      "trial_activated": 0,
-      "paid_conversion": 0,
-      "schedule_call_click": 0
-      // Example keys for a lead gen funnel:
-      // "sessions": 0, "click_schedule_call": 0, "calendly_booked": 0
+      // Keys match funnel stages from brands/{brand}/funnel.md
+      // Example — lead gen funnel:
+      "sessions": 0,
+      "click_schedule_call": 0,
+      "calendly_booked": 0
     },
-    "funnel_flags": ["flag text"]
+    "funnel_flags": ["flag text — one per flagged stage"]
   }
 }
 ```
@@ -231,7 +224,7 @@ After saving, log to `memory/YYYY-MM-DD.md`:
 ```markdown
 ## gads-data-pull — [ISO timestamp]
 - Report date: [date]
-- Google Ads: Spend SGD [x] / [clicks] clicks / [conv] conv / CPA SGD [x]
+- Google Ads: Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x]
 - GA4: [sessions] paid search sessions / [trials] trials
 - Saved: tmp/gads-[date].json
 ```
@@ -255,8 +248,8 @@ Use Windsor.ai MCP tool `get_data`:
 ⚠️ **Invalid fields** (not in Windsor for Facebook): `ad_set`, `ad`, `lp_views`, `landing_page_views`, `video_views`. Campaign is the lowest available breakdown.
 ⚠️ **No conversion data** available for Facebook via Windsor.
 
-- **Currency:** Facebook `spend` is USD. Convert to SGD using rate 1 USD = 1.36 SGD.
-- **Date resolution:** Use SGT (UTC+8) for dates.
+- **Currency:** Facebook `spend` is USD. Convert to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`.
+- **Date resolution:** Use the brand's timezone from `brands/{brand}/brand.md` for dates.
 
 ### Step 2 — Analyze Meta Ads
 
@@ -296,7 +289,9 @@ Cross-reference Meta Ads clicks with GA4 sessions from Meta paid traffic:
 
 ### Step 3 — Save Intermediate JSON
 
-Save to `tmp/meta-{YYYY-MM-DD}.json` where the date is **yesterday's date**:
+Save to `tmp/meta-{YYYY-MM-DD}.json` where the date is **yesterday's date**.
+
+⚠️ **Windsor limitations for Facebook:** No ad_set/ad breakdown, no lp_views, no conversions. Campaign is the lowest breakdown. Only use fields Windsor actually returns: `campaign`, `clicks`, `impressions`, `ctr`, `spend`, `reach`.
 
 ```json
 {
@@ -310,19 +305,18 @@ Save to `tmp/meta-{YYYY-MM-DD}.json` where the date is **yesterday's date**:
       "clicks": 0,
       "impressions": 0,
       "ctr_pct": 0.0,
-      "lp_views": 0,
+      "reach": 0,
       "cpa_sgd": 0.0
     },
-    "account_dod": { "spend": "▲ +5%", "clicks": "▼ -8%", "lp_views": "—" },
+    "account_dod": { "spend": "▲ +5%", "clicks": "▼ -8%", "reach": "—", "ctr": "—", "impressions": "—" },
     "campaigns": [
       {
         "name": "", "impr": 0, "clicks": 0, "ctr_pct": 0.0,
-        "lp_views": 0, "lp_view_rate_pct": 0.0,
-        "spend_sgd": 0.0, "cpc_sgd": 0.0, "cpm_sgd": 0.0, "dod": ""
+        "spend_sgd": 0.0, "reach": 0, "dod": ""
       }
     ],
-    "ad_sets": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr_pct": 0.0, "lp_views": 0, "spend_sgd": 0.0, "reach": 0, "dod": "" }],
-    "ads": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr_pct": 0.0, "lp_views": 0, "video_views": 0, "spend_sgd": 0.0, "dod": "" }],
+    "ad_sets": [],
+    "ads": [],
     "flags": {
       "urgent": ["flag text"],
       "optimize": ["flag text"],
@@ -332,11 +326,13 @@ Save to `tmp/meta-{YYYY-MM-DD}.json` where the date is **yesterday's date**:
 }
 ```
 
+⚠️ **`ad_sets` and `ads` arrays will be empty** when using Windsor (campaign-level only). The template handles this gracefully — it shows "No ad set data available." The fields exist so that if a future data source provides ad-level data, it renders automatically.
+
 After saving, log to `memory/YYYY-MM-DD.md`:
 ```markdown
 ## meta-data-pull — [ISO timestamp]
 - Report date: [date]
-- Meta Ads: Spend SGD [x] (USD [x]) / [clicks] clicks / [lp_views] LP views / [conv] conv
+- Meta Ads: Spend [currency] [x] (USD [x]) / [clicks] clicks / [reach] reach
 - Saved: tmp/meta-[date].json
 ```
 
@@ -344,7 +340,7 @@ After saving, log to `memory/YYYY-MM-DD.md`:
 
 ## Phase 3 — Email Stitcher (`paid-ads-email-sender`)
 
-Runs at 01:15 SGT — 15 minutes after Phase 1 & 2 start.
+Runs 15 minutes after Phase 1 & 2 start.
 
 ### Step 1 — Load Intermediate Files
 
@@ -354,107 +350,63 @@ Determine yesterday's date. Look for:
 
 **If one or both files are missing:** Wait 2 minutes and retry once. If still missing after retry, send email anyway with a note: `⚠️ [Google Ads / Meta Ads] data unavailable — data pull job did not complete in time.` Use an empty/paused placeholder section for the missing platform.
 
-### Step 2 — Generate Email Report
+### Step 2 — Build Email JSON Payload
 
 Email title: **"📊 Paid Ads Daily Brief — [DD Mon YYYY]"**
 
-Use the full HTML structure from `tmp/paid_ads_brief_full_mockup.html` as the template. All sections required. Tone: direct, expert, no fluff.
+⚠️ **Do NOT generate HTML.** Build a JSON object with the data below. The server-side template (`paid-ads-brief.ts`) handles all rendering, styling, tables, and layout.
 
-#### Email Structure (in order):
+Build the JSON payload from the intermediate files. The structure matches `fiveagents_log_run` metrics with these additional top-level fields:
 
-**Header**
-- Title: Paid Ads Daily Brief — [date]
-- Subtitle: Account: {brand} | Period: [date] | Generated: [date+1], 01:15 SGT
+```json
+{
+  "date": "YYYY-MM-DD",
+  "brief_type": "daily",
+  "report_date": "DD Mon YYYY",
+  "brand": "{brand}",
+  "currency": "<read from brands/{brand}/brand.md — e.g. Rp, SGD, USD>",
+  "generated_at": "ISO timestamp",
+  "google_ads": {
+    "all_campaigns_paused": false,
+    "account_totals": { "spend_sgd": 0, "clicks": 0, "impressions": 0, "ctr_pct": 0, "conversions": 0, "cpa_sgd": 0 },
+    "account_dod": { "spend": "▲ +5%", "clicks": "▼ -8%", "conv": "—", "ctr": "—", "cpa": "—", "impressions": "—" },
+    "campaigns": [{ "name": "", "status": "", "spend_sgd": 0, "clicks": 0, "impr": 0, "ctr_pct": 0, "conv": 0, "cpa_sgd": 0, "dod": "" }],
+    "ad_groups": [{ "name": "", "campaign": "", "status": "", "clicks": 0, "impr": 0, "ctr_pct": 0, "cost_sgd": 0, "dod": "" }],
+    "ads": [{ "headline_1": "", "campaign": "", "ad_group": "", "clicks": 0, "impr": 0, "ctr_pct": 0, "cost_sgd": 0, "conv": 0, "dod": "" }],
+    "keywords": [{ "keyword": "", "campaign": "", "clicks": 0, "ctr_pct": 0, "cost_sgd": 0, "conv": 0, "dod": "" }],
+    "flags": { "urgent": [], "optimize": [], "monitoring": [] },
+    "notes": ["any data warnings, e.g. 'GA4 data unavailable via Windsor.ai'"],
+    "top_recommendation": ""
+  },
+  "meta_ads": {
+    "no_active_campaigns": false,
+    "account_totals": { "spend_sgd": 0, "clicks": 0, "impressions": 0, "ctr_pct": 0, "reach": 0, "cpa_sgd": 0 },
+    "account_dod": { "spend": "", "clicks": "", "reach": "", "ctr": "", "impressions": "" },
+    "campaigns": [{ "name": "", "impr": 0, "clicks": 0, "ctr_pct": 0, "spend_sgd": 0, "reach": 0, "dod": "" }],
+    "ad_sets": [],
+    "ads": [],
+    "flags": { "urgent": [], "optimize": [], "monitoring": [] }
+  },
+  "ga4": {
+    "sessions_total": 0,
+    "paid_search_sessions": 0,
+    "meta_sessions": 0,
+    "funnel": {},
+    "funnel_flags": []
+  },
+  "top_recommendation": "Single most impactful action — name the specific campaign/ad set."
+}
+```
 
----
-
-**🔵 Section 1 — Google Ads**
-
-If all Google Ads campaigns paused: show `⏸ No Active Campaigns (Paused)` banner.
-
-- **KPI bar:** Clicks / Impressions / CTR / Spend (SGD) / Conversions / CPA (SGD) — include DoD indicator per KPI (e.g. `SGD 61.28 ▲15%`)
-- **🔴 Urgent — Act Today** (numbered list from `flags.urgent`)
-- **🟡 Optimize — This Week** (bullet list from `flags.optimize`)
-- **🟢 Monitoring** (bullet list from `flags.monitoring`)
-- **📊 Campaign Performance table**
-  `| Campaign | Status | Spend (SGD) | Clicks | CTR | Conv. | CPA (SGD) | DoD |`
-- **📦 Ad Group Breakdown table**
-  `| Ad Group | Campaign | Status | Clicks | Impr. | CTR | Cost (SGD) | DoD |`
-- **📣 Ad Performance table**
-  `| Ad (Headline 1) | Campaign | Ad Group | Clicks | Impr. | CTR | Cost (SGD) | Conv. | DoD |`
-  (sorted by clicks desc; include 0-click if impressions > 0; skip 0/0 rows)
-- **🎯 Keyword Performance table**
-  `| Keyword | Campaign | Clicks | CTR | Cost (SGD) | Conv. | DoD |`
-  (sorted by clicks; flag 0-conv with ⚠️)
-- **🔁 Full Funnel — Google Ads → GA4** (from `ga4.funnel` data)
-
-  Read funnel stages and benchmarks from `brands/{brand}/funnel.md`. Build the funnel table using the format below.
-
-  Example A — SaaS trial funnel (10 stages):
-
-  | Stage | Volume | Rate | Cost/Unit (SGD) | Benchmark | Status |
-  |---|---|---|---:|---|:---:|
-  | Impressions | | – | SGD X CPM | – | – |
-  | Clicks | | CTR X% | SGD X CPC | 3–4% | 🟢/🟡/🔴 |
-  | GA4 Sessions (Paid Search) | | X% of clicks | SGD X /session | 80–90% | |
-  | Trial CTA Click | | X% of sessions | | 5–15% | |
-  | Signup Form Start | | X% of CTA clicks | | >60% | |
-  | Signup Form Submit | | X% of form starts | | >50% | |
-  | Profile Form Start | | X% of submits | | >80% | |
-  | Profile Form Submit | | X% of profile starts | | >70% | |
-  | Trial Activated | | X% of profile submits | | >70% | |
-  | Paid Conversion | | X% of trials | | SGD 200–780 | |
-  | Schedule Call | | X% of sessions | | 1–3% | |
-
-  Example B — Lead gen funnel (3 stages):
-
-  | Stage | Volume | Rate | Cost/Unit (SGD) | Benchmark | Status |
-  |---|---|---|---:|---|:---:|
-  | Sessions | | – | SGD X /session | – | – |
-  | Lead (click_schedule_call) | | X% of sessions | SGD X /lead | 3–8% | 🟢/🟡/🔴 |
-  | Booked (calendly_booked) | | X% of leads | SGD X /booked | >50% | 🟢/🟡/🔴 |
-
-  Funnel cost: all from Google Ads spend ÷ each stage volume.
-  ⚡ **Funnel Actions** — one bullet per flagged stage (🔴/🟡) only
-
----
-
-**🔴 Section 2 — Meta / Facebook Ads**
-
-If no Meta campaigns active: show `⏸ No Active Campaigns (Paused)` banner.
-
-- **KPI bar:** Clicks / Impressions / CTR / Spend (SGD) / LP Views / CPA (SGD) — include DoD per KPI
-- **🔴 Urgent — Act Today** (from `flags.urgent`)
-- **🟡 Optimize — This Week** (from `flags.optimize`)
-- **🟢 Monitoring** (from `flags.monitoring`)
-- **📊 Campaign Performance table**
-  `| Campaign | Impr. | Clicks | CTR | LP Views | LP View Rate | Spend (SGD) | CPC (SGD) | CPM (SGD) | DoD |`
-- **📦 Ad Set Breakdown table**
-  `| Ad Set | Campaign | Impr. | Clicks | CTR | LP Views | Spend (SGD) | Reach | DoD |`
-- **📣 Ad Performance table**
-  `| Ad Name | Campaign | Impr. | Clicks | CTR | LP Views | Video Views | Spend (SGD) | DoD |`
-  (sorted by spend desc)
-- **🔁 Full Funnel — Meta Ads → GA4**
-  Same funnel table format as Google Ads section (read from `brands/{brand}/funnel.md`). GA4 sessions filtered to `sessionSource = meta` (from `ga4.meta_sessions`). Note attribution gap from iOS privacy if significant.
-
----
-
-**📋 Combined Summary**
-`| Platform | Spend (SGD) | Clicks | LP Views | GA4 Sessions | Trials | CPA (SGD) | Status |`
-- Google Ads row, Meta Ads row, Total row
-
----
-
-**💡 Top Recommendation**
-Single most impactful action across both platforms. Name the specific campaign/ad set/page.
-
+**Analysis guidelines** (apply when writing flags and top_recommendation):
 - Do NOT flag signup form unless 3+ consecutive days of data show >80% abandonment.
 - On Day 1–3 of Meta: focus on learning phase signals.
 - On Google Ads paused days: recommendation should focus on Meta or pre-reactivation prep.
+- Tone: direct, expert, no fluff. Name specific campaigns.
 
----
+**Currency:** Read from `brands/{brand}/brand.md`. The template uses the `currency` field for all money labels.
 
-*{brand} Paid Ads Brief · Link 🔗 · Data: Windsor.ai (Google Ads + Meta Ads + GA4) · Next brief: [tomorrow], 01:15 SGT*
+**For weekly briefs:** Set `"brief_type": "weekly"`, add `"week_start"` and `"week_end"` fields, use `account_wow` / `wow` keys instead of `account_dod` / `dod`.
 
 ### Step 3 — Send Email
 
@@ -465,14 +417,16 @@ fiveagents_send_email({
   fiveagents_api_key: $FIVEAGENTS_API_KEY,
   to: $REPORT_EMAIL,
   subject: "📊 Paid Ads Daily Brief — DD Mon YYYY",
-  html_body: "<content from Step 2 — inner HTML only, template is applied automatically>",
+  html_body: JSON.stringify(payload_from_step_2),
   tag: "paid-ads-daily"
 })
 ```
 
-⚠️ **Subject date** must be the report date (yesterday), not today. Format: `DD Mon YYYY` (e.g., "27 Mar 2026").
+⚠️ **Subject date** must be the report date, not today. Format: `DD Mon YYYY` (e.g., "27 Mar 2026").
 
-⚠️ **`html_body` is the inner content only** — do not include `<html>`, `<head>`, or `<body>` tags. The fiveagents.io email template (logo, card, footer) wraps it automatically.
+⚠️ **`html_body` must be a JSON string** — the server-side template parses it and renders the styled HTML. Do NOT send raw HTML.
+
+⚠️ **`tag` must be exactly `"paid-ads-daily"` or `"paid-ads-weekly"`** — this is how the server routes to the correct template renderer.
 
 **If `fiveagents_send_email` returns 403** ("requires a maintenance plan"), fall back to Gmail MCP:
 - Use `gmail_create_draft` to create a draft email with the HTML body
@@ -486,8 +440,8 @@ Send a DM to the user (user ID: `$SLACK_NOTIFY_USER`) via Slack MCP with a brief
 
 ```
 📊 [{brand}] Daily Brief Sent — [DD Mon YYYY]
-• Google Ads: SGD [x] spend / [clicks] clicks / [conv] conv
-• Meta Ads: SGD [x] spend / [clicks] clicks / [lp_views] LP views
+• Google Ads: [currency] [x] spend / [clicks] clicks / [conv] conv
+• Meta Ads: [currency] [x] spend / [clicks] clicks / [reach] reach
 • GA4: [paid_search] paid search / [meta] meta sessions / [trials] trials
 • 🔴 Top flag: [most urgent flag]
 • 💡 Top rec: [one-line recommendation]
@@ -500,11 +454,11 @@ Use `slack_send_message` with `channel_id: "$SLACK_NOTIFY_USER"`.
 Append to `memory/YYYY-MM-DD.md`:
 
 ```markdown
-## Paid Ads Daily Brief — [ISO timestamp] (01:15 SGT cron)
+## Paid Ads Daily Brief — [ISO timestamp]
 - Skill: digital-marketing-analyst (stitcher)
 - Report period: [date]
-- Google Ads: [status] / Spend SGD [x] / [clicks] clicks / [conv] conv / CPA SGD [x]
-- Meta Ads: [status] / Spend SGD [x] (USD [x]) / [clicks] clicks / [lp_views] LP views
+- Google Ads: [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x]
+- Meta Ads: [status] / Spend [currency] [x] (USD [x]) / [clicks] clicks / [reach] reach
 - GA4: [paid_search_sessions] paid search sessions / [meta_sessions] meta sessions / [trials] trials / [paid] paid
 - Key flags: [top 2-3 urgent]
 - Top recommendation: [the one action]
@@ -518,15 +472,15 @@ Append to `memory/YYYY-MM-DD.md`:
 
 The weekly brief uses the same 3-job architecture as the daily brief:
 
-| Job | Cron | Time (SGT) | Output |
+| Job | Cron | What it does | Output |
 |---|---|---|---|
-| `gads-weekly-data-pull` | Sat 01:00 | Sat 01:00 | `tmp/gads-weekly-{week_end}.json` |
-| `meta-weekly-data-pull` | Sat 01:00 | Sat 01:00 | `tmp/meta-weekly-{week_end}.json` |
-| `paid-ads-weekly-email-sender` | Sat 01:15 | Sat 01:15 | Email to $REPORT_EMAIL |
+| `gads-weekly-data-pull` | Sat cron schedule | Google Ads + GA4 weekly pull + analysis | `tmp/gads-weekly-{week_end}.json` |
+| `meta-weekly-data-pull` | Sat cron schedule | Meta Ads weekly pull + analysis | `tmp/meta-weekly-{week_end}.json` |
+| `paid-ads-weekly-email-sender` | Sat cron schedule + 15min | Reads both JSONs, builds JSON payload, sends via Postmark | Email to $REPORT_EMAIL |
 
 **JSON schema:** same as daily — use `wow` key instead of `dod` in all campaign/ad/keyword rows. Add `week_start` and `week_end` fields at root level.
 
-Run this workflow when triggered by `gads-weekly-data-pull` or `meta-weekly-data-pull` (Saturdays 01:00 SGT).
+Run this workflow when triggered by `gads-weekly-data-pull` or `meta-weekly-data-pull` (Saturdays at cron schedule).
 
 **Week definition:** Sunday–Saturday. On Saturday morning, report covers the full past week (last Sunday to yesterday/Friday).
 
@@ -558,7 +512,7 @@ Use Windsor.ai MCP tool `get_data`:
 - fields: ["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]
 ```
 
-Filter for the target week. Convert USD spend to SGD (× 1.36). Include WoW comparison from prior week.
+Filter for the target week. Convert USD spend to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`. Include WoW comparison from prior week.
 
 ### Step 1c — Pull Weekly GA4 Data
 
@@ -578,33 +532,24 @@ Filter for the target week range.
 - Identify budget pacing issues and learning phase status for Meta
 - Note if Meta ad sets exited learning phase (need ~50 conversion events each)
 
-### Step 3 — Generate Weekly Email
+### Step 3 — Build Weekly JSON Payload
 
-Email title: **"📊 Paid Ads Weekly Brief — Week of [DD Mon YYYY]"**
+Same JSON structure as daily (see Step 2 above) with these differences:
+- `"brief_type": "weekly"`
+- Add `"week_start": "YYYY-MM-DD"` and `"week_end": "YYYY-MM-DD"` at root
+- Use `account_wow` instead of `account_dod` in google_ads/meta_ads
+- Use `wow` instead of `dod` in all campaign/ad/keyword rows
 
-Identical HTML structure to daily brief. Differences:
-- Labels: "This Week" / "WoW" instead of "Today" / "DoD"
-- All tables: WoW column instead of DoD (e.g. `+12% spend`, `-8% CPA`)
-- Urgent/Optimize labels: "Fix Before Next Week" / "Adjust This Week" / "Watch Next Week"
-- Top Recommendation label: "Top Recommendation for Next Week"
-- Footer: next brief = next Saturday
-
-**Header:**
-- Title: Paid Ads Weekly Brief — Week of [DD Mon YYYY]
-- Subtitle: Account: {brand} | Period: [Mon DD] – [Sat DD Mon YYYY] | Generated: [Sat date], 01:00 SGT
-
-Sections identical to daily: Google Ads → Meta Ads → Combined Summary → Top Recommendation.
+The server-side template automatically handles WoW labels, "Fix Before Next Week" flag labels, and "Top Recommendation for Next Week" heading based on `brief_type`.
 
 ### Step 4 — Send Weekly Email
-
-**Try `fiveagents_send_email` first** (same as daily):
 
 ```
 fiveagents_send_email({
   fiveagents_api_key: $FIVEAGENTS_API_KEY,
   to: $REPORT_EMAIL,
   subject: "📊 Paid Ads Weekly Brief — Week of DD Mon YYYY",
-  html_body: "<content from Step 3 — inner HTML only>",
+  html_body: JSON.stringify(payload_from_step_3),
   tag: "paid-ads-weekly"
 })
 ```
@@ -619,8 +564,8 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 
 ```
 📊 [{brand}] Weekly Brief Sent — Week of [DD Mon YYYY]
-• Google Ads: SGD [x] spend / [clicks] clicks / [conv] conv / WoW: [+/-x%] spend
-• Meta Ads: SGD [x] spend / [clicks] clicks / [lp_views] LP views / WoW: [+/-x%] spend
+• Google Ads: [currency] [x] spend / [clicks] clicks / [conv] conv / WoW: [+/-x%] spend
+• Meta Ads: [currency] [x] spend / [clicks] clicks / [reach] reach / WoW: [+/-x%] spend
 • GA4: [sessions] sessions / [trials] trials
 • 🔴 Top flag: [most urgent flag]
 • 💡 Top rec for next week: [one-line recommendation]
@@ -629,11 +574,11 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 ### Step 7 — Log to Memory
 
 ```markdown
-## Paid Ads Weekly Brief — [ISO timestamp] (01:00 SGT Saturday cron)
+## Paid Ads Weekly Brief — [ISO timestamp]
 - Skill: digital-marketing-analyst (weekly)
 - Report period: [week_start] to [week_end]
-- Google Ads: [status] / Spend SGD [x] / [clicks] clicks / [conv] conv / CPA SGD [x] / WoW: [+/-x%]
-- Meta Ads: [status] / Spend SGD [x] (USD [x]) / [clicks] clicks / [lp_views] LP views / WoW: [+/-x%]
+- Google Ads: [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x] / WoW: [+/-x%]
+- Meta Ads: [status] / Spend [currency] [x] (USD [x]) / [clicks] clicks / [reach] reach / WoW: [+/-x%]
 - GA4: [sessions] sessions / [trials] trials / [paid] paid
 - WoW: Spend [+/-x%] / Conv [+/-x%] / CPA [+/-x%]
 - Key flags: [top 2-3]
@@ -649,7 +594,7 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 - **Data sources:** All ads/analytics data pulled via Windsor.ai MCP connector (`get_data` tool). Google Ads, Meta Ads (Facebook), and GA4 are all connected in Windsor.
 - **Email sending:** Use `fiveagents_send_email` (Postmark, requires Basic/Active maintenance plan). Falls back to `gmail_create_draft` if client has no maintenance plan (403).
 - **Windsor data lag:** Google Ads ~12 days, Facebook ~12 days, GA4 ~0 days. Always check `max(date)` to confirm most recent available data.
-- **Currency:** Google Ads cost is SGD. Facebook spend is USD — multiply by 1.36 for SGD.
+- **Currency:** Google Ads cost is in the account's local currency. Facebook spend is USD — convert using the exchange rate from `brands/{brand}/brand.md`.
 - GA4 clean data start: **2026-03-08** — never pull or compare pre-Mar 8 data.
 - Brand-specific known issues should be documented in `brands/{brand}/funnel.md` notes section.
 - If one platform has no data yet, still send email with available data. Note the gap.

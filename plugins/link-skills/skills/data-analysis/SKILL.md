@@ -66,7 +66,7 @@ Use Windsor.ai MCP tool `get_data`:
 - fields: relevant fields for the analysis
 ```
 
-Read the client's funnel from `brands/{brand}/funnel.md` for benchmarks and GA4 event mappings. Use the same currency conversions and data lag warnings as digital-marketing-analyst (Meta spend is USD → convert to SGD at 1.36, Google Ads cost is SGD, GA4 data may have lag).
+Read the client's funnel from `brands/{brand}/funnel.md` for benchmarks and GA4 event mappings. Use the same currency conversions and data lag warnings as digital-marketing-analyst (Meta spend is USD → convert to the brand's local currency using the exchange rate from `brands/{brand}/brand.md` Locale section, Google Ads cost is in the account's local currency, GA4 data may have lag).
 
 If Windsor.ai is not connected and the user hasn't provided data, ask:
 > "I need data to analyze. You can either: (1) connect Windsor.ai for Google Ads / Meta Ads / GA4, or (2) paste your data here — CSV, table, or numbers."
