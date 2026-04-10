@@ -22,6 +22,21 @@ Read these files before planning:
 
 ---
 
+## Step 1b — Research Viral Content & Trending Topics
+
+**Run `/link-skills:research-strategy` before planning.** Focus the research on:
+
+1. **Viral content formats** — what's getting high engagement on LinkedIn, Facebook, Instagram right now in the brand's niche? (e.g. carousel threads, talking-head Reels, meme formats, hot takes, before/after)
+2. **Trending topics** — what industry conversations, news, or pain points are blowing up this week?
+3. **Competitor social content** — what did competitors post recently that got high engagement? What format/hook did they use?
+4. **High-performing keywords** — from DataforSEO, what search terms are trending in the brand's space?
+
+Read the research output from `outputs/{brand}/strategy/` after it completes.
+
+**This research MUST drive the content mix and topic selection in Step 2.** Do not default to a fixed content mix — adapt based on what's actually working in the market right now.
+
+---
+
 ## Step 2 — Plan 14 Posts
 
 Generate exactly 14 posts for the upcoming Mon–Sat week using the fixed slot assignments below.
@@ -78,11 +93,22 @@ Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table,
 | Status | Planned |
 
 ### Content mix across 14 posts:
+
+**Adapt the mix based on Step 1b research findings.** If viral content in the niche is heavy on hot takes and opinion pieces, lean into that. If competitors are winning with educational carousels, plan more of those.
+
+Default mix (use ONLY if research is unavailable):
 - Educational / How-to: 5 posts
 - Social Proof / Results: 3 posts
 - Product Spotlight: 3 posts
 - Direct CTA: 2 posts
 - Engagement / Opinion: 1 post
+
+Research-driven adjustments:
+- If trending formats are Reels/video → shift more slots to Reel format where possible
+- If a viral topic is relevant to the brand → dedicate 2-3 posts to ride the trend (different angles per platform)
+- If competitor content is heavily educational → differentiate with more social proof or opinion content
+- If a keyword is trending → build posts around that keyword's intent
+- Always keep at least 2 Direct CTA posts per week (non-negotiable)
 
 ### Rotation rules:
 - No persona more than 2× in the week

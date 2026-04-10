@@ -94,7 +94,7 @@ Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}` (except image pr
 | `scripts/generate_text_video.py` (ffmpeg) | Not replaced |
 | `scripts/ga4_pull.py` | Windsor.ai MCP |
 | `servers/media-server/` (local MCP) | Gateway image tools |
-| `gws` CLI (Drive, Sheets, Gmail) | Windsor.ai MCP + `fiveagents_send_email` |
+| `gws` CLI (Drive, Sheets, Gmail) | Windsor.ai MCP + `fiveagents_send_email` (Postmark, fallback: `gmail_create_draft`) |
 | `curl` to Meta Graph API | Windsor.ai MCP |
 | `curl` to fiveagents.io/api/agent-runs | Gateway `fiveagents_log_run` |
 | `META_ADS_TOKEN`, `META_AD_ACCOUNT_ID` userConfig | Windsor.ai MCP connector |

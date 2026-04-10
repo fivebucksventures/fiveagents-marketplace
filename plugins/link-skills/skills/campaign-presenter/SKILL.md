@@ -117,8 +117,32 @@ For each slide, write:
 - **Visual note**: What chart, image, table, or graphic would strengthen this slide
 - **Speaker note** (optional): What to say that isn't on the slide
 
-### Step 4: Write slide copy
-Follow copy rules (see slide-template.md for detailed rules):
+### Step 4: Generate presentation via Canva MCP
+
+Use the **Canva MCP connector** to create a professional presentation:
+
+1. **Generate the presentation:**
+```
+Use Canva MCP tool `generate-design`:
+- design_type: "presentation"
+- query: Build from the slide outline in Step 3. Include all slide titles, body bullets, and visual notes in the query. Mention the brand name and tone (from brand.md).
+- brand_kit_id: Use `list-brand-kits` first to find the client's Canva brand kit (if they have one)
+```
+
+2. **Select the best design candidate** — Canva returns multiple candidates. Pick the one closest to the brand's visual style.
+
+3. **Create the design from candidate:**
+```
+Use Canva MCP tool `create-design-from-candidate`:
+- job_id: from generate-design response
+- candidate_id: selected candidate
+```
+
+4. **Edit if needed** — Use `start-editing-transaction` → `perform-editing-operations` → `commit-editing-transaction` to refine text, replace images, or adjust formatting.
+
+5. **Export** — Use `export-design` to get a PDF or link for sharing.
+
+**Copy rules (apply during query and editing):**
 - Slide titles: max 10 words, written as a clear statement (not a vague label)
 - Bullets: max 12 words per bullet, verb-led where possible
 - No walls of text — if a slide has more than 5 bullets, split it into two slides
@@ -130,7 +154,9 @@ Follow copy rules (see slide-template.md for detailed rules):
 
 ## Output format
 
-**Save location — local workspace:**
+**Primary output: Canva presentation** — shared via Canva link or exported PDF.
+
+**Backup save location — local workspace (slide outline):**
 ```
 outputs/{brand}/presentations/
 ```
@@ -141,10 +167,11 @@ outputs/{brand}/presentations/
 ```
 
 Examples:
-- `CampaignDeck_10Mar2026.md`
+- `CampaignDeck_10Mar2026.md` (outline/script)
 - `LaunchBrief_10Mar2026.md`
 - `ClientProposal_10Mar2026.md`
-- `CompetitorAnalysisDeck_10Mar2026.md`
+
+Always save the slide outline as markdown locally (for reference), then generate the visual presentation in Canva.
 
 **Output metadata:**
 ```markdown

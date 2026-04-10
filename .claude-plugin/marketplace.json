@@ -2,7 +2,7 @@
   "name": "fiveagents-marketplace",
   "owner": {
     "name": "Five Agents",
-    "email": "hello@fiveagents.io"
+    "email": "support@fiveagents.io"
   },
   "metadata": {
     "description": "Marketing agent plugins by fiveagents.io",
@@ -16,7 +16,7 @@
       "version": "1.0.0",
       "author": {
         "name": "Five Agents",
-        "email": "hello@fiveagents.io"
+        "email": "support@fiveagents.io"
       },
       "homepage": "https://fiveagents.io",
       "license": "proprietary",

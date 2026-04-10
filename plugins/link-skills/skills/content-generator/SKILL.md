@@ -104,7 +104,7 @@ Examples:
 
 ## Step 4 — Generate images
 
-**Use pre-stored backgrounds from `brands/{brand}/backgrounds/` — do NOT call Nano Banana during daily runs.**
+**Prefer pre-stored backgrounds from `brands/{brand}/backgrounds/`. If none are available or no good match exists, generate on-the-fly via Gemini.**
 
 Pick the best-matching background based on the post's Topic and ImageBrief. Filenames are descriptive (e.g., `finance_dashboard_laptop.png`, `cafe_laptop_notepad.png`). Don't reuse the same background for consecutive posts on the same platform.
 
@@ -140,12 +140,12 @@ Check the post `Format` from the calendar:
 
 | Platform | Format | Asset Type | Tool |
 |---|---|---|---|
-| Any | Post | Static image | Pre-stored background + text overlay + logo |
-| Any | Carousel | Static images | Pre-stored background + text overlay + logo |
-| FB/IG | Story | Static image | Pre-stored background + text overlay + logo (publish as Story) |
+| Any | Post | Static image | Background (pre-stored or Gemini fallback) + text overlay + logo |
+| Any | Carousel | Static images | Background (pre-stored or Gemini fallback) + text overlay + logo |
+| FB/IG | Story | Static image | Background (pre-stored or Gemini fallback) + text overlay + logo (publish as Story) |
 | FB/IG | Reel (Argil) | **AI avatar video** | **Argil API** (1 per brand per week, tagged by social-calendar) |
-| FB/IG | Reel | **Static image as Story** | Pre-stored background + text overlay + logo (publish as Story) |
-| LinkedIn | Reel/Story | Static image | Pre-stored background + text overlay + logo (publish as post) |
+| FB/IG | Reel | **Static image as Story** | Background (pre-stored or Gemini fallback) + text overlay + logo (publish as Story) |
+| LinkedIn | Reel/Story | Static image | Background (pre-stored or Gemini fallback) + text overlay + logo (publish as post) |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar
@@ -199,11 +199,11 @@ Read avatar-to-persona mappings from `brands/{brand}/avatars.md`. This file defi
 
 Use the founder avatar + voice clone only for authority/founder content. For all other avatars, pick a matching English voice from `argil_list_voices` gateway tool.
 
-### Step 4c-image — Pick pre-stored background image
+### Step 4c-image — Get background image
 
-Pick a background from `brands/{brand}/backgrounds/` that best matches the post's Topic and ImageBrief. Filenames are descriptive — match by keyword.
+**Option 1 (preferred): Use pre-stored background**
 
-List available backgrounds in `brands/{brand}/backgrounds/`. Pick the closest match. Examples:
+List available backgrounds in `brands/{brand}/backgrounds/`. Pick the closest match by keyword to the post's Topic and ImageBrief. Examples:
 - Post about invoices → `finance_dashboard_laptop.png` or `stacked_invoices_desk.png`
 - Post about SEO → `seo_performance_graph.png` or `analytics_dashboard_desk.png`
 - Post about customer service → `whatsapp_chat_night.png` or `automated_chat_responses.png`
@@ -212,7 +212,23 @@ List available backgrounds in `brands/{brand}/backgrounds/`. Pick the closest ma
 
 Read the chosen background, encode to base64, and pass directly to `image_add_text_overlay` in Step 4d — the gateway tool handles resize + center-crop to the target canvas automatically.
 
-**No image generation API call needed.** Backgrounds are pre-generated monthly by the background-generator skill.
+**Option 2 (fallback): Generate via Gemini**
+
+If `brands/{brand}/backgrounds/` is empty or no good match exists for the post topic, generate a background on-the-fly:
+
+```
+Use gateway MCP tool `gemini_generate_image`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- prompt: Build from: brand visual style (from brand.md), post topic, mood, and ImageBrief from the Notion calendar entry. Example: "Professional clean desk workspace with laptop showing analytics dashboard, soft natural lighting, warm tones, no text, no people, bokeh background"
+- aspect_ratio: match target canvas from Step 4a (e.g. "1:1" for IG square, "9:16" for Story/Reel, "191:100" for LinkedIn)
+```
+
+Important prompt rules for generated backgrounds:
+- Always include "no text, no people" — text and logo are added in Steps 4d/4e
+- Match the brand's visual style and color palette from `brand.md`
+- Keep it clean and uncluttered — the text overlay needs readable space at the bottom
+
+Save the generated image to `brands/{brand}/backgrounds/` for reuse by future posts.
 
 ### Step 4d — Apply text overlay
 

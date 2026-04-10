@@ -271,6 +271,29 @@ Meta CTR benchmarks (video/social ads):
 
 Compute DoD deltas (same format: ▲/▼/—).
 
+### Step 2b — Pull GA4 Sessions for Meta Traffic
+
+Pull GA4 data filtered to Meta paid traffic for the same date range:
+
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "googleanalytics4"
+- date_preset: "last_30d" (then filter to yesterday + day-before for DoD)
+- fields: ["date", "source", "medium", "session_source_medium", "sessions", "bounce_rate"]
+- Filter: session_source_medium contains "meta / paid_social"
+```
+
+### Step 2c — Compute Full Funnel (Meta Ads → GA4)
+
+Cross-reference Meta Ads clicks with GA4 sessions from Meta paid traffic:
+
+| Metric | Formula | Benchmark |
+|---|---|---|
+| Click-to-Session Rate | GA4 paid_social sessions / Meta clicks | Good: 80-90%, Warn: 70-80%, Critical: <70% |
+| Weighted Bounce Rate | sum(sessions × bounce_rate) / total_sessions | Warn: >85%, Critical: >90% |
+
+⚠️ **Zero paid traffic alert:** If GA4 shows 0 sessions from `meta / paid_social` for 3+ consecutive days, flag as critical: "Meta paid traffic not reaching site — check UTM parameters, pixel, or landing page."
+
 ### Step 3 — Save Intermediate JSON
 
 Save to `tmp/meta-{YYYY-MM-DD}.json` where the date is **yesterday's date**:
@@ -431,24 +454,29 @@ Single most impactful action across both platforms. Name the specific campaign/a
 
 ---
 
-*{brand} Paid Ads Brief · Link 🔗 · Data: Google Ads (Sheets) + Meta Marketing API + GA4 · Next brief: [tomorrow], 01:15 SGT*
+*{brand} Paid Ads Brief · Link 🔗 · Data: Windsor.ai (Google Ads + Meta Ads + GA4) · Next brief: [tomorrow], 01:15 SGT*
 
 ### Step 3 — Send Email
 
-Send the HTML brief via Postmark using the gateway tool:
+**Try `fiveagents_send_email` first** (Postmark — requires Basic or Active maintenance plan):
 
 ```
-Use gateway MCP tool `fiveagents_send_email`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- to: ${REPORT_EMAIL}
-- subject: "📊 Paid Ads Daily Brief — DD Mon YYYY"
-- html_body: <the HTML content from Step 2 — tables, KPIs, flags only, no wrapper needed>
-- tag: "daily-brief"
+fiveagents_send_email({
+  fiveagents_api_key: $FIVEAGENTS_API_KEY,
+  to: $REPORT_EMAIL,
+  subject: "📊 Paid Ads Daily Brief — DD Mon YYYY",
+  html_body: "<content from Step 2 — inner HTML only, template is applied automatically>",
+  tag: "paid-ads-daily"
+})
 ```
-
-The email is automatically wrapped in the fiveagents.io branded template (logo, card, footer). Only pass the **content** HTML — not a full `<html>` document.
 
 ⚠️ **Subject date** must be the report date (yesterday), not today. Format: `DD Mon YYYY` (e.g., "27 Mar 2026").
+
+⚠️ **`html_body` is the inner content only** — do not include `<html>`, `<head>`, or `<body>` tags. The fiveagents.io email template (logo, card, footer) wraps it automatically.
+
+**If `fiveagents_send_email` returns 403** ("requires a maintenance plan"), fall back to Gmail MCP:
+- Use `gmail_create_draft` to create a draft email with the HTML body
+- Tell the user: "Email draft created in Gmail — send manually. Upgrade to a maintenance plan for automated sending via Postmark."
 
 ### Step 5 — Notify via Slack
 
@@ -569,14 +597,19 @@ Sections identical to daily: Google Ads → Meta Ads → Combined Summary → To
 
 ### Step 4 — Send Weekly Email
 
+**Try `fiveagents_send_email` first** (same as daily):
+
 ```
-Use gateway MCP tool `fiveagents_send_email`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- to: ${REPORT_EMAIL}
-- subject: "📊 Paid Ads Weekly Brief — Week of DD Mon YYYY"
-- html_body: <the HTML content from Step 3 — tables, KPIs, flags only, no wrapper needed>
-- tag: "weekly-brief"
+fiveagents_send_email({
+  fiveagents_api_key: $FIVEAGENTS_API_KEY,
+  to: $REPORT_EMAIL,
+  subject: "📊 Paid Ads Weekly Brief — Week of DD Mon YYYY",
+  html_body: "<content from Step 3 — inner HTML only>",
+  tag: "paid-ads-weekly"
+})
 ```
+
+**If 403**, fall back to `gmail_create_draft` (same as daily Step 3 fallback).
 
 ### Step 6 — Notify via Slack
 
@@ -614,7 +647,7 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 ## Notes
 
 - **Data sources:** All ads/analytics data pulled via Windsor.ai MCP connector (`get_data` tool). Google Ads, Meta Ads (Facebook), and GA4 are all connected in Windsor.
-- **Email sending:** Via `fiveagents_send_email` gateway tool (Postmark). Email content is wrapped in fiveagents.io branded template automatically.
+- **Email sending:** Use `fiveagents_send_email` (Postmark, requires Basic/Active maintenance plan). Falls back to `gmail_create_draft` if client has no maintenance plan (403).
 - **Windsor data lag:** Google Ads ~12 days, Facebook ~12 days, GA4 ~0 days. Always check `max(date)` to confirm most recent available data.
 - **Currency:** Google Ads cost is SGD. Facebook spend is USD — multiply by 1.36 for SGD.
 - GA4 clean data start: **2026-03-08** — never pull or compare pre-Mar 8 data.

@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.0.1';
+const DEFAULT_VERSION = 'v2.1.0';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,19 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.1.0',
+    date: 'April 10, 2026',
+    changes: [
+      'brand-setup: Five Agents connector setup, GA4 key event discovery, Canva MCP, funnel.md with event mapping',
+      'brand-setup: full validation suite — 15 tests including vault, email, text overlay, logo overlay',
+      'digital-marketing-analyst: Windsor.ai MCP, Meta Ads GA4 funnel, Postmark email, data source footer',
+      'content-generator: Gemini fallback for missing backgrounds, updated asset type table',
+      'social-calendar: research-driven content mix via /research-strategy, trending topic discovery',
+      'campaign-presenter: Canva MCP for presentation generation (replaces markdown slides)',
+      'data-analysis: Windsor.ai data pull, funnel.md benchmarks, consistent with digital-marketing-analyst',
+    ],
+  },
   {
     version: 'v2.0.1',
     date: 'April 10, 2026',

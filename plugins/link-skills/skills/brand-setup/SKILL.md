@@ -185,24 +185,66 @@ Then use WebSearch to research each competitor and generate:
 ```
 
 **`brands/{brand}/funnel.md`**
-Ask the user:
-> What does your conversion funnel look like? (e.g. "website visit → trial signup → paid" or "visit → schedule call → close")
 
-Generate the funnel with stages, GA4 events (if known), and benchmark placeholders:
+**Step A — Ask the user about their funnel:**
+> What does your conversion funnel look like? What happens after someone clicks your ad?
+> (e.g. "website visit → WhatsApp chat → close deal" or "visit → trial signup → paid conversion")
+
+**Step B — Discover actual GA4 events (if Windsor.ai is connected):**
+
+```
+Use Windsor.ai MCP tool `get_fields`:
+- source: "googleanalytics4"
+```
+
+This returns all available fields including key events and custom events. Look for event names that match the user's described funnel actions (e.g. `click_whatsapp`, `click_email`, `schedule_call`, `signup_form_submit`, `trial_activated`, `purchase`).
+
+Show the user the relevant events found and confirm the mapping:
+> I found these key events / custom events that match your funnel: [list]. Can you confirm which event maps to each step?
+
+If Windsor.ai is not connected yet, ask the user for their GA4 key event / custom event names directly. If they don't know, leave event names as `TBD` — they will be discovered during Step 7 (Connection Validation) when Windsor.ai is connected.
+
+**Step C — Generate funnel.md with the confirmed mapping:**
+
 ```markdown
 # {Brand Name} — Conversion Funnel
 
-## Stages
-1. {Stage 1} → {Stage 2} ({metric name})
-2. {Stage 2} → {Stage 3} ({metric name})
-...
+## Funnel Type
+{e.g. "Lead gen", "SaaS trial", "E-commerce", "Service inquiry"}
 
-## Benchmarks
-| Stage Transition | Target | Status |
-|---|---|---|
-| {Stage 1 → 2} | {X%} | TBD |
-...
+## Stages (Google Ads)
+| Stage | GA4 Event / Source | Benchmark | Status Threshold |
+|---|---|---|---|
+| Impressions | Google Ads | — | — |
+| Clicks | Google Ads | CTR >{X}% | 🟢 >{X}% / 🟡 {Y}-{X}% / 🔴 <{Y}% |
+| GA4 Sessions | GA4: session_source_medium = google / cpc | {X}-{Y}% of clicks | 🟢/🟡/🔴 |
+| {Conversion Action 1} | GA4: {event_name} | {X}% of sessions | 🟢/🟡/🔴 |
+| {Conversion Action 2} | GA4: {event_name} | {X}% of {previous stage} | 🟢/🟡/🔴 |
+{...add as many stages as the client's funnel has}
+
+## Stages (Meta Ads)
+| Stage | GA4 Event / Source | Benchmark | Status Threshold |
+|---|---|---|---|
+| Impressions | Meta Ads | — | — |
+| Clicks | Meta Ads | CTR >{X}% | 🟢/🟡/🔴 |
+| LP Views | Meta Ads | >{X}% of clicks | 🟢/🟡/🔴 |
+| GA4 Sessions | GA4: session_source_medium = meta / paid_social | {X}-{Y}% of clicks | 🟢/🟡/🔴 |
+| {Conversion Action 1} | GA4: {event_name} | {X}% of sessions | 🟢/🟡/🔴 |
+| {Conversion Action 2} | GA4: {event_name} | {X}% of {previous stage} | 🟢/🟡/🔴 |
+{...same conversion actions, different source filter}
+
+## Cost Benchmarks
+| Metric | Target (SGD) |
+|---|---|
+| Cost per {Conversion Action 1} | {X} |
+| Cost per {Conversion Action 2} | {X} |
+
+## Notes
+- Benchmarks are initial estimates. Update after 2-4 weeks of data.
+- If GA4 events are TBD, the digital-marketing-analyst will skip funnel stages without mapped events.
 ```
+
+Each client's funnel is unique — the digital-marketing-analyst reads this file and builds the email funnel table dynamically from whatever stages are defined here.
 
 **`brands/{brand}/avatars.md`**
 Ask the user:
@@ -235,43 +277,47 @@ Save the font name to `brands/{brand}/brand.md` under the Typography section. Th
 
 ### Step 6 — API Keys & Connections
 
-Walk through each integration. For each one, explain what it does and whether it's required or optional.
+Walk through each integration one by one. For each one, explain what it does and whether it's required or optional. Ask: "Do you have your {integration} ready?" If the user says "not now" or "skip", acknowledge and move on — note it as unconfigured for the summary.
+
+**6a. Five Agents custom connector (MUST be first — all gateway tools depend on this):**
+
+Ask the user to add the Five Agents connector in Claude:
+1. Go to Settings → Connectors → "Add custom connector"
+2. Name: `Five Agents`
+3. URL: `https://gateway.fiveagents.io/api/mcp`
+4. Click Connect
+
+If the user is on terminal (Claude Code), they can skip this — terminal skills use env vars directly.
+
+**6b. API Keys:**
 
 **Required:**
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 1 | `FIVEAGENTS_API_KEY` | Logs agent runs to the dashboard | Go to your fiveagents.io dashboard → API Keys |
-| 2 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | Your Slack user ID — find it in Slack profile → three dots → "Copy member ID" |
-| 3 | `REPORT_EMAIL` | Email address for daily/weekly reports | Your work email |
-| 4 | `GEMINI_API_KEY` | Image generation (Gemini API) | https://aistudio.google.com/apikey — free tier available |
+| 1 | `FIVEAGENTS_API_KEY` | Dashboard logging, credential vault, email sending | Go to fiveagents.io → Dashboard → API Keys |
+| 2 | `GEMINI_API_KEY` | Image generation + text overlay (Google Fonts) | https://aistudio.google.com/apikey — free tier: 10 images/min |
+| 3 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | Open Slack → click your profile → three dots → "Copy member ID" |
+| 4 | `REPORT_EMAIL` | Email address for daily/weekly marketing reports | Your work email |
 
 **Required for social publishing:**
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 5 | `LATE_API_KEY` | Publish to social platforms | https://zernio.com — sign up, connect your social accounts, get API key |
+| 5 | `LATE_API_KEY` | Publish to social platforms via Zernio | https://zernio.com — sign up, connect social accounts, go to Settings → API → copy key |
 
-**Standard integrations (ask for each — if user says "not now", move on but note it as unconfigured):**
-
-| # | Key | What it does | How to get it |
-|---|---|---|---|
-| 6 | `DATAFORSEO_LOGIN` | Keyword research | https://dataforseo.com — sign up, get login email |
-| 7 | `DATAFORSEO_PASSWORD` | Keyword research | DataforSEO dashboard → API password |
-
-**MCP connectors (user connects in Claude settings → Connected Apps):**
-
-| # | Connector | What it does | How to connect |
-|---|---|---|---|
-| 8 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | Connect in Claude settings → add Windsor.ai connector. Then connect Google Ads, Facebook, and GA4 accounts inside Windsor.ai dashboard. |
-
-For each of these, ask the user directly: "Do you have your {integration} credentials ready?" If they say "not now" or "skip", acknowledge and move on — but make sure to list it as unconfigured in the final summary so they know to come back to it.
-
-**Optional (enable specific skills):**
+**Standard (ask for each — skip if not ready):**
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 12 | `ARGIL_API_KEY` | AI avatar videos (Reels) | https://argil.ai — sign up, create avatar, get API key |
+| 6 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
+| 7 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
+
+**Optional (enables specific skills):**
+
+| # | Key | What it does | How to get it |
+|---|---|---|---|
+| 8 | `ARGIL_API_KEY` | AI avatar videos for Reels | https://argil.ai — sign up, create your avatar, go to Settings → API → copy key |
 
 For each key the user provides, save it to `.claude/settings.local.json` under the appropriate env var name (for terminal use).
 
@@ -296,20 +342,24 @@ Use these service names (must match what the gateway expects):
 | `DATAFORSEO_LOGIN` | `dataforseo_login` |
 | `DATAFORSEO_PASSWORD` | `dataforseo_password` |
 
+Note: `FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, and `REPORT_EMAIL` do NOT need vault storage — they are passed directly as tool parameters or used by built-in MCP connectors.
+
 Note: Google Ads, Meta Ads, and GA4 credentials are handled by the Windsor.ai MCP connector — no gateway storage needed.
 
 Keys are encrypted via Supabase Vault and can never be retrieved after storage. If the user needs to update a key later, they can re-run this step or use the dashboard UI at fiveagents.io.
 
-**MCP Connections (Claude.ai OAuth — user connects in their Claude settings):**
+**6c. MCP Connectors (user connects in Claude settings → Connected Apps):**
 
-Walk the user through connecting each MCP integration one by one. For each one, explain what it does, then ask the user to confirm they've connected it. If the user says "not now", move on but note it as unconfigured.
+Walk the user through each one. Explain what it does, ask the user to confirm they've connected it. If "not now", move on and note as unconfigured.
 
 | # | MCP | What it does | How to connect |
 |---|---|---|---|
-| 1 | **Notion** | Content calendar management, storing strategies & briefs | Settings → Connected Apps → Notion → Authorize |
-| 2 | **Slack** | Notifications after each skill run (also needs the Slack user ID above) | Settings → Connected Apps → Slack → Authorize |
-| 3 | **Gmail** | Reading emails + creating report drafts | Settings → Connected Apps → Gmail → Authorize |
+| 1 | **Notion** | Content calendar, strategies & briefs | Settings → Connected Apps → Notion → Authorize |
+| 2 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
+| 3 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
 | 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
+| 5 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | Settings → Connected Apps → Windsor.ai → Authorize. Then connect your ad accounts in the Windsor.ai dashboard. |
+| 6 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 For each, ask:
 > Have you connected {MCP name} in your Claude settings? (Settings → Connected Apps)
@@ -318,11 +368,11 @@ If yes, proceed. If "not now", acknowledge and move on.
 
 ### Step 7 — Validate Connections
 
-Test each configured integration:
+**Only validate integrations the user configured in Step 6.** Skip any the user chose not to set up. For each test, show ✅ or ❌ with a clear error message if it fails.
 
-**Gateway connector (most critical — test first):**
+**7a. Gateway connector (MUST pass — all other gateway tests depend on this):**
 
-1. **FiveAgents gateway** — Log a test run:
+1. **Five Agents gateway** — Log a test run:
 ```
 Use gateway MCP tool `fiveagents_log_run`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -334,11 +384,28 @@ Use gateway MCP tool `fiveagents_log_run`:
 - completed_at: "<ISO timestamp>"
 - metrics: { "date": "YYYY-MM-DD", "brand": "{brand}", "step": "validation" }
 ```
-If error, tell user to verify their FIVEAGENTS_API_KEY and that the gateway connector URL is correct (`https://gateway.fiveagents.io/api/mcp`).
+If error → tell user to verify their `FIVEAGENTS_API_KEY` and that the Five Agents connector URL is correct (`https://gateway.fiveagents.io/api/mcp`). Do NOT proceed with other gateway tests until this passes.
 
-**API keys stored in vault (test each configured key):**
+**7b. Gateway API key tests (only if configured in Step 6):**
 
-2. **Gemini** (if configured):
+2. **Credential vault** — Store a test value and confirm it works:
+```
+Use gateway MCP tool `fiveagents_store_credential`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- service: "test"
+- key: "validation-check"
+```
+
+3. **Email sending** — Send a test email:
+```
+Use gateway MCP tool `fiveagents_send_email`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- to: ${REPORT_EMAIL}
+- subject: "✅ Five Agents connected — {brand}"
+- html: "<p>Your Five Agents plugin is set up for <strong>{brand}</strong>.</p>"
+```
+
+4. **Gemini** (if `GEMINI_API_KEY` configured):
 ```
 Use gateway MCP tool `gemini_generate_text`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -346,20 +413,40 @@ Use gateway MCP tool `gemini_generate_text`:
 - model: "gemini-2.5-flash"
 ```
 
-3. **Zernio** (if configured):
+5. **Image text overlay** (if `GEMINI_API_KEY` configured — tests Satori + Sharp):
+```
+Use gateway MCP tool `image_add_text_overlay`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- image_base64: "<any small test image base64>"
+- text: "Test"
+- position: "bottom-center"
+- font_family: "Inter"
+```
+
+6. **Image logo overlay** (if logo was provided in Step 5 — tests Sharp composite):
+```
+Use gateway MCP tool `image_add_logo`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- image_base64: "<any small test image base64>"
+- logo_base64: "<logo base64 from brands/{brand}/logo.png>"
+- position: "bottom-right"
+- logo_width: 80
+```
+
+7. **Zernio** (if `LATE_API_KEY` configured):
 ```
 Use gateway MCP tool `late_list_posts`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - limit: 1
 ```
 
-4. **Argil** (if configured):
+8. **Argil** (if `ARGIL_API_KEY` configured):
 ```
 Use gateway MCP tool `argil_list_avatars`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 ```
 
-5. **DataforSEO** (if configured):
+9. **DataforSEO** (if `DATAFORSEO_LOGIN` configured):
 ```
 Use gateway MCP tool `dataforseo_search_volume`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -367,21 +454,52 @@ Use gateway MCP tool `dataforseo_search_volume`:
 - location_code: 2702
 ```
 
-**MCP connectors:**
+**7c. MCP connectors (only if connected in Step 6):**
 
-6. **Slack** — Send a test DM via Slack MCP:
+10. **Slack** (if connected) — Send a test DM:
 ```
 slack_send_message to channel $SLACK_NOTIFY_USER:
 "✅ Link plugin connected successfully for brand: {brand}"
 ```
 
-7. **Notion** — Try `notion-search` for any page. If it returns results, Notion MCP is connected.
+11. **Notion** (if connected) — Try `notion-search` for any page. If it returns results, Notion is connected.
 
-8. **Gmail** — Try `gmail_get_profile`. If it returns the user's email, Gmail MCP is connected.
+12. **Gmail** (if connected) — Try `gmail_get_profile`. If it returns the user's email, Gmail is connected.
 
-9. **Google Calendar** — Try `gcal_list_calendars`. If it returns calendars, Google Calendar MCP is connected.
+13. **Google Calendar** (if connected) — Try `gcal_list_calendars`. If it returns calendars, Google Calendar is connected.
 
-10. **Windsor.ai** (if configured) — Try Windsor MCP `get_connectors` to list connected accounts. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
+14. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
+
+15. **GA4 event discovery** (if Windsor.ai connected AND funnel.md has TBD events) — Discover the client's actual GA4 conversion events:
+```
+Use Windsor.ai MCP tool `get_fields`:
+- source: "googleanalytics4"
+```
+Look for key events and custom events (e.g. `click_whatsapp`, `click_email`, `schedule_call`, `signup_form_submit`, `trial_activated`, `purchase`, etc.). Filter out standard GA4 events (page_view, session_start, first_visit) — focus on key events (formerly called "conversions") and custom events that look like conversion actions.
+
+Show the user the events found:
+> "I found these key events / custom events in your GA4 account: [list]. Which of these are your conversion actions for the funnel?"
+
+After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `TBD` event names with the confirmed GA4 event names.
+
+**After all tests, show a summary table:**
+
+| Integration | Status |
+|---|---|
+| Five Agents gateway | ✅ / ❌ |
+| Credential vault | ✅ / ❌ |
+| Email (Postmark) | ✅ / ❌ |
+| Gemini | ✅ / ❌ / ⏭ skipped |
+| Image text overlay | ✅ / ❌ / ⏭ skipped |
+| Image logo overlay | ✅ / ❌ / ⏭ skipped |
+| Zernio | ✅ / ❌ / ⏭ skipped |
+| Argil | ✅ / ❌ / ⏭ skipped |
+| DataforSEO | ✅ / ❌ / ⏭ skipped |
+| Slack | ✅ / ❌ / ⏭ skipped |
+| Notion | ✅ / ❌ / ⏭ skipped |
+| Gmail | ✅ / ❌ / ⏭ skipped |
+| Google Calendar | ✅ / ❌ / ⏭ skipped |
+| Windsor.ai | ✅ / ❌ / ⏭ skipped |
 
 **Report results:**
 ```

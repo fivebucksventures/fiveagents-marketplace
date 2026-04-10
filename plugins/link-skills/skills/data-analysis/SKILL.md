@@ -36,9 +36,9 @@ Before starting, confirm these inputs with the user:
 
 | Input | Required | Notes |
 |-------|----------|-------|
-| Data source | Yes | Traffic report, email metrics, lead data, or raw numbers pasted by user |
+| Data source | Yes | Windsor.ai (Google Ads, Meta Ads, GA4), email metrics, lead data, or raw numbers pasted by user |
 | Time period | Yes | e.g., last 30 days, Q1 2026, week of March 10 |
-| Goal / benchmark | Yes | What were we trying to achieve? What's the target KPI? |
+| Goal / benchmark | Yes | What were we trying to achieve? What's the target KPI? Read from `brands/{brand}/funnel.md` if available. |
 | Persona / campaign | Optional | Which campaign or audience segment does this data relate to? |
 | Report format | Optional | Summary, full report, dashboard layout, or slide-ready bullets |
 
@@ -54,6 +54,24 @@ Before analyzing, confirm:
 - Is the data for a specific campaign, persona, or channel?
 
 If data is incomplete or missing, flag what's needed before proceeding.
+
+### Step 1a: Pull data from Windsor.ai (if applicable)
+
+If the user is asking about Google Ads, Meta Ads, or GA4 data, pull it directly via **Windsor.ai MCP** — same tools and approach as digital-marketing-analyst:
+
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "google_ads" / "facebook" / "googleanalytics4"
+- date_preset: match the user's requested time period
+- fields: relevant fields for the analysis
+```
+
+Read the client's funnel from `brands/{brand}/funnel.md` for benchmarks and GA4 event mappings. Use the same currency conversions and data lag warnings as digital-marketing-analyst (Meta spend is USD → convert to SGD at 1.36, Google Ads cost is SGD, GA4 data may have lag).
+
+If Windsor.ai is not connected and the user hasn't provided data, ask:
+> "I need data to analyze. You can either: (1) connect Windsor.ai for Google Ads / Meta Ads / GA4, or (2) paste your data here — CSV, table, or numbers."
+
+Do not proceed to analysis without data.
 
 ### Step 1b: Research industry benchmarks via WebSearch
 When the user has not provided benchmarks or targets, use the **WebSearch tool** to find current industry standards to compare against:
