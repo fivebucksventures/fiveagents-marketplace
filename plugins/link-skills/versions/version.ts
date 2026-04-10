@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.1.2';
+const DEFAULT_VERSION = 'v2.1.3';
 const DEFAULT_DATE = 'April 10, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,16 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.1.3',
+    date: 'April 10, 2026',
+    changes: [
+      'brand-setup: added Windsor.ai free account signup as prerequisite (Step 2 and Step 7c)',
+      'brand-setup: Step 7c Windsor.ai now walks user through all 3 steps (signup → connect ad accounts → authorize)',
+      'brand-setup: added Canva to Step 2 prerequisites overview table',
+      'brand-setup: added Canva to Step 8 validation summary table and report block',
+    ],
+  },
   {
     version: 'v2.1.2',
     date: 'April 10, 2026',

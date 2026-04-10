@@ -67,7 +67,8 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
 | 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
 | 5 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
-| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Settings → Connected Apps → Windsor.ai → Authorize<br>2. In Windsor dashboard, connect your Google Ads, Facebook Ads, and GA4 accounts |
+| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads (Facebook Ads), and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
+| 7 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
@@ -384,13 +385,18 @@ Walk the user through each one. Explain what it does, ask the user to confirm th
 | 2 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
 | 3 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
 | 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
-| 5 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | Settings → Connected Apps → Windsor.ai → Authorize. Then connect your ad accounts in the Windsor.ai dashboard. |
+| 5 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads, and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
 | 6 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
-For each, ask:
+For Notion, Slack, Gmail, Google Calendar, and Canva, ask:
 > Have you connected {MCP name} in your Claude settings? (Settings → Connected Apps)
 
-If yes, proceed. If "not now", acknowledge and move on.
+For Windsor.ai specifically, walk the user through all 3 steps before asking if they're done:
+1. "First, do you have a Windsor.ai account? If not, sign up free at https://windsor.ai/register"
+2. "Once you have an account, go to your Windsor dashboard and connect your Google Ads, Meta Ads, and GA4 accounts"
+3. "Then in Claude, go to Settings → Connected Apps → Windsor.ai → Authorize"
+
+If yes to all, proceed. If "not now", acknowledge and move on.
 
 ### Step 8 — Validate Connections
 
@@ -526,6 +532,7 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 | Gmail | ✅ / ❌ / ⏭ skipped |
 | Google Calendar | ✅ / ❌ / ⏭ skipped |
 | Windsor.ai | ✅ / ❌ / ⏭ skipped |
+| Canva | ✅ / ❌ / ⏭ skipped |
 
 **Report results:**
 ```
@@ -546,6 +553,7 @@ MCP Connectors:
   {✅|⬜} Gmail — {connected|not configured}
   {✅|⬜} Google Calendar — {connected|not configured}
   {✅|⬜} Windsor.ai — {connected|not configured} (Google Ads, Meta Ads, GA4)
+  {✅|⬜} Canva — {connected|not configured}
 ```
 
 ### Step 9 — Summary & Next Steps
