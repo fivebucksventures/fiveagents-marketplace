@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.2';
-const DEFAULT_DATE = 'April 10, 2026';
+const DEFAULT_VERSION = 'v2.2.3';
+const DEFAULT_DATE = 'April 11, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,25 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.3',
+    date: 'April 11, 2026',
+    changes: [
+      'brand-setup: enforced explicit confirmation gates at every step — "Do not proceed until..." added to Steps 1-9',
+      'brand-setup: Step 1 reordered — 1a is now "Work in a Project" (project-first), 1b is settings configuration',
+      'brand-setup: Step 1a rewrote project setup instructions (Projects area below chat input, clearer flow)',
+      'brand-setup: Step 2 prerequisites — removed Playwright from MCP connectors table (not an OAuth connector)',
+      'brand-setup: Step 6 logo — changed from paste-in-chat to file path input; uses file copy instead of save from chat',
+      'brand-setup: Step 7c MCP table — removed Playwright row, renumbered remaining connectors',
+      'brand-setup: Step 8 validation — removed Playwright test #10 (already confirmed in Step 4), renumbered tests 10-16',
+      'brand-setup: Step 8 summary table — removed Playwright row',
+      'brand-setup: Step 9 completion email JSON — removed Playwright integration entry',
+      'brand-setup: Step 9 marked mandatory — always send completion email regardless of integrations configured',
+      'brand-setup: Step 2 logo field updated — now shows file path example instead of "paste logo"',
+      'agents/link.md: added brand-setup row to Skills table (was missing)',
+      'agents/link.md: added Canva MCP to MCP Connectors section',
+    ],
+  },
   {
     version: 'v2.2.2',
     date: 'April 10, 2026',
@@ -200,20 +219,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Meta Ads, GA4, DataforSEO moved to standard onboarding',
       'brand-setup: Notion, Slack, Gmail, Google Calendar MCP moved to standard onboarding',
       'Added versions/version.ts and workflow/commit-to-git.md',
-    ],
-  },
-  {
-    version: 'v1.0.0',
-    date: 'April 8, 2026',
-    changes: [
-      'Initial marketplace release — link-skills plugin v1.0.0',
-      'brand-setup: guided onboarding skill with website analysis, brand context generation',
-      'brand-setup: standard onboarding for Meta Ads, GA4, DataforSEO, MCP connections',
-      'brand-setup: HEX code color input, no suggested brand names',
-      '14 skills: brand-setup, background-generator, campaign-presenter, commit-to-git, content-creation, content-generator, creative-designer, data-analysis, digital-marketing-analyst, research-strategy, social-calendar, social-publisher',
-      'Workflow: commit-to-git versioning workflow',
-      'Scripts: add_logo, add_text_overlay, add_text_overlay_video, ga4_pull, generate_text_video',
-      'Servers: media-server MCP',
     ],
   },
 ];

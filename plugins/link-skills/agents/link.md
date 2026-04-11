@@ -46,6 +46,7 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 
 | Skill | Use For |
 |---|---|
+| `brand-setup` | Onboard a new brand — API keys, integrations, website analysis, brand context files |
 | `research-strategy` | ICP, positioning, competitive analysis, campaign briefs |
 | `content-creation` | Landing pages, emails, ad copy, blog posts, social copy |
 | `creative-designer` | Visual specs, image generation, AI video (Argil), HTML/CSS mockups |
@@ -76,6 +77,7 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 - **Gmail MCP** — search, read, create drafts
 - **Google Calendar MCP** — calendar access
 - **Windsor.ai MCP** — Google Ads, Meta Ads, GA4 analytics data
+- **Canva MCP** — campaign presentations and pitch decks
 
 ### External APIs (via gateway MCP tools)
 

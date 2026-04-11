@@ -14,15 +14,27 @@ You are the onboarding agent for the Link marketing plugin. Walk the user throug
 
 ## Flow
 
-Run these steps in order. Skip steps the user has already completed. After each step, confirm success before moving to the next.
+Run these steps in order. **Do not skip or rush any step.** At the end of each step, explicitly ask the user to confirm before proceeding to the next. Never assume a step is already done — always ask. The only exception is if the user explicitly says "skip" or "already done" for a specific step.
 
 ---
 
-### Step 1 — Cowork Setup (one-time, skip if already done)
+### Step 1 — Cowork Setup
 
-Before anything else, ensure your Cowork environment is configured.
+Before anything else, ensure your Cowork environment is configured. **Both 1a and 1b are mandatory — do not proceed until both are confirmed.**
 
-#### 1a. Configure settings
+#### 1a. Work in a Project
+
+All brand assets, outputs, and temp files live inside a Cowork project on your machine. **This is required — brand setup cannot run without an active project.**
+
+> Let's get your project set up. In Cowork:
+> 1. Look for **Projects** just below the chat input area
+> 2. Click **"Create a new Project"**
+> 3. Choose either **"Start from scratch"** or **"Use an existing folder"**
+> 4. Name your project (e.g. your brand name)
+
+**Do not proceed until the user confirms they have a project open and are working inside it.** All subsequent steps create files relative to this project.
+
+#### 1b. Configure settings
 
 > To use this plugin, you'll need to adjust a few settings first. Go to **Settings → Capabilities** and check the following:
 
@@ -30,19 +42,7 @@ Before anything else, ensure your Cowork environment is configured.
 
 > Have you enabled these settings? Once confirmed, we'll move on.
 
-#### 1b. Create a Project folder
-
-All brand assets, outputs, and temp files live in a local folder on your machine. You need a Cowork **Project** pointing to this folder.
-
-> Now let's set up your project folder. In Cowork:
-> 1. Click the **"+"** button in the left navigation panel under **Projects**
-> 2. Choose **"Use existing folder"** if you already have a folder, or **"Start from scratch"** to create a new one
-> 3. Name your project (e.g. your brand name)
-> 4. Point it to a dedicated folder on your machine (e.g. `~/Documents/my-brand/` or `~/Projects/my-brand/`)
->
-> This folder is where all your brand files (`brands/`, `outputs/`, `tmp/`) will be created.
-
-Confirm the user has a project open and is working inside it before proceeding. All subsequent steps create files relative to this project folder.
+**Do not proceed to Step 2 until the user confirms both 1a and 1b are done.**
 
 ---
 
@@ -53,7 +53,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 **Brand basics:**
 - Your brand name
 - Your website URL (we'll auto-detect colors and fonts from your site)
-- Your logo file (PNG, transparent background preferred)
+- Your logo file path (PNG, transparent background preferred — e.g. `~/Documents/my-brand/logo.png`)
 
 **Required API keys:**
 
@@ -77,16 +77,17 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | # | MCP | What it's for | How to connect |
 |---|---|---|---|
 | 1 | **FiveAgents** | All external API calls (Gemini, Zernio, Argil, DataforSEO, email, logging) | 1. In Claude, go to Settings → Connectors<br>2. Click "Add custom connector"<br>3. Name: `FiveAgents`<br>4. URL: `https://gateway.fiveagents.io/api/mcp`<br>5. Click Connect |
-| 2 | **Playwright** | Website analysis — browses your site to extract content, colors, and fonts | Settings → Connected Apps → Playwright → Authorize |
-| 3 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
-| 4 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
-| 5 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
-| 6 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
-| 7 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads (Facebook Ads), and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
-| 8 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
+| 2 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
+| 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
+| 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
+| 5 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
+| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads (Facebook Ads), and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
+| 7 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
+
+**Do not proceed to Step 3 until the user confirms they are ready.**
 
 ---
 
@@ -114,6 +115,8 @@ Also create:
 outputs/{brand}/
 outputs/{brand}/strategy/
 ```
+
+**Do not proceed to Step 4 until the brand name is confirmed and all directories are created.**
 
 ### Step 4 — Website Analysis
 
@@ -209,6 +212,8 @@ Using the analyzed data + any corrections from the user, generate **two files**:
 Generate 3-6 personas based on the website's messaging and target market.
 
 Show the user each draft and let them review/edit before saving.
+
+**Do not proceed to Step 5 until the user has reviewed and confirmed `brand.md` and `audience.md`.**
 
 ### Step 5 — Research & Context Generation
 
@@ -311,6 +316,8 @@ Show the user the relevant events found and confirm the mapping:
 
 Each client's funnel is unique — the digital-marketing-analyst reads this file and builds the email funnel table dynamically from whatever stages are defined here.
 
+**Do not proceed until `product.md`, `competitors.md`, `funnel.md` are generated and the user has confirmed the funnel mapping.**
+
 **`brands/{brand}/avatars.md`**
 Ask the user:
 > Do you want AI avatar videos? If yes, who is the founder/spokesperson? Do you have an Argil account?
@@ -332,11 +339,13 @@ Pick avatars that match the brand's target market demographics.
 ### Step 6 — Logo
 
 Ask the user:
-> Please paste your logo image directly into this chat (PNG, transparent background preferred).
+> What is the file path to your logo? (PNG, transparent background preferred — e.g. `~/Documents/my-brand/logo.png`)
 
-When the user pastes the logo, save it to `brands/{brand}/logo.png`. This file is read by Python Pillow in content-generator and creative-designer for logo compositing.
+Copy the file from the provided path to `brands/{brand}/logo.png`. This file is read by Python Pillow in content-generator and creative-designer for logo compositing.
 
 Note: Google Font and brand colors were already discovered and saved to `brands/{brand}/brand.md` in Step 4.
+
+**Do not proceed to Step 7 until the logo file is confirmed copied (or the user explicitly skips it).**
 
 ### Step 7 — API Keys & Connections
 
@@ -491,15 +500,14 @@ Walk the user through each one. Explain what it does, ask the user to confirm th
 
 | # | MCP | What it does | How to connect |
 |---|---|---|---|
-| 1 | **Playwright** | Website analysis — browses your site to extract content, colors, and fonts | Settings → Connected Apps → Playwright → Authorize |
-| 2 | **Notion** | Content calendar, strategies & briefs | Settings → Connected Apps → Notion → Authorize |
-| 3 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
-| 4 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
-| 5 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
-| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads, and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
-| 7 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
+| 1 | **Notion** | Content calendar, strategies & briefs | Settings → Connected Apps → Notion → Authorize |
+| 2 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
+| 3 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
+| 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
+| 5 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads, and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
+| 6 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
-For Playwright, Notion, Slack, Gmail, Google Calendar, and Canva, ask:
+For Notion, Slack, Gmail, Google Calendar, and Canva, ask:
 > Have you connected {MCP name} in your Claude settings? (Settings → Connected Apps)
 
 For Windsor.ai specifically, walk the user through all 3 steps before asking if they're done:
@@ -509,9 +517,11 @@ For Windsor.ai specifically, walk the user through all 3 steps before asking if 
 
 If yes to all, proceed. If "not now", acknowledge and move on.
 
+**Do not proceed to Step 8 until the user has responded to every integration in Step 7 — either configured or explicitly skipped.**
+
 ### Step 8 — Validate Connections
 
-**Only validate integrations the user configured in Step 7.** Skip any the user chose not to set up. For each test, show ✅ or ❌ with a clear error message if it fails.
+**This step is mandatory and must not be skipped.** Run validation for every integration the user configured in Step 7. For each test, show ✅ or ❌ with a clear error message if it fails. Only skip a specific test if the user explicitly chose not to set up that integration in Step 7.
 
 **8a. Gateway connector (MUST pass — all other gateway tests depend on this):**
 
@@ -606,25 +616,23 @@ Use gateway MCP tool `dataforseo_search_volume`:
 
 **8c. MCP connectors (only if connected in Step 7):**
 
-10. **Playwright** — skip validation (already confirmed working in Step 4 website analysis).
-
-11. **Slack** (if connected) — Send a test DM:
+10. **Slack** (if connected) — Send a test DM:
 ```
 slack_send_message to channel $SLACK_NOTIFY_USER:
 "✅ Link plugin connected successfully for brand: {brand}"
 ```
 
-12. **Notion** (if connected) — Try `notion-search` for any page. If it returns results, Notion is connected.
+11. **Notion** (if connected) — Try `notion-search` for any page. If it returns results, Notion is connected.
 
-13. **Gmail** (if connected) — Try `gmail_get_profile`. If it returns the user's email, Gmail is connected.
+12. **Gmail** (if connected) — Try `gmail_get_profile`. If it returns the user's email, Gmail is connected.
 
-14. **Google Calendar** (if connected) — Try `gcal_list_calendars`. If it returns calendars, Google Calendar is connected.
+13. **Google Calendar** (if connected) — Try `gcal_list_calendars`. If it returns calendars, Google Calendar is connected.
 
-15. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
+14. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
 
-16. **Canva** (if connected) — Try `list-brand-kits`. If it returns results (even empty), Canva is connected.
+15. **Canva** (if connected) — Try `list-brand-kits`. If it returns results (even empty), Canva is connected.
 
-17. **GA4 event discovery** (if Windsor.ai connected AND funnel.md has TBD events) — Discover the client's actual GA4 conversion events:
+16. **GA4 event discovery** (if Windsor.ai connected AND funnel.md has TBD events) — Discover the client's actual GA4 conversion events:
 ```
 Use Windsor.ai MCP tool `get_fields`:
 - source: "googleanalytics4"
@@ -649,7 +657,6 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 | Zernio | ✅ / ❌ / ⏭ skipped |
 | Argil | ✅ / ❌ / ⏭ skipped |
 | DataforSEO | ✅ / ❌ / ⏭ skipped |
-| Playwright | ✅ (confirmed in Step 4) / ⏭ skipped |
 | Slack | ✅ / ❌ / ⏭ skipped |
 | Notion | ✅ / ❌ / ⏭ skipped |
 | Gmail | ✅ / ❌ / ⏭ skipped |
@@ -659,7 +666,11 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 
 Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving to Step 9. Save all results — they're used in the Step 9 completion email.
 
+**Do not proceed to Step 9 until every configured integration has been tested and the summary table has been shown to the user.**
+
 ### Step 9 — Summary & Completion Email
+
+**This step is mandatory and must not be skipped.** Always send the completion email and Slack notification at the end of setup, regardless of how many integrations were configured.
 
 Send a completion email to `$REPORT_EMAIL` with the full setup report.
 
@@ -700,7 +711,6 @@ Build the JSON payload from Step 8 validation results:
     { "integration": "Zernio", "status": "pass | fail | skipped", "notes": "Connected: Facebook, Instagram, LinkedIn" },
     { "integration": "Argil", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "DataforSEO", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Playwright", "status": "pass", "notes": "Confirmed during website analysis (Step 4)" },
     { "integration": "Slack", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Notion", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Gmail", "status": "pass | fail | skipped", "notes": "" },
