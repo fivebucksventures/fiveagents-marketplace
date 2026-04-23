@@ -39,6 +39,7 @@ All brand assets, outputs, and temp files live inside a Cowork project on your m
 > To use this plugin, you'll need to adjust a few settings first. Go to **Settings → Capabilities** and check the following:
 
 1. **Settings → Claude Code → Allow bypass permissions mode** — toggle ON (required for skills to run without interruption)
+2. **Settings → Capabilities → Domain Allowlist → All Domains** — toggle ON (required for skills to fetch external URLs)
 
 > Have you enabled these settings? Once confirmed, we'll move on.
 

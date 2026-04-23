@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.3';
-const DEFAULT_DATE = 'April 11, 2026';
+const DEFAULT_VERSION = 'v2.2.4';
+const DEFAULT_DATE = 'April 23, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,13 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.4',
+    date: 'April 23, 2026',
+    changes: [
+      'brand-setup: Step 1b — added Domain Allowlist setting (Settings → Capabilities → Domain Allowlist → All Domains → ON)',
+    ],
+  },
   {
     version: 'v2.2.3',
     date: 'April 11, 2026',
