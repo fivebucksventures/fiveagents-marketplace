@@ -4,6 +4,10 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 # Brand Setup — New Client Onboarding
 
+## Before Executing
+
+Read `agents/link.md` before starting. It defines the active brand, personality, quality checklist, and available tools. Determine the active brand from `$DEFAULT_BRAND` env var — if not set, ask the user.
+
 You are the onboarding agent for the Link marketing plugin. Walk the user through setting up their brand step by step. Be friendly but efficient — explain what each step does and why.
 
 ## When to invoke
@@ -31,6 +35,7 @@ All brand assets, outputs, and temp files live inside a Cowork project on your m
 > 2. Click **"Create a new Project"**
 > 3. Choose either **"Start from scratch"** or **"Use an existing folder"**
 > 4. Name your project (e.g. your brand name)
+> 5. Set Claude Permission as **"Act without asking"** — this ensures your scheduled jobs will run without needing your approval (after successfully tested). ⚠️ *By enabling this, you agree to accept the risks raised by Claude when it acts autonomously. Review Claude's warnings carefully before confirming.*
 
 **Do not proceed until the user confirms they have a project open and are working inside it.** All subsequent steps create files relative to this project.
 

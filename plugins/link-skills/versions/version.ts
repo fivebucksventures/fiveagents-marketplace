@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.4';
-const DEFAULT_DATE = 'April 23, 2026';
+const DEFAULT_VERSION = 'v2.2.5';
+const DEFAULT_DATE = 'April 26, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,16 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.5',
+    date: 'April 26, 2026',
+    changes: [
+      'all skills: added "Before Executing" section — every skill now reads agents/link.md before starting',
+      'brand-setup: Step 1a — added "Act without asking" permission setting with risk disclaimer',
+      'agents/link.md: updated skill table descriptions to match actual SKILL.md frontmatter',
+      '.gitignore: added .DS_Store',
+    ],
+  },
   {
     version: 'v2.2.4',
     date: 'April 23, 2026',
@@ -213,19 +223,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
     date: 'April 8, 2026',
     changes: [
       'brand-setup: updated FIVEAGENTS_API_KEY instructions — clients get key from their own dashboard instead of admin',
-    ],
-  },
-  {
-    version: 'v1.0.1',
-    date: 'April 8, 2026',
-    changes: [
-      'brand-setup: added Step 1 prerequisites overview (API keys, MCP connections, brand assets)',
-      'brand-setup: replaced "scrape" with "analyze" throughout',
-      'brand-setup: ask for HEX codes instead of color names',
-      'brand-setup: no suggested brand names — free-text input only',
-      'brand-setup: Meta Ads, GA4, DataforSEO moved to standard onboarding',
-      'brand-setup: Notion, Slack, Gmail, Google Calendar MCP moved to standard onboarding',
-      'Added versions/version.ts and workflow/commit-to-git.md',
     ],
   },
 ];

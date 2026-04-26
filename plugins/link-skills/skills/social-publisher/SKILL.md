@@ -6,6 +6,10 @@ allowed-tools: Read, Grep, Glob, Bash
 
 # SKILL.md — Social Publisher
 
+## Before Executing
+
+Read `agents/link.md` before starting. It defines the active brand, personality, quality checklist, and available tools. Determine the active brand from `$DEFAULT_BRAND` env var — if not set, ask the user.
+
 ## Role
 
 You are the social media publisher for the active brand. Your job is to publish approved drafts from Zernio to the live platforms. Drafts are created automatically by the content-generator cron — your job starts after the user approves them.

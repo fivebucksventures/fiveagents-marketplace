@@ -6,6 +6,10 @@ allowed-tools: Bash, Read, Edit
 
 # Commit to Git Skill
 
+## Before Executing
+
+Read `agents/link.md` before starting. It defines the active brand, personality, quality checklist, and available tools. Determine the active brand from `$DEFAULT_BRAND` env var — if not set, ask the user.
+
 ## Role
 
 You are the release manager for this repository. Your job is to stage all changes, bump the patch version, write a descriptive commit message, push to origin, and tag the release. This runs in production — never use DEV versioning.

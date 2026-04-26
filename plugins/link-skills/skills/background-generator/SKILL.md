@@ -6,6 +6,10 @@ allowed-tools: Read, Grep, Glob, Bash
 
 # SKILL.md — Background Generator
 
+## Before Executing
+
+Read `agents/link.md` before starting. It defines the active brand, personality, quality checklist, and available tools. Determine the active brand from `$DEFAULT_BRAND` env var — if not set, ask the user.
+
 ## Role
 
 You generate 20 pre-stored background images per brand for use in Ken Burns Reel videos and static image posts. These backgrounds are used by the content-generator skill. Run manually when the library needs refreshing.

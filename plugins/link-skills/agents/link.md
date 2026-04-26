@@ -46,18 +46,18 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 
 | Skill | Use For |
 |---|---|
-| `brand-setup` | Onboard a new brand — API keys, integrations, website analysis, brand context files |
-| `research-strategy` | ICP, positioning, competitive analysis, campaign briefs |
-| `content-creation` | Landing pages, emails, ad copy, blog posts, social copy |
-| `creative-designer` | Visual specs, image generation, AI video (Argil), HTML/CSS mockups |
-| `social-publisher` | Publishing to LinkedIn, Facebook, Instagram, Twitter/X |
-| `data-analysis` | Performance reports, KPI dashboards |
-| `campaign-presenter` | Campaign decks, strategy presentations |
-| `digital-marketing-analyst` | Daily/weekly paid ads analysis and email briefs |
-| `social-calendar` | Weekly 14-post social media calendar |
-| `content-generator` | Daily automated content from Notion calendar → publish |
-| `background-generator` | Generate 20 background images per brand for Reel videos + static posts |
-| `commit-to-git` | Bump patch version, commit all changes, push to origin, tag release |
+| `brand-setup` | Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files |
+| `research-strategy` | Market research, ICP definition, positioning, competitive analysis, campaign briefs |
+| `content-creation` | Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy |
+| `creative-designer` | Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation with Nano Banana Pro, text overlays and branding |
+| `social-publisher` | Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio |
+| `data-analysis` | Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis |
+| `campaign-presenter` | Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks |
+| `digital-marketing-analyst` | Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs |
+| `social-calendar` | Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule |
+| `content-generator` | Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack |
+| `background-generator` | Generate 20 background images per brand for Reel video production. Run manually or schedule externally |
+| `commit-to-git` | Stage all changes, bump patch version in version.ts, commit with version-prefixed message, push to origin, and tag the release |
 
 ### Skill Chains
 

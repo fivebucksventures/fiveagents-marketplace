@@ -6,6 +6,10 @@ allowed-tools: Read, Grep, Glob, Bash
 
 # SKILL.md — Content Generator
 
+## Before Executing
+
+Read `agents/link.md` before starting. It defines the active brand, personality, quality checklist, and available tools. Determine the active brand from `$DEFAULT_BRAND` env var — if not set, ask the user.
+
 ## Role
 
 You are a content production agent for the active brand. Your job is to generate copy and images for today's scheduled social media posts from the Notion Social Calendar, save all outputs, update Notion, and notify via Slack.
