@@ -67,9 +67,14 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 |---|---|---|---|
 | 1 | `FIVEAGENTS_API_KEY` | Dashboard logging, credential vault, email sending | 1. Go to https://fiveagents.io and sign in<br>2. Go to Dashboard → API Keys<br>3. Copy your `fa_live_...` key |
 | 2 | `GEMINI_API_KEY` | Image generation (social graphics, backgrounds) | 1. Go to https://aistudio.google.com/apikey<br>2. Click "Create API Key"<br>3. Copy the key (free tier: 10 images/min) |
-| 3 | `LATE_API_KEY` | Social media publishing (Facebook, Instagram, LinkedIn) | 1. Sign up at https://zernio.com<br>2. Create a Profile for your brand<br>3. Connect your social accounts (Facebook, Instagram, LinkedIn) via OAuth<br>4. Go to Settings → API → copy your API key |
-| 4 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | 1. Open Slack<br>2. Click your profile photo → "Profile"<br>3. Click the three dots ⋯ → "Copy member ID" |
-| 5 | `REPORT_EMAIL` | Daily/weekly marketing report delivery | Your work email address |
+| 3 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | 1. Open Slack<br>2. Click your profile photo → "Profile"<br>3. Click the three dots ⋯ → "Copy member ID" |
+| 4 | `REPORT_EMAIL` | Daily/weekly marketing report delivery | Your work email address |
+
+**Required for social publishing:**
+
+| # | Key | What it's for | How to get it |
+|---|---|---|---|
+| 5 | `LATE_API_KEY` | Social media publishing (Facebook, Instagram, LinkedIn) | 1. Sign up at https://zernio.com<br>2. Create a Profile for your brand<br>3. Connect your social accounts (Facebook, Instagram, LinkedIn) via OAuth<br>4. Go to Settings → API → copy your API key |
 
 **Optional API keys:**
 
@@ -82,7 +87,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 
 | # | MCP | What it's for | How to connect |
 |---|---|---|---|
-| 1 | **FiveAgents** | All external API calls (Gemini, Zernio, Argil, DataforSEO, email, logging) | 1. In Claude, go to Settings → Connectors<br>2. Click "Add custom connector"<br>3. Name: `FiveAgents`<br>4. URL: `https://gateway.fiveagents.io/api/mcp`<br>5. Click Connect |
+| 1 | **FiveAgents** | All external API calls (Gemini, Zernio, Argil, DataforSEO, email, logging) | Required — configured in Step 7a |
 | 2 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
 | 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
 | 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
@@ -227,7 +232,7 @@ Now that `brand.md` and `audience.md` exist, run `/link-skills:research-strategy
 - Read brand.md + audience.md for context
 - Research competitors automatically (no need to ask the user)
 - Analyze market positioning, strengths, weaknesses
-- Run keyword research (if DataforSEO is configured)
+- Keyword research is skipped at this stage — DataforSEO keys are not entered until Step 7. After completing Step 7, the user can re-run `/link-skills:research-strategy` to add keyword data to the strategy outputs.
 
 Read the research output from `outputs/{brand}/strategy/` and use it to generate:
 
@@ -322,8 +327,6 @@ Show the user the relevant events found and confirm the mapping:
 
 Each client's funnel is unique — the digital-marketing-analyst reads this file and builds the email funnel table dynamically from whatever stages are defined here.
 
-**Do not proceed until `product.md`, `competitors.md`, `funnel.md` are generated and the user has confirmed the funnel mapping.**
-
 **`brands/{brand}/avatars.md`**
 Ask the user:
 > Do you want AI avatar videos? If yes, who is the founder/spokesperson? Do you have an Argil account?
@@ -341,6 +344,8 @@ If yes, generate a starter file. If no, create a minimal placeholder:
 Use Argil stock avatars. Rotate across personas for variety.
 Pick avatars that match the brand's target market demographics.
 ```
+
+**Do not proceed until `product.md`, `competitors.md`, `funnel.md`, and `avatars.md` are generated and the user has confirmed the funnel mapping.**
 
 ### Step 6 — Logo
 
@@ -458,17 +463,12 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 - Connected platforms: {Facebook (@username), Instagram (@username), LinkedIn (name), etc.}
 ```
 
-**Standard (ask for each — skip if not ready):**
+**Optional (ask for each — skip if not ready):**
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
 | 6 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
 | 7 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
-
-**Optional (enables specific skills):**
-
-| # | Key | What it does | How to get it |
-|---|---|---|---|
 | 8 | `ARGIL_API_KEY` | AI avatar videos for Reels | https://argil.ai — sign up, create your avatar, go to Settings → API → copy key |
 
 **Save ALL keys to `.claude/settings.local.json`:**
@@ -738,7 +738,110 @@ Also print the same summary to the chat and send a Slack notification to `$SLACK
 
 ```
 ✅ Brand "{brand}" setup complete
-• {N}/16 integrations connected
+• {N}/15 integrations connected
 • {N} action items (see email for details)
 • Brand files: brands/{brand}/
 ```
+
+### Step 10 — Initialize Workspace CLAUDE.md
+
+**This step is mandatory and must not be skipped.** It ensures every future session in this workspace (including scheduled/automated runs) loads the Link agent identity and credentials automatically.
+
+#### 10a. Find the agents/link.md path
+
+The agent definition file is bundled with the plugin at a path that varies per installation. Find it by running:
+
+```python
+import subprocess, sys
+result = subprocess.run(
+    [sys.executable, "-c",
+     "import glob, os; "
+     "patterns = ["
+     "  os.path.expandvars(r'%APPDATA%\\\\Claude\\\\**\\\\agents\\\\link.md'), "
+     "  os.path.expanduser('~/.claude/**/agents/link.md'), "
+     "  os.path.expanduser('~/Library/Application Support/Claude/**/agents/link.md')"
+     "]; "
+     "found = [f for p in patterns for f in glob.glob(p, recursive=True)]; "
+     "print(found[0] if found else '')"],
+    capture_output=True, text=True
+)
+link_md_path = result.stdout.strip()
+```
+
+If the search returns empty, ask the user:
+> I couldn't auto-detect the path to `agents/link.md`. Can you paste the full path? (Hint: search for `link.md` inside your Claude application data folder.)
+
+#### 10b. Read or create CLAUDE.md
+
+Check if `CLAUDE.md` exists at the workspace root (same folder as `brands/` and `outputs/`).
+
+Build the **Agent Identity block** to inject:
+
+```markdown
+# {Brand Name} — Workspace Instructions
+
+## Agent Identity (REQUIRED — read this first on every session)
+
+At the start of every session, read the Link agent definition:
+
+`{link_md_path}`
+
+This file defines your identity (Link), active brand logic, available skills, tools, integrations, output conventions, and quality checklist. All skill runs depend on it.
+
+---
+
+## Credential Loading (REQUIRED — read this first on every run)
+
+Scheduled and automated runs do **not** automatically inject environment variables from `.claude/settings.local.json`. You must load them manually at the start of every skill run using this snippet:
+
+    import os, json
+    from pathlib import Path
+
+    def load_credentials():
+        search = Path(os.getcwd())
+        for p in [search] + list(search.parents):
+            settings_file = p / ".claude" / "settings.local.json"
+            if settings_file.exists():
+                data = json.loads(settings_file.read_text())
+                for k, v in data.get("env", {}).items():
+                    if not os.environ.get(k):
+                        os.environ[k] = v
+                return True
+        return False
+
+    load_credentials()
+
+Run this **before** reading any env var (`FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, `{BRAND}_LATE_FB`, etc.). If `FIVEAGENTS_API_KEY` is still missing after this step, log a `failed` run and exit — do not skip publishing silently.
+
+---
+
+## Active Brand
+
+Default brand: **{brand}**
+Brand files: `brands/{brand}/`
+
+## Workspace Structure
+
+    brands/{brand}/     — brand context (brand.md, audience.md, product.md, logo.png, backgrounds/)
+    outputs/{brand}/    — all generated content (copy .md, images .png, videos .mp4)
+    tmp/                — scratch space for scripts, intermediate files
+
+## Account IDs (Zernio / Late API)
+
+Read from env vars after credential loading:
+- Facebook:  `{BRAND}_LATE_FB`
+- Instagram: `{BRAND}_LATE_IG`
+- LinkedIn:  `{BRAND}_LATE_LI`
+
+---
+```
+
+**If `CLAUDE.md` already exists:**
+- Check if it already contains `## Agent Identity` — if so, update the `link.md` path line in place and update the `## Active Brand` section to reflect the new brand (append if multi-brand).
+- If it does not contain `## Agent Identity`, prepend the Agent Identity block above all existing content.
+
+**If `CLAUDE.md` does not exist:**
+- Create it with the full Agent Identity block above.
+
+Show the user what was written:
+> ✅ `CLAUDE.md` updated — Link agent identity and credential loader are now wired to this workspace. Every future session here will automatically load your brand context.

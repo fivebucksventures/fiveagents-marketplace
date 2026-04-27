@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.6';
+const DEFAULT_VERSION = 'v2.2.7';
 const DEFAULT_DATE = 'April 27, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,20 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.7',
+    date: 'April 27, 2026',
+    changes: [
+      'brand-setup: added Step 10 — Initialize Workspace CLAUDE.md (auto-discovers agents/link.md path, writes Agent Identity + credential loader + brand context)',
+      'brand-setup: Step 2 FiveAgents MCP row simplified — full setup instructions removed from overview, deferred to Step 7a',
+      'brand-setup: LATE_API_KEY moved from Required to Required-for-social-publishing category in Step 2 and Step 7b',
+      'brand-setup: Step 5 DataforSEO note corrected — keyword research skipped at Step 5, re-run research-strategy manually after Step 7',
+      'brand-setup: Step 7b DataforSEO and Argil merged into single Optional table (was two separate Optional sections)',
+      'brand-setup: Step 5 "Do not proceed" gate moved to after avatars.md (was incorrectly placed before it)',
+      'brand-setup: Step 9 Slack message corrected N/16 → N/15 integrations',
+      'brand-setup: Step 10 nested code block issues fixed (credential loader and Workspace Structure use indentation inside markdown template fence)',
+    ],
+  },
   {
     version: 'v2.2.6',
     date: 'April 27, 2026',
@@ -226,4 +240,14 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       '.mcp.json: gateway-only (media-server removed)',
     ],
   },
+<<<<<<< HEAD
+=======
+  {
+    version: 'v1.0.2',
+    date: 'April 8, 2026',
+    changes: [
+      'brand-setup: updated FIVEAGENTS_API_KEY instructions — clients get key from their own dashboard instead of admin',
+    ],
+  },
+>>>>>>> 32f73bb (v2.2.5 brand-setup: Step 10 CLAUDE.md init, fix redundant/contradictory instructions)
 ];
