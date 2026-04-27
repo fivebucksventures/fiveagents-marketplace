@@ -471,11 +471,13 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 |---|---|---|---|
 | 8 | `ARGIL_API_KEY` | AI avatar videos for Reels | https://argil.ai — sign up, create your avatar, go to Settings → API → copy key |
 
-For each key the user provides, save it to `.claude/settings.local.json` under the appropriate env var name (for terminal use).
+**Save ALL keys to `.claude/settings.local.json`:**
 
-**Also store keys in the credential vault (for Cowork use):**
+For every key the user provides in Step 7b (including `FIVEAGENTS_API_KEY`, `GEMINI_API_KEY`, `SLACK_NOTIFY_USER`, `REPORT_EMAIL`, `LATE_API_KEY`, and any optional keys), save it to `.claude/settings.local.json` under the `"env"` object using the exact env var name shown in the tables above. This is required — all skills read credentials from env vars at runtime.
 
-After saving to `settings.local.json`, store each API key in the encrypted vault so the gateway can access it:
+**Also store API keys in the credential vault (for Cowork use):**
+
+After saving ALL keys to `settings.local.json`, store each external API key in the encrypted vault so the gateway can access it:
 
 ```
 For each key provided, use gateway MCP tool `fiveagents_store_credential`:
@@ -494,7 +496,7 @@ Use these service names (must match what the gateway expects):
 | `DATAFORSEO_LOGIN` | `dataforseo_login` |
 | `DATAFORSEO_PASSWORD` | `dataforseo_password` |
 
-Note: `FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, and `REPORT_EMAIL` do NOT need vault storage — they are passed directly as tool parameters or used by built-in MCP connectors.
+Note: `FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, and `REPORT_EMAIL` do NOT need vault storage — they are passed directly as tool parameters or used by built-in MCP connectors. They still MUST be saved to `.claude/settings.local.json` (done above).
 
 Note: Google Ads, Meta Ads, and GA4 credentials are handled by the Windsor.ai MCP connector — no gateway storage needed.
 

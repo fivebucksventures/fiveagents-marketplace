@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.5';
-const DEFAULT_DATE = 'April 26, 2026';
+const DEFAULT_VERSION = 'v2.2.6';
+const DEFAULT_DATE = 'April 27, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.6',
+    date: 'April 27, 2026',
+    changes: [
+      'brand-setup: explicit "Save ALL keys to settings.local.json" instruction — FIVEAGENTS_API_KEY and all keys now explicitly listed for env save',
+      'brand-setup: vault exclusion note clarified — keys not needing vault still MUST be saved to settings.local.json',
+    ],
+  },
   {
     version: 'v2.2.5',
     date: 'April 26, 2026',
@@ -216,13 +224,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'Late rebranded to Zernio (user-facing only, tool names unchanged)',
       'Removed userConfig: meta_ads_token, meta_ad_account_id, ga4_property_id, ga4_sa_key_path, notion_api_key',
       '.mcp.json: gateway-only (media-server removed)',
-    ],
-  },
-  {
-    version: 'v1.0.2',
-    date: 'April 8, 2026',
-    changes: [
-      'brand-setup: updated FIVEAGENTS_API_KEY instructions — clients get key from their own dashboard instead of admin',
     ],
   },
 ];
