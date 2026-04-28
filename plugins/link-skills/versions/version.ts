@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.7';
-const DEFAULT_DATE = 'April 27, 2026';
+const DEFAULT_VERSION = 'v2.2.8';
+const DEFAULT_DATE = 'April 28, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.8',
+    date: 'April 28, 2026',
+    changes: [
+      'digital-marketing-analyst: date_preset changed from "last_30d" to "last_30dT" across all Windsor.ai calls (Google Ads, Meta, GA4) — fixes missing data for campaigns active on the current UTC day',
+      'digital-marketing-analyst: removed outdated ~12-day Windsor data lag warnings — all three connectors are near-real-time',
+      'digital-marketing-analyst: fixed invalid GA4 fields — removed "source" and "medium" from field lists, only "session_source_medium" is valid in Windsor',
+      'digital-marketing-analyst: fiveagents_log_run metrics block rewritten — replaced literal zero placeholders with descriptive <actual_value> placeholders and added explicit warning to populate with real computed data (fixes agent_runs logging 0 data)',
+      'data-analysis: same Windsor.ai fixes — date_preset → last_30dT, GA4 invalid field corrections, data lag note updated, per-connector field reference table added',
+    ],
+  },
   {
     version: 'v2.2.7',
     date: 'April 27, 2026',
@@ -213,41 +224,4 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'data-analysis: Windsor.ai data pull, funnel.md benchmarks, consistent with digital-marketing-analyst',
     ],
   },
-  {
-    version: 'v2.0.1',
-    date: 'April 10, 2026',
-    changes: [
-      'Rewrote docs/plugin-mcp.md — clean v2.0.0 summary (removed stale migration plan)',
-    ],
-  },
-  {
-    version: 'v2.0.0',
-    date: 'April 10, 2026',
-    changes: [
-      'MCP gateway migration — all external API calls now go through fiveagents-gateway (Vercel)',
-      'Removed all curl, urllib, gws CLI, and ga4_pull.py from skills',
-      'Removed media-server local MCP, PIL scripts, and ffmpeg dependencies',
-      'Added gateway tools: gemini_generate_image, gemini_generate_text, late_*, argil_*, dataforseo_*, meta_ads_insights',
-      'Added gateway tools: fiveagents_log_run, fiveagents_store_credential, fiveagents_send_email',
-      'Added gateway tools: image_add_text_overlay (Satori + Google Fonts), image_add_logo (sharp)',
-      'brand-setup: added FiveAgents gateway connector setup, Windsor.ai MCP, credential vault storage',
-      'brand-setup: Google Fonts support (replaces .ttf files), logo paste in chat',
-      'digital-marketing-analyst: migrated to Windsor.ai MCP (Google Ads, Meta Ads, GA4)',
-      'digital-marketing-analyst: email briefs via fiveagents_send_email (Postmark)',
-      'All skills now Cowork-compatible (except Ken Burns video — ffmpeg removed)',
-      'Late rebranded to Zernio (user-facing only, tool names unchanged)',
-      'Removed userConfig: meta_ads_token, meta_ad_account_id, ga4_property_id, ga4_sa_key_path, notion_api_key',
-      '.mcp.json: gateway-only (media-server removed)',
-    ],
-  },
-<<<<<<< HEAD
-=======
-  {
-    version: 'v1.0.2',
-    date: 'April 8, 2026',
-    changes: [
-      'brand-setup: updated FIVEAGENTS_API_KEY instructions — clients get key from their own dashboard instead of admin',
-    ],
-  },
->>>>>>> 32f73bb (v2.2.5 brand-setup: Step 10 CLAUDE.md init, fix redundant/contradictory instructions)
 ];

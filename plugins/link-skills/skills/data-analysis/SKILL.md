@@ -66,11 +66,19 @@ If the user is asking about Google Ads, Meta Ads, or GA4 data, pull it directly 
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "google_ads" / "facebook" / "googleanalytics4"
-- date_preset: match the user's requested time period
-- fields: relevant fields for the analysis
+- date_preset: match the user's requested time period; always use "last_NdT" variants (e.g. "last_30dT") — never "last_Nd" which excludes today's UTC data
+- fields: see connector-specific field lists below
 ```
 
-Read the client's funnel from `brands/{brand}/funnel.md` for benchmarks and GA4 event mappings. Use the same currency conversions and data lag warnings as digital-marketing-analyst (Meta spend is USD → convert to the brand's local currency using the exchange rate from `brands/{brand}/brand.md` Locale section, Google Ads cost is in the account's local currency, GA4 data may have lag).
+**Connector field rules:**
+- Google Ads: `["date", "campaign", "campaign_status", "ad_group", "clicks", "impressions", "ctr", "cost", "conversions", "cpa"]` — `keyword` returns null, omit it; `ad_group` returns raw resource paths
+- Facebook: `["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]` — `ad_set`, `ad`, `lp_views`, `landing_page_views`, `video_views` are not available in Windsor
+- GA4: `["date", "session_source_medium", "sessions", "bounce_rate"]` — `source`, `session_source`, `session_medium` are invalid; use only `session_source_medium`
+
+**Currency:** Meta `spend` is USD — convert to the brand's local currency using exchange rate from `brands/{brand}/brand.md`. Google Ads `cost` is already in the account's local currency.
+**Data lag:** All three connectors are near-real-time. No lag adjustments needed.
+**GA4 data reliability:** Only use data from 2026-03-08 onwards (tracking bug before that date).
+**Paid traffic segments:** Filter `google / cpc` for Google Ads sessions; filter `meta / paid_social` for Meta paid sessions.
 
 If Windsor.ai is not connected and the user hasn't provided data, ask:
 > "I need data to analyze. You can either: (1) connect Windsor.ai for Google Ads / Meta Ads / GA4, or (2) paste your data here — CSV, table, or numbers."

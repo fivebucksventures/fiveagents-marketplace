@@ -53,20 +53,19 @@ Pull Google Ads data via **Windsor.ai MCP** connector.
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "google_ads"
-- date_preset: "last_30d" (first call — then filter to yesterday + day-before for DoD)
+- date_preset: "last_30dT" (includes today — never use "last_30d" which excludes the current UTC day)
 - fields: ["date", "campaign", "campaign_status", "ad_group", "clicks", "impressions", "ctr", "cost", "conversions", "cpa"]
 ```
-
-⚠️ **Data lag:** Google Ads data in Windsor has ~12 days lag. Use `max(date)` from the result to find the most recent available date. If yesterday's data isn't available yet, use the most recent date.
 
 ⚠️ **Known issues:**
 - `keyword` field returns null — omit keyword table
 - `ad_group` returns raw resource paths, not human-readable names
 - `cost` is returned in the account's local currency (no conversion needed)
+- Data is near-real-time — no lag. Use yesterday's date as the report date; today's data may be partial.
 
-Pull data for **two dates** — most recent available date + prior day for DoD comparison.
+Pull data for **two dates** — yesterday + the day before for DoD comparison.
 
-If the most recent date is a Monday, note "Weekend — structurally lower volume" for DoD comparisons.
+If yesterday is a Monday, note "Weekend — structurally lower volume" for DoD comparisons.
 
 #### Windsor.ai field reference
 
@@ -87,16 +86,16 @@ Pull GA4 data via **Windsor.ai MCP** connector:
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "googleanalytics4"
-- date_preset: "last_7d"
-- fields: ["date", "source", "medium", "session_source_medium", "sessions", "bounce_rate"]
+- date_preset: "last_30dT"
+- fields: ["date", "session_source_medium", "sessions", "bounce_rate"]
 ```
 
-Filter results for the report date. Segment by source/medium:
-- `meta / paid_social` → Meta Ads sessions
-- `google / cpc` → Google Ads sessions
+Filter results for the report date. Segment by `session_source_medium`:
+- `meta / paid_social` → Meta Ads sessions (paid)
+- `google / cpc` → Google Ads sessions (paid)
 
-⚠️ **Invalid fields** (not in Windsor for GA4): `session_source`, `session_medium` — use `session_source_medium` instead.
-⚠️ **GA4 has zero data lag** in Windsor — yesterday's data should be available immediately.
+⚠️ **Invalid fields** (not in Windsor for GA4): `source`, `session_source`, `session_medium` — use only `session_source_medium`.
+⚠️ **GA4 data is near-real-time** in Windsor — yesterday's data is available immediately.
 
 ### Step 3 — Analyze Google Ads + GA4
 
@@ -244,13 +243,13 @@ Pull Meta Ads data via **Windsor.ai MCP** connector:
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "facebook"
-- date_preset: "last_30d" (then filter to yesterday + day-before for DoD)
+- date_preset: "last_30dT" (includes today — never use "last_30d" which excludes the current UTC day)
 - fields: ["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]
 ```
 
-⚠️ **Data lag:** Facebook data in Windsor has ~12 days lag. Use `max(date)` to find most recent available date.
 ⚠️ **Invalid fields** (not in Windsor for Facebook): `ad_set`, `ad`, `lp_views`, `landing_page_views`, `video_views`. Campaign is the lowest available breakdown.
 ⚠️ **No conversion data** available for Facebook via Windsor.
+⚠️ Data is near-real-time — no lag. Use yesterday's date as the report date; today's data may be partial.
 
 - **Currency:** Facebook `spend` is USD. Convert to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`.
 - **Date resolution:** Use the brand's timezone from `brands/{brand}/brand.md` for dates.
@@ -275,10 +274,12 @@ Pull GA4 data filtered to Meta paid traffic for the same date range:
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "googleanalytics4"
-- date_preset: "last_30d" (then filter to yesterday + day-before for DoD)
-- fields: ["date", "source", "medium", "session_source_medium", "sessions", "bounce_rate"]
+- date_preset: "last_30dT"
+- fields: ["date", "session_source_medium", "sessions", "bounce_rate"]
 - Filter: session_source_medium contains "meta / paid_social"
 ```
+
+⚠️ **Invalid fields** (not in Windsor for GA4): `source`, `session_source`, `session_medium` — use only `session_source_medium`.
 
 ### Step 2c — Compute Full Funnel (Meta Ads → GA4)
 
@@ -501,7 +502,7 @@ Pull weekly Google Ads data via **Windsor.ai MCP**:
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "google_ads"
-- date_preset: "last_30d"
+- date_preset: "last_30dT"
 - fields: ["date", "campaign", "campaign_status", "ad_group", "clicks", "impressions", "ctr", "cost", "conversions", "cpa"]
 ```
 
@@ -512,7 +513,7 @@ Filter results for the target week range. Also pull prior week for WoW compariso
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "facebook"
-- date_preset: "last_30d"
+- date_preset: "last_30dT"
 - fields: ["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]
 ```
 
@@ -523,8 +524,8 @@ Filter for the target week. Convert USD spend to the brand's local currency usin
 ```
 Use Windsor.ai MCP tool `get_data`:
 - source: "googleanalytics4"
-- date_preset: "last_30d"
-- fields: ["date", "source", "medium", "session_source_medium", "sessions", "bounce_rate"]
+- date_preset: "last_30dT"
+- fields: ["date", "session_source_medium", "sessions", "bounce_rate"]
 ```
 
 Filter for the target week range.
@@ -597,7 +598,7 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 
 - **Data sources:** All ads/analytics data pulled via Windsor.ai MCP connector (`get_data` tool). Google Ads, Meta Ads (Facebook), and GA4 are all connected in Windsor.
 - **Email sending:** Use `fiveagents_send_email` (Postmark, requires Basic/Active maintenance plan). Falls back to `gmail_create_draft` if client has no maintenance plan (403).
-- **Windsor data lag:** Google Ads ~12 days, Facebook ~12 days, GA4 ~0 days. Always check `max(date)` to confirm most recent available data.
+- **Windsor data lag:** All three connectors (Google Ads, Facebook, GA4) are near-real-time — no significant lag. Always use `last_30dT` (not `last_30d`) so today's UTC data is included. Report on yesterday's date; today may be partial.
 - **Currency:** Google Ads cost is in the account's local currency. Facebook spend is USD — convert using the exchange rate from `brands/{brand}/brand.md`.
 - GA4 clean data start: **2026-03-08** — never pull or compare pre-Mar 8 data.
 - Brand-specific known issues should be documented in `brands/{brand}/funnel.md` notes section.
@@ -610,6 +611,8 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 
 After the skill completes, log the run to Supabase. The `metrics` JSONB must match the schema in `docs/new_agent_onboarding/metrics-spec.md` — the dashboard renders widgets from these exact key paths.
 
+⚠️ **Critical: populate every field with ACTUAL values computed during this run.** The schema below shows field names and types only — every numeric field must be replaced with the real number from the analysis. Do NOT copy zeros or empty strings. A log entry with zeros is worse than no entry — it overwrites real data with blanks.
+
 ```
 Use gateway MCP tool `fiveagents_log_run`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -620,36 +623,79 @@ Use gateway MCP tool `fiveagents_log_run`:
 - started_at: "<ISO timestamp>"
 - completed_at: "<ISO timestamp>"
 - metrics: {
-    "date": "YYYY-MM-DD",
+    "date": "<report_date YYYY-MM-DD>",
     "brief_type": "<daily|weekly>",
     "google_ads": {
-      "totals": { "spend": 0, "clicks": 0, "impr": 0, "ctr": 0, "conv": 0, "cpa": 0 },
-      "campaigns": [{ "name": "", "status": "", "spend": 0, "clicks": 0, "ctr": 0, "conv": 0, "cpa": 0 }],
-      "ad_groups": [{ "name": "", "campaign": "", "status": "", "clicks": 0, "impr": 0, "ctr": 0, "cost": 0 }],
-      "keywords": [{ "keyword": "", "campaign": "", "clicks": 0, "ctr": 0, "cost": 0, "conv": 0 }]
+      "totals": {
+        "spend": <actual total cost in local currency>,
+        "clicks": <actual total clicks>,
+        "impr": <actual total impressions>,
+        "ctr": <actual avg CTR as decimal, e.g. 0.028>,
+        "conv": <actual total conversions>,
+        "cpa": <actual CPA or null if no conversions>
+      },
+      "campaigns": [
+        {
+          "name": "<campaign name>",
+          "status": "<ENABLED|PAUSED>",
+          "spend": <actual spend>,
+          "clicks": <actual clicks>,
+          "ctr": <actual ctr>,
+          "conv": <actual conversions>,
+          "cpa": <actual cpa or null>
+        }
+      ],
+      "ad_groups": [
+        { "name": "<ad group path>", "campaign": "<campaign name>", "status": "<status>", "clicks": <actual>, "impr": <actual>, "ctr": <actual>, "cost": <actual> }
+      ],
+      "keywords": []
     },
     "google_ads_funnel": [
-      { "stage": "Impressions", "volume": 0, "rate": null, "cost_per": 0, "benchmark": null, "status": null }
+      { "stage": "Impressions", "volume": <actual>, "rate": null, "cost_per": null, "benchmark": null, "status": null },
+      { "stage": "Clicks", "volume": <actual>, "rate": <ctr decimal>, "cost_per": <actual cpc>, "benchmark": 0.02, "status": "<on_track|watch|critical>" },
+      { "stage": "GA4 Sessions", "volume": <actual ga4 cpc sessions>, "rate": <click_to_session_rate>, "cost_per": null, "benchmark": 0.8, "status": "<status>" },
+      { "stage": "Conversions", "volume": <actual>, "rate": <conv_rate>, "cost_per": <actual cpa or null>, "benchmark": null, "status": "<status>" }
     ],
     "meta_ads": {
-      "totals": { "spend": 0, "clicks": 0, "impr": 0, "ctr": 0, "lp_views": 0, "cpm": 0 },
-      "campaigns": [{ "name": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "lp_rate": 0, "spend": 0, "cpc": 0, "cpm": 0 }],
-      "ad_sets": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "spend": 0, "reach": 0 }],
-      "ads": [{ "name": "", "campaign": "", "impr": 0, "clicks": 0, "ctr": 0, "lp_views": 0, "video_views": 0, "spend": 0 }]
+      "totals": {
+        "spend": <actual spend in local currency>,
+        "clicks": <actual clicks>,
+        "impr": <actual impressions>,
+        "ctr": <actual ctr decimal>,
+        "lp_views": null,
+        "cpm": <actual cpm>
+      },
+      "campaigns": [
+        {
+          "name": "<campaign name>",
+          "impr": <actual>,
+          "clicks": <actual>,
+          "ctr": <actual>,
+          "lp_views": null,
+          "lp_rate": null,
+          "spend": <actual in local currency>,
+          "cpc": <actual>,
+          "cpm": <actual>
+        }
+      ],
+      "ad_sets": [],
+      "ads": []
     },
     "meta_ads_funnel": [
-      { "stage": "Impressions", "volume": 0, "rate": null, "cost_per": 0, "benchmark": null, "status": null }
+      { "stage": "Impressions", "volume": <actual>, "rate": null, "cost_per": null, "benchmark": null, "status": null },
+      { "stage": "Clicks", "volume": <actual>, "rate": <ctr decimal>, "cost_per": <actual cpc>, "benchmark": 0.01, "status": "<status>" },
+      { "stage": "GA4 Sessions (Meta)", "volume": <actual meta ga4 sessions>, "rate": <click_to_session>, "cost_per": null, "benchmark": 0.8, "status": "<status>" }
     ],
     "combined_summary": {
-      "google_ads": { "spend": 0, "clicks": 0, "lp_views": null, "ga4_sessions": 0, "trials": 0, "cpa": 0, "status": "Active" },
-      "meta_ads": { "spend": 0, "clicks": 0, "lp_views": 0, "ga4_sessions": 0, "trials": 0, "cpa": 0, "status": "Active" },
-      "total": { "spend": 0, "clicks": 0, "lp_views": 0, "ga4_sessions": 0, "trials": 0 }
+      "google_ads": { "spend": <actual>, "clicks": <actual>, "lp_views": null, "ga4_sessions": <actual cpc sessions>, "trials": <actual or 0>, "cpa": <actual or null>, "status": "<Active|Paused|No Data>" },
+      "meta_ads": { "spend": <actual>, "clicks": <actual>, "lp_views": null, "ga4_sessions": <actual meta sessions>, "trials": <actual or 0>, "cpa": null, "status": "<Active|Paused|No Data>" },
+      "total": { "spend": <sum of both platforms in local currency>, "clicks": <sum>, "lp_views": null, "ga4_sessions": <sum>, "trials": <sum> }
     },
-    "flags": { "urgent": ["..."], "optimize": ["..."], "monitoring": ["..."] },
-    "top_recommendation": "...",
-    "gmail_message_id": "..."
+    "flags": { "urgent": ["<actual flag text>"], "optimize": ["<actual flag text>"], "monitoring": ["<actual flag text>"] },
+    "top_recommendation": "<actual recommendation — name the specific campaign>",
+    "gmail_message_id": "<message_id from send step or null>"
   }
 ```
 
-**Status values:** `success` (all data pulled + email sent), `partial` (one platform missing), `failed` (skill errored).
-**All numeric values must be numbers, not strings** — enables DoD/WoW comparison on the dashboard.
+**Status values:** `success` (all data pulled + email sent), `partial` (one platform missing or email failed), `failed` (skill errored before completion).
+**All numeric fields must be numbers, not strings** — the dashboard uses these for DoD/WoW math. `null` is valid when a metric is unavailable (e.g. CPA with 0 conversions, lp_views not in Windsor).
