@@ -108,9 +108,7 @@ Examples:
 
 ## Step 4 — Generate images
 
-**Prefer pre-stored backgrounds from `brands/{brand}/backgrounds/`. If none are available or no good match exists, generate on-the-fly via Gemini.**
-
-Pick the best-matching background based on the post's Topic and ImageBrief. Filenames are descriptive (e.g., `finance_dashboard_laptop.png`, `cafe_laptop_notepad.png`). Don't reuse the same background for consecutive posts on the same platform.
+**Every image is generated fresh via Gemini** based on the post's Topic, ImageBrief, and brand visual style.
 
 ### Step 4a — Determine canvas dimensions
 
@@ -144,18 +142,18 @@ Check the post `Format` from the calendar:
 
 | Platform | Format | Asset Type | Tool |
 |---|---|---|---|
-| Any | Post | Static image | Background (pre-stored or Gemini fallback) + text overlay + logo |
-| Any | Carousel | Static images | Background (pre-stored or Gemini fallback) + text overlay + logo |
-| FB/IG | Story | Static image | Background (pre-stored or Gemini fallback) + text overlay + logo (publish as Story) |
+| Any | Post | Static image | Gemini-generated image + text overlay + logo |
+| Any | Carousel | Static images | Gemini-generated image + text overlay + logo |
+| FB/IG | Story | Static image | Gemini-generated image + text overlay + logo (publish as Story) |
 | FB/IG | Reel (Argil) | **AI avatar video** | **Argil API** (1 per brand per week, tagged by social-calendar) |
-| FB/IG | Reel | **Static image as Story** | Background (pre-stored or Gemini fallback) + text overlay + logo (publish as Story) |
-| LinkedIn | Reel/Story | Static image | Background (pre-stored or Gemini fallback) + text overlay + logo (publish as post) |
+| FB/IG | Reel | **Static image as Story** | Gemini-generated image + text overlay + logo (publish as Story) |
+| LinkedIn | Reel/Story | Static image | Gemini-generated image + text overlay + logo (publish as post) |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar
 2. If Format = `"Reel (Argil)"` → use **Step 4c-argil** (AI avatar talking-head)
 3. If Format = `"Reel"` (without Argil tag) → use **Step 4c-image** (static image, publish as Story)
-4. All other formats → use **Step 4c-image** (pre-stored background + text overlay)
+4. All other formats → use **Step 4c-image** (Gemini-generated image + text overlay)
 
 ### Step 4c-argil — Generate Reel video via Argil API (1 per brand per week)
 
@@ -203,22 +201,9 @@ Read avatar-to-persona mappings from `brands/{brand}/avatars.md`. This file defi
 
 Use the founder avatar + voice clone only for authority/founder content. For all other avatars, pick a matching English voice from `argil_list_voices` gateway tool.
 
-### Step 4c-image — Get background image
+### Step 4c-image — Generate image via Gemini
 
-**Option 1 (preferred): Use pre-stored background**
-
-List available backgrounds in `brands/{brand}/backgrounds/`. Pick the closest match by keyword to the post's Topic and ImageBrief. Examples:
-- Post about invoices → `finance_dashboard_laptop.png` or `stacked_invoices_desk.png`
-- Post about SEO → `seo_performance_graph.png` or `analytics_dashboard_desk.png`
-- Post about customer service → `whatsapp_chat_night.png` or `automated_chat_responses.png`
-
-**Don't reuse the same background for consecutive posts on the same platform.**
-
-Read the chosen background and pass its file path to the Pillow `add_text_overlay` function in Step 4d — Pillow handles resize + center-crop to the target canvas.
-
-**Option 2 (fallback): Generate via Gemini**
-
-If `brands/{brand}/backgrounds/` is empty or no good match exists for the post topic, generate a background on-the-fly:
+Generate a fresh image for every post using Gemini:
 
 ```
 Use gateway MCP tool `gemini_generate_image`:
@@ -237,14 +222,10 @@ with open('brands/{brand}/backgrounds/{descriptive_filename}.png', 'wb') as f:
     f.write(base64.b64decode(parsed['image_base64']))
 ```
 
-If user has selected a folder, save directly to `brands/{brand}/backgrounds/` — not a temp path.
-
-Important prompt rules for generated backgrounds:
+**Prompt rules:**
 - Always include "no text, no people" — text and logo are added in Steps 4d/4e
 - Match the brand's visual style and color palette from `brand.md`
 - Keep it clean and uncluttered — the text overlay needs readable space at the bottom
-
-Save the generated image to `brands/{brand}/backgrounds/` for reuse by future posts.
 
 ### Step 4d — Apply text overlay — USE PILLOW
 

@@ -66,7 +66,7 @@ Generate exactly 14 posts for the upcoming Mon–Sat week using the fixed slot a
 
 ### Argil Video Selection — 1 Reel per brand per week
 
-Each week has 3 Reels (Tue IG, Thu FB, Fri IG) and 2 Stories (Thu IG, Fri FB). Argil AI avatar videos are expensive — **pick exactly 1 Reel per week** for Argil treatment. The rest use Ken Burns background video (pre-stored images, no API cost). Stories always use static images (pre-stored backgrounds).
+Each week has 3 Reels (Tue IG, Thu FB, Fri IG) and 2 Stories (Thu IG, Fri FB). Argil AI avatar videos are expensive — **pick exactly 1 Reel per week** for Argil treatment. The rest use Gemini-generated images (published as Stories). Stories always use Gemini-generated static images.
 
 **Selection criteria for the Argil Reel** — pick the one most likely to drive conversions:
 1. Strongest pain-point hook (scroll-stopping opener)
@@ -74,12 +74,12 @@ Each week has 3 Reels (Tue IG, Thu FB, Fri IG) and 2 Stories (Thu IG, Fri FB). A
 3. Direct CTA to book a call or start a trial
 4. Authority/founder content (founder avatar — see `brands/{brand}/avatars.md`)
 
-Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table, e.g., `Reel (Argil)`. All other Reels are just `Reel` (content-generator will use Ken Burns background video for these).
+Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table, e.g., `Reel (Argil)`. All other Reels are just `Reel` (content-generator will use a Gemini-generated image published as Story).
 
 **Example:**
 | Thursday | Facebook | Reel (Argil) | ... | — this one gets Argil avatar
-| Tuesday | Instagram | Reel | ... | — this one gets Ken Burns background video
-| Friday | Instagram | Reel | ... | — this one gets Ken Burns background video
+| Tuesday | Instagram | Reel | ... | — Gemini-generated image as Story
+| Friday | Instagram | Reel | ... | — Gemini-generated image as Story
 
 ### For each post output ONLY these fields (one row per post, no extra commentary):
 

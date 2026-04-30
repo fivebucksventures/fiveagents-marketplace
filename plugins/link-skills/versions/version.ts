@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.8';
-const DEFAULT_DATE = 'April 28, 2026';
+const DEFAULT_VERSION = 'v2.2.9';
+const DEFAULT_DATE = 'April 30, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.9',
+    date: 'April 30, 2026',
+    changes: [
+      'content-generator: removed pre-stored background lookup — every image is now generated fresh via Gemini (no more browsing backgrounds/ folder for matches)',
+      'social-calendar: replaced "Ken Burns background video (pre-stored images)" references with "Gemini-generated images"',
+      '.gitignore: added editor/IDE, env/secrets, Python, Node, and OS patterns',
+    ],
+  },
   {
     version: 'v2.2.8',
     date: 'April 28, 2026',
