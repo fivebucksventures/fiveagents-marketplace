@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.9';
-const DEFAULT_DATE = 'April 30, 2026';
+const DEFAULT_VERSION = 'v2.2.10';
+const DEFAULT_DATE = 'May 04, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,21 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.10',
+    date: 'May 04, 2026',
+    changes: [
+      'brand-setup: Step 4b (mandatory) — Claude Design system installed at brands/{brand}/design-system/ via claude.ai/design Share → Download Project as .zip',
+      'brand-setup: Step 4c (optional) — Social Carousel (4:5) and Social Story (9:16) Claude Design templates installed at brands/{brand}/social-carousel-template/ and social-story-template/',
+      'brand-setup: prerequisites overview, directory structure, and Step 9 completion email updated to include design-system + template folders',
+      'brand-setup: Step 10a hardened to enforce ABSOLUTE path for agents/link.md — os.path.abspath(os.path.realpath(...)) + os.path.isabs assertion, manual-fallback path is also normalized and validated',
+      'brand-setup: Step 10b explicit instruction that link.md path written into CLAUDE.md must be absolute (verbatim with drive letter on Windows / leading slash on Unix)',
+      'agents/link.md: design-system/ added to Context Files as authoritative for visuals; carousel/story templates listed as optional with fallback; new Visual consistency rule',
+      'creative-designer: design-system/ is source of truth (replaces brand.md as primary visual reference); new Step 4a branches Carousel/Story to template-render via Playwright when template folder exists; Gemini still required to fill visual slots inside template',
+      'content-generator: Step 2 reads design-system/ (mandatory) + detects optional templates; Step 4c-template renders via Playwright for IG/FB Carousel/Story when templates installed; falls back to Gemini+Pillow if templates absent or Playwright fails; quality checklist guards against double-stamp text/logo on template path',
+      'content-creation: reads design-system/ to size copy against text frames; for IG/FB carousel/story copy, inspects template (when present) to write per-slide blocks within slot lengths; falls back to standard format defaults if templates absent',
+    ],
+  },
   {
     version: 'v2.2.9',
     date: 'April 30, 2026',
@@ -208,29 +223,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: prerequisites no longer asks for colors/fonts (auto-detected in Step 4)',
       'brand-setup: fixed sub-step labels 7a/7b/7c and 8a/8b/8c',
       'brand-setup: removed fonts/ from folder structure (Google Fonts replaces local .ttf)',
-    ],
-  },
-  {
-    version: 'v2.1.1',
-    date: 'April 10, 2026',
-    changes: [
-      'brand-setup: added Step 1 Cowork Setup (capabilities, Claude in Chrome, connectors)',
-      'brand-setup: website analysis uses Claude in Chrome instead of WebFetch',
-      'brand-setup: renumbered all steps (1-9), fixed cross-references',
-      'brand-setup: fonts changed from .ttf to Google Fonts in prerequisites',
-    ],
-  },
-  {
-    version: 'v2.1.0',
-    date: 'April 10, 2026',
-    changes: [
-      'brand-setup: Five Agents connector setup, GA4 key event discovery, Canva MCP, funnel.md with event mapping',
-      'brand-setup: full validation suite — 15 tests including vault, email, text overlay, logo overlay',
-      'digital-marketing-analyst: Windsor.ai MCP, Meta Ads GA4 funnel, Postmark email, data source footer',
-      'content-generator: Gemini fallback for missing backgrounds, updated asset type table',
-      'social-calendar: research-driven content mix via /research-strategy, trending topic discovery',
-      'campaign-presenter: Canva MCP for presentation generation (replaces markdown slides)',
-      'data-analysis: Windsor.ai data pull, funnel.md benchmarks, consistent with digital-marketing-analyst',
     ],
   },
 ];

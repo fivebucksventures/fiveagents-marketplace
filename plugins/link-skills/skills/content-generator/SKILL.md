@@ -70,6 +70,13 @@ Read before writing any copy:
 - `brands/{brand}/audience.md` — persona pain points and triggers
 - `brands/{brand}/product.md` — features, pricing, differentiators
 
+Read before generating any image:
+- `brands/{brand}/design-system/` — Claude Design visual system (colors, fonts, components). **Mandatory.** If missing, log a `failed` run with summary "design-system folder missing — run brand-setup Step 4b" and exit before generating images.
+
+Also detect optional templates (used in Step 4):
+- `brands/{brand}/social-carousel-template/` — if present, used for IG/FB Carousel formats
+- `brands/{brand}/social-story-template/` — if present, used for IG/FB Story / Reel (static) formats
+
 ---
 
 ## Step 3 — Write copy for each post
@@ -142,18 +149,59 @@ Check the post `Format` from the calendar:
 
 | Platform | Format | Asset Type | Tool |
 |---|---|---|---|
-| Any | Post | Static image | Gemini-generated image + text overlay + logo |
-| Any | Carousel | Static images | Gemini-generated image + text overlay + logo |
-| FB/IG | Story | Static image | Gemini-generated image + text overlay + logo (publish as Story) |
+| FB/IG | Carousel | Static images | If `social-carousel-template/` exists → render via template (Step 4c-template). Else → Gemini per-slide + text overlay + logo |
+| FB/IG | Story | Static image | If `social-story-template/` exists → render via template (Step 4c-template). Else → Gemini + text overlay + logo (publish as Story) |
 | FB/IG | Reel (Argil) | **AI avatar video** | **Argil API** (1 per brand per week, tagged by social-calendar) |
-| FB/IG | Reel | **Static image as Story** | Gemini-generated image + text overlay + logo (publish as Story) |
-| LinkedIn | Reel/Story | Static image | Gemini-generated image + text overlay + logo (publish as post) |
+| FB/IG | Reel | **Static image as Story** | If `social-story-template/` exists → render via template. Else → Gemini + text overlay + logo (publish as Story) |
+| LinkedIn | Post | Static image | Gemini + text overlay + logo (templates do not apply on LinkedIn) |
+| LinkedIn | Reel/Story | Static image | Gemini + text overlay + logo (publish as post) |
+| Any | Post | Static image | Gemini + text overlay + logo |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar
 2. If Format = `"Reel (Argil)"` → use **Step 4c-argil** (AI avatar talking-head)
-3. If Format = `"Reel"` (without Argil tag) → use **Step 4c-image** (static image, publish as Story)
-4. All other formats → use **Step 4c-image** (Gemini-generated image + text overlay)
+3. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND `brands/{brand}/social-carousel-template/` exists → use **Step 4c-template**
+4. If Format ∈ {`"Story"`, `"Reel"`} AND platform ∈ {Instagram, Facebook} AND `brands/{brand}/social-story-template/` exists → use **Step 4c-template**
+5. If Format = `"Reel"` (no template, no Argil tag) → use **Step 4c-image** (static image, publish as Story)
+6. All other formats → use **Step 4c-image** (Gemini-generated image + text overlay)
+
+### Step 4c-template — Render via Claude Design template (Carousel / Story)
+
+Use this path when an applicable template folder is installed under the brand. This produces on-brand output without Pillow text/logo overlays (the template includes them).
+
+**Gemini is still required.** The template provides layout, fonts, colors, text frames, and logo placement — but the actual photograph/illustration that fills each visual slot is generated fresh by Gemini per post. Do not skip Gemini.
+
+**Steps:**
+
+1. **Inspect the template** — list files in `brands/{brand}/social-carousel-template/` (or `.../social-story-template/`). Read the entry HTML (typically `index.html`). Identify:
+   - Per-slide structure — separate `slide-N.html` files OR sections within `index.html`
+   - Text placeholder elements (e.g. `data-slot="headline"`, `data-slot="body"`, or class names like `.slot-headline`). If no explicit slots, treat the placeholder copy in the template as text-replace anchors.
+   - Image placeholder elements (e.g. `<img data-slot="visual">` or CSS `background-image`)
+
+2. **Generate visuals for image slots** — use `gemini_generate_image` matching slot dimensions and the brand's design-system aesthetic (pass design-system colors/fonts into the prompt for tonal alignment). Save to `tmp/{brand}/{slug}/visual-{N}.png`. Image prompt rules from Step 4c-image still apply (no text, no logos in the generated image).
+
+3. **Substitute content into a working copy** — copy the template folder to `tmp/{brand}/{slug}/template/`. Do not modify the source under `brands/`. For each slide:
+   - Replace text placeholders with the post's hook / body / CTA from Step 3
+   - Replace image placeholders with local `tmp/{brand}/{slug}/visual-{N}.png` paths
+   - Carousel: produce one HTML per slide (typically 3–6 slides — match what the template defines)
+
+4. **Render to PNG via Playwright MCP:**
+```
+For each slide HTML:
+  - browser_navigate file:///<absolute-path>/slide-N.html
+  - Set viewport:
+      Carousel (4:5): 1080 × 1350
+      Story / Reel (9:16): 1080 × 1920
+  - browser_take_screenshot → outputs/{brand}/posts/[Platform]/[Slug]_[DDMonYYYY]_slide-{N}_final.png
+```
+
+For a single Story/Reel (one frame), name the file `[Slug]_[DDMonYYYY]_final.png` (no slide suffix).
+
+5. **Skip Steps 4d (text overlay) and 4e (logo overlay)** — the template already includes text and logo. Do not double-stamp.
+
+6. **Cleanup** — delete `tmp/{brand}/{slug}/` after final PNGs are confirmed saved.
+
+**Fallback:** If Playwright MCP fails or the template structure cannot be parsed (no obvious placeholders, no entry HTML), log a Slack note and fall back to **Step 4c-image** for this post. Do not block the daily run.
 
 ### Step 4c-argil — Generate Reel video via Argil API (1 per brand per week)
 
@@ -451,11 +499,15 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] All "Planned" posts for tomorrow processed
 - [ ] Copy matches persona voice and brand tone
 - [ ] Hook is scroll-stopping; CTA is specific
+- [ ] `brands/{brand}/design-system/` was read before generating any image
 - [ ] Image dimensions are correct for platform/format
-- [ ] Text overlay applied with correct day-of-week text_align
-- [ ] Logo at 0.18 scale with correct day-of-week logo_position
-- [ ] text_position is always "bottom" — never "top"
-- [ ] Both text overlay and logo overlay applied (never skip either)
+- [ ] For IG/FB Carousel: if `social-carousel-template/` exists, it was used (Gemini still ran for visual slots); else fallback documented
+- [ ] For IG/FB Story/Reel (static): if `social-story-template/` exists, it was used (Gemini still ran for visual slots); else fallback documented
+- [ ] When falling back to Gemini-only path: text overlay applied with correct day-of-week text_align
+- [ ] When falling back to Gemini-only path: logo at 0.18 scale with correct day-of-week logo_position
+- [ ] When falling back to Gemini-only path: text_position is always "bottom" — never "top"
+- [ ] When falling back to Gemini-only path: both text overlay and logo overlay applied (never skip either)
+- [ ] When using template path: text/logo overlays NOT applied (template already includes them — no double-stamp)
 - [ ] Final images saved to correct `outputs/{brand}/posts/[Platform]/` folder
 - [ ] Intermediate files deleted — `_raw.png` and `_with_text.png` removed after `_final.png` confirmed
 - [ ] `platformSpecificData.contentType` set correctly for Reels/Stories (never omitted)

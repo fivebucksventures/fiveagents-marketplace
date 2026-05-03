@@ -60,6 +60,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 - Your brand name
 - Your website URL (we'll auto-detect colors and fonts from your site)
 - Your logo file path (PNG, transparent background preferred — e.g. `~/Documents/my-brand/logo.png`)
+- A Claude account — we'll create your visual design system at https://claude.ai/design (mandatory in Step 4b)
 
 **Required API keys:**
 
@@ -118,7 +119,10 @@ brands/{brand}/
 ├── competitors.md
 ├── funnel.md
 ├── avatars.md
-└── backgrounds/
+├── backgrounds/
+├── design-system/                  ← installed in Step 4b (Claude Design — MANDATORY)
+├── social-carousel-template/       ← installed in Step 4c-i (Claude Design — OPTIONAL)
+└── social-story-template/          ← installed in Step 4c-ii (Claude Design — OPTIONAL)
 ```
 
 Also create:
@@ -224,7 +228,89 @@ Generate 3-6 personas based on the website's messaging and target market.
 
 Show the user each draft and let them review/edit before saving.
 
-**Do not proceed to Step 5 until the user has reviewed and confirmed `brand.md` and `audience.md`.**
+**Do not proceed to Step 4b until the user has reviewed and confirmed `brand.md` and `audience.md`.**
+
+### Step 4b — Claude Design System (MANDATORY)
+
+Anthropic launched **Claude Design** — a visual brand-system builder at https://claude.ai/design. Every brand on this plugin must have a Claude Design system. It is the single source of truth for visual identity (fonts, colors, components, spacing) and is referenced by every downstream skill that produces visuals.
+
+**Walk the user through this — do not skip.**
+
+> Before we generate any visuals, we need to create your brand's design system in Claude Design. This becomes the visual source of truth — every image, post, and deck we produce will follow it.
+>
+> **Step A — Create the design system:**
+> 1. Open https://claude.ai/design in your browser
+> 2. Click **Create new project** (or **New Design System**)
+> 3. Define your brand:
+>    - **Colors** — primary, secondary, accent (paste the HEX codes from `brands/{brand}/brand.md` we just generated)
+>    - **Typography** — heading font + body font (use the Google Fonts identified in Step 4)
+>    - **Components** — buttons, cards, headers (Claude Design will scaffold these)
+>    - **Logo** — upload your logo file
+>    - **Voice / aesthetic notes** — paste your brand voice from `brand.md`
+> 4. Iterate with Claude until the design system feels on-brand
+>
+> **Step B — Export the design system:**
+> 1. Click **Share** → **Download Project as .zip**
+> 2. Unzip the file on your computer (you'll get a folder named something like "{Brand Name} Design System")
+>
+> **Step C — Install into the brand folder:**
+> 1. Move the unzipped folder into `brands/{brand}/`
+> 2. **Rename the folder to `design-system/`** — exact lowercase, no spaces. Final path must be: `brands/{brand}/design-system/`
+>
+> Let me know once it's in place — I'll verify the folder exists and inspect what's inside.
+
+**Verification:**
+
+After the user confirms, check that `brands/{brand}/design-system/` exists and is non-empty. Read `brands/{brand}/design-system/index.html` (or whatever entry file is present) to confirm it contains the brand's colors and typography. If the folder is missing or empty, do not proceed — re-explain Step C.
+
+If colors/fonts in the Claude Design system differ from `brands/{brand}/brand.md` (e.g. user refined them in Claude Design), update `brand.md` to match. The design system is authoritative.
+
+**Do not proceed to Step 4c until `brands/{brand}/design-system/` exists and contains the user's design system.**
+
+---
+
+### Step 4c — Social Templates (OPTIONAL — recommended)
+
+Two additional Claude Design templates can be installed for richer social content. **Both are optional.** If skipped, the creative-designer / content-generator / content-creation skills will fall back to standard Gemini image generation with Pillow text overlays.
+
+Ask the user:
+> Want me to walk you through the optional social templates? They make Carousel and Story content more polished. We can skip if you're not ready.
+
+If the user says skip, acknowledge and move on to Step 5.
+
+#### 4c-i. Social Carousel Post Template (Instagram + Facebook, 4:5)
+
+> **Step A — Create the template:**
+> 1. Open https://claude.ai/design
+> 2. Create a new project: **Social Carousel Post Template**
+> 3. Set **canvas ratio to 4:5** (portrait — best for Instagram and Facebook carousel posts)
+> 4. Design 3–6 carousel slides using your design system (cover slide + value slides + CTA slide). Use placeholders for headline, body text, and image/visual slot — these will be swapped per post by the content-generator.
+> 5. Iterate until the visual feels on-brand
+>
+> **Step B — Export & install:**
+> 1. **Share** → **Download Project as .zip** → unzip
+> 2. Move the unzipped folder into `brands/{brand}/`
+> 3. **Rename the folder to `social-carousel-template/`** (exact lowercase). Final path: `brands/{brand}/social-carousel-template/`
+
+Verify `brands/{brand}/social-carousel-template/` exists. If user skips, leave the folder absent — the skills detect this and fall back.
+
+#### 4c-ii. Social Story Template (Instagram + Facebook, 9:16)
+
+> **Step A — Create the template:**
+> 1. Open https://claude.ai/design
+> 2. Create a new project: **Social Story Template**
+> 3. Set **canvas ratio to 9:16** (vertical — Stories and Reels)
+> 4. Design 1–3 story frames using your design system. Use placeholders for headline, body text, and visual slot.
+> 5. Iterate until on-brand
+>
+> **Step B — Export & install:**
+> 1. **Share** → **Download Project as .zip** → unzip
+> 2. Move the unzipped folder into `brands/{brand}/`
+> 3. **Rename the folder to `social-story-template/`** (exact lowercase). Final path: `brands/{brand}/social-story-template/`
+
+Verify `brands/{brand}/social-story-template/` exists if the user installed it. If skipped, leave absent — skills fall back.
+
+**Do not proceed to Step 5 until both 4b and 4c have been addressed (4b confirmed installed; 4c installed or explicitly skipped).**
 
 ### Step 5 — Research & Context Generation
 
@@ -707,7 +793,10 @@ Build the JSON payload from Step 8 validation results:
     { "file": "brands/{brand}/competitors.md", "status": "created" },
     { "file": "brands/{brand}/funnel.md", "status": "created" },
     { "file": "brands/{brand}/avatars.md", "status": "created" },
-    { "file": "brands/{brand}/logo.png", "status": "created | missing" }
+    { "file": "brands/{brand}/logo.png", "status": "created | missing" },
+    { "file": "brands/{brand}/design-system/", "status": "installed | missing" },
+    { "file": "brands/{brand}/social-carousel-template/", "status": "installed | skipped" },
+    { "file": "brands/{brand}/social-story-template/", "status": "installed | skipped" }
   ],
   "connections": [
     { "integration": "Five Agents gateway", "status": "pass | fail | skipped", "notes": "" },
@@ -747,33 +836,52 @@ Also print the same summary to the chat and send a Slack notification to `$SLACK
 
 **This step is mandatory and must not be skipped.** It ensures every future session in this workspace (including scheduled/automated runs) loads the Link agent identity and credentials automatically.
 
-#### 10a. Find the agents/link.md path
+#### 10a. Find the agents/link.md path (ABSOLUTE PATH REQUIRED)
 
-The agent definition file is bundled with the plugin at a path that varies per installation. Find it by running:
+The agent definition file is bundled with the plugin at a path that varies per installation. The path written into `CLAUDE.md` **must be an absolute path** — relative paths will break scheduled/automated runs that start in different working directories.
+
+Find it by running:
 
 ```python
-import subprocess, sys
-result = subprocess.run(
-    [sys.executable, "-c",
-     "import glob, os; "
-     "patterns = ["
-     "  os.path.expandvars(r'%APPDATA%\\\\Claude\\\\**\\\\agents\\\\link.md'), "
-     "  os.path.expanduser('~/.claude/**/agents/link.md'), "
-     "  os.path.expanduser('~/Library/Application Support/Claude/**/agents/link.md')"
-     "]; "
-     "found = [f for p in patterns for f in glob.glob(p, recursive=True)]; "
-     "print(found[0] if found else '')"],
-    capture_output=True, text=True
-)
-link_md_path = result.stdout.strip()
+import glob, os
+
+patterns = [
+    os.path.expandvars(r'%APPDATA%\Claude\**\agents\link.md'),       # Windows
+    os.path.expanduser('~/.claude/**/agents/link.md'),                # Linux
+    os.path.expanduser('~/Library/Application Support/Claude/**/agents/link.md'),  # macOS
+]
+found = [f for p in patterns for f in glob.glob(p, recursive=True)]
+
+if found:
+    # Resolve to absolute, canonical path (resolves symlinks/junctions, normalizes separators)
+    link_md_path = os.path.abspath(os.path.realpath(found[0]))
+else:
+    link_md_path = ""
+
+# Validate before proceeding
+assert link_md_path == "" or os.path.isabs(link_md_path), \
+    f"link.md path must be absolute, got: {link_md_path!r}"
 ```
 
 If the search returns empty, ask the user:
-> I couldn't auto-detect the path to `agents/link.md`. Can you paste the full path? (Hint: search for `link.md` inside your Claude application data folder.)
+> I couldn't auto-detect the path to `agents/link.md`. Can you paste the **full absolute path**? (Hint: search for `link.md` inside your Claude application data folder. On Windows it starts with `C:\`, on macOS with `/Users/`, on Linux with `/home/`.)
+
+After the user pastes a path, normalize and validate it:
+
+```python
+user_path = os.path.abspath(os.path.expanduser(os.path.expandvars(user_input.strip().strip('"').strip("'"))))
+assert os.path.isabs(user_path), "Path must be absolute"
+assert os.path.isfile(user_path), f"File not found: {user_path}"
+link_md_path = user_path
+```
+
+`link_md_path` is now guaranteed to be an absolute path. Use it verbatim in 10b.
 
 #### 10b. Read or create CLAUDE.md
 
 Check if `CLAUDE.md` exists at the workspace root (same folder as `brands/` and `outputs/`).
+
+Substitute `{link_md_path}` below with the **absolute path** resolved in 10a — verbatim, including drive letter on Windows (e.g. `C:\Users\jane\AppData\Roaming\Claude\...\agents\link.md`) or leading `/` on macOS/Linux. Never write a relative path here.
 
 Build the **Agent Identity block** to inject:
 
@@ -782,7 +890,7 @@ Build the **Agent Identity block** to inject:
 
 ## Agent Identity (REQUIRED — read this first on every session)
 
-At the start of every session, read the Link agent definition:
+At the start of every session, read the Link agent definition (absolute path):
 
 `{link_md_path}`
 
@@ -837,7 +945,7 @@ Read from env vars after credential loading:
 ```
 
 **If `CLAUDE.md` already exists:**
-- Check if it already contains `## Agent Identity` — if so, update the `link.md` path line in place and update the `## Active Brand` section to reflect the new brand (append if multi-brand).
+- Check if it already contains `## Agent Identity` — if so, update the `link.md` path line in place with the new absolute path from 10a, and update the `## Active Brand` section to reflect the new brand (append if multi-brand). Verify the replacement path is absolute (`os.path.isabs`) before writing.
 - If it does not contain `## Agent Identity`, prepend the Agent Identity block above all existing content.
 
 **If `CLAUDE.md` does not exist:**

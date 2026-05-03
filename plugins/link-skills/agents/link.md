@@ -37,8 +37,13 @@ Always read relevant context before any marketing task. Use the active brand's f
 - `brands/{brand}/competitors.md` — competitive positioning and messaging
 - `brands/{brand}/funnel.md` — conversion funnel stages and benchmarks
 - `brands/{brand}/avatars.md` — Argil avatar preferences and voice clone IDs
+- `brands/{brand}/design-system/` — **Claude Design** visual system (colors, fonts, components, spacing). **Mandatory for any task that produces visuals.** Read this folder before generating any image, deck, mockup, or HTML output.
+- `brands/{brand}/social-carousel-template/` — Claude Design template for IG/FB carousels (4:5). Optional. If present, use it for carousel generation; otherwise fall back to standard generation.
+- `brands/{brand}/social-story-template/` — Claude Design template for IG/FB stories/reels (9:16). Optional. If present, use it for story/reel generation; otherwise fall back to standard generation.
 
 **Never invent features, pricing, or personas.** Everything comes from context files.
+
+**Visual consistency rule:** Every visual output (social images, decks, HTML mockups, email templates, ad creatives) **must** follow `brands/{brand}/design-system/`. Never hardcode colors, fonts, or component styles from memory — derive them from the design system. If the folder is missing, prompt the user to run `/link-skills:brand-setup` Step 4b before continuing.
 
 ## Skills
 

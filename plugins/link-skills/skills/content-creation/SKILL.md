@@ -60,6 +60,16 @@ Always read before writing:
 - **brands/{brand}/audience.md** — Target persona pain points, objections, buying triggers, language notes
 - **brands/{brand}/product.md** — Features, pricing, differentiators to cite
 - **brands/{brand}/competitors.md** — If a competitive angle is needed
+- **brands/{brand}/design-system/** — Read when copy will be paired with visuals, so headline length, body length, and CTA fit the design system's text frames
+
+When the brief is for a **carousel** (IG/FB) or **story / reel** (IG/FB), also check the matching template folder — if present, the copy must fit the template's slot structure:
+
+| Format | Template path | If present, do this |
+|--------|---------------|---------------------|
+| Carousel (IG/FB) | `brands/{brand}/social-carousel-template/` | Inspect the template to count slides and identify each slide's text-slot character budget. Write copy as N discrete blocks (one per slide), each within its slot length. |
+| Story / Reel static (IG/FB) | `brands/{brand}/social-story-template/` | Inspect the template's text frames. Write copy that fits within the headline + body slots — don't exceed slot length. |
+
+If the template folder does not exist, fall back to the standard format defaults below. Never block on a missing template.
 
 ### Step 1b: Supplement with live research via Perplexity MCP
 Use the **WebSearch tool** when writing SEO content or competitive copy:
@@ -183,7 +193,9 @@ Before finalizing any content output:
 - [ ] Voice follows brands/{brand}/brand.md (practical, confident, not hypey)
 - [ ] Approved phrases used where appropriate
 - [ ] Do/Don't list followed
-- [ ] Brand colors referenced correctly if visual specs included — use colors from `brands/{brand}/brand.md`
+- [ ] Brand colors and typography referenced correctly if visual specs included — derive from `brands/{brand}/design-system/` (authoritative), not from memory
+- [ ] For IG/FB carousel copy: if `social-carousel-template/` exists, copy is split into per-slide blocks within slot lengths
+- [ ] For IG/FB story/reel copy: if `social-story-template/` exists, copy fits the template's headline + body slot budgets
 
 **Messaging effectiveness:**
 - [ ] Headline addresses persona's specific pain point or desired outcome

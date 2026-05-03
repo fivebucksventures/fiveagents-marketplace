@@ -53,14 +53,31 @@ Before starting, confirm these inputs with the user:
 
 ## Design constraints
 
-### Brand system — always read from `brands/{brand}/brand.md`
-Before applying any colors, typography, or CTA styles, read `brands/{brand}/brand.md` for:
-- **Primary and accent colors** — hex values and usage roles
-- **Typography** — font family, weights, and size scale
-- **Voice and aesthetic** — tone of the visual design (e.g. clean B2B SaaS vs. specialist dark theme)
-- **Do/Don't rules** — any explicit visual restrictions
+### Brand system — `brands/{brand}/design-system/` is the source of truth
 
-Never hardcode colors or fonts from memory. Always derive them from the active brand's context file.
+The Claude Design system installed in `brand-setup` Step 4b is the authoritative visual reference for every output. **Read it before applying any colors, typography, layout, or component styles.**
+
+1. **First** read `brands/{brand}/design-system/` — list its files, then read the entry HTML/CSS (typically `index.html`, `styles.css`, or `tokens.json`). Extract:
+   - Color tokens (CSS variables, palette HEX codes)
+   - Typography (font-family, weight scale, size scale)
+   - Component styles (buttons, cards, headers, badges)
+   - Spacing scale (gaps, padding, border-radius)
+2. **Then** read `brands/{brand}/brand.md` for voice/tone, approved phrases, and Do/Don't rules.
+
+If `brands/{brand}/design-system/` does not exist, ask the user to run `/link-skills:brand-setup` Step 4b before continuing — the design system is mandatory.
+
+Never hardcode colors or fonts from memory. Always derive them from the design system. If the design system and `brand.md` disagree on colors/fonts, the design system wins and `brand.md` should be updated to match.
+
+### Optional templates — Carousel and Story
+
+Two optional Claude Design templates may exist:
+
+| Template | Path | Used for | Fallback if missing |
+|----------|------|----------|---------------------|
+| Carousel (4:5) | `brands/{brand}/social-carousel-template/` | Instagram + Facebook carousel posts | Generate each slide with Gemini + Pillow text overlay using design-system colors/fonts |
+| Story (9:16) | `brands/{brand}/social-story-template/` | Instagram + Facebook stories and reels (static) | Generate with Gemini + Pillow text overlay using design-system colors/fonts |
+
+Detect availability with a folder existence check before each render. If the template folder exists, use it (see "Render via template" below). If absent, fall back to the standard image-generation pipeline — never block on a missing optional template.
 
 ### Standard asset dimensions (platform-fixed — same across all brands)
 | Asset | Dimensions | Notes |
@@ -93,9 +110,12 @@ Never hardcode colors or fonts from memory. Always derive them from the active b
 ## Step-by-step workflow
 
 ### Step 1: Read brand and content context
-- **brands/{brand}/brand.md** — Visual guidelines, brand colors, design approach
-- **skills/creative-designer/style-guide.md** — Detailed style rules
+- **brands/{brand}/design-system/** — Claude Design visual system (READ FIRST — authoritative for colors, fonts, components, spacing)
+- **brands/{brand}/brand.md** — Voice, tone, approved phrases, Do/Don't rules
+- **skills/creative-designer/style-guide.md** — Generic fallback rules (use only when design-system is absent or silent on a topic)
 - Confirm the headline and key message (from content-creation or user input)
+- For carousel asset type → check `brands/{brand}/social-carousel-template/`
+- For story / reel (static) asset type → check `brands/{brand}/social-story-template/`
 
 ### Step 2: Define the layout structure
 Sketch the component hierarchy before writing code:
@@ -118,6 +138,67 @@ For HTML/CSS output:
 For design spec output:
 - Describe each section with: dimensions, colors (hex), font sizes, spacing, and component type
 - Include copy placeholders clearly marked
+
+### Step 4a: Carousel and Story — render via template if available
+
+Before falling through to Gemini image generation, branch on asset type:
+
+**Decision tree:**
+
+```
+asset_type == "carousel" AND platform in {instagram, facebook}
+  → if brands/{brand}/social-carousel-template/ exists:
+      → render via template (instructions below)
+    else:
+      → fall through to Step 4b (Gemini per-slide)
+
+asset_type in {"story", "reel"} AND platform in {instagram, facebook}
+  → if brands/{brand}/social-story-template/ exists:
+      → render via template (instructions below)
+    else:
+      → fall through to Step 4b (Gemini)
+
+all other cases (LinkedIn posts, banners, ads, mockups, etc.)
+  → fall through to Step 4b (Gemini)
+```
+
+**Render via template:**
+
+**Gemini is still required.** The template defines layout, fonts, colors, text frames, and logo placement — Gemini fills the visual slot inside that frame with a fresh photograph/illustration per post. Do not skip Gemini.
+
+1. **Inspect the template folder** — list its files and read the entry HTML (typically `index.html`). Identify:
+   - Per-slide structure (separate files like `slide-1.html` or sections within `index.html`)
+   - Text placeholder elements (often marked with `data-slot="headline"`, `data-slot="body"`, or class names like `.slot-headline`). If no explicit slots, use the placeholder copy that's already in the template as text-replace anchors.
+   - Image placeholder elements (typically `<img data-slot="visual">` or sections with `data-slot="image"`). Some templates use CSS `background-image` instead.
+
+2. **Generate any required visuals** — for image slots, use `gemini_generate_image` with the design-system aesthetic in the prompt and the template's slot dimensions. Save each visual to `outputs/{brand}/posts/[Platform]/_tmp/`.
+
+3. **Substitute content** — copy the template folder to a working directory under `tmp/` (do not modify the source template). For each slide:
+   - Replace text placeholders with the post's headline/body/CTA from content-creation output
+   - Replace image placeholders with the local file paths from step 2
+   - For carousel: produce one HTML per slide
+
+4. **Render to PNG via Playwright MCP:**
+```
+For each rendered slide HTML:
+- browser_navigate to the local file URL (file:///<absolute-path>/slide.html)
+- Set viewport to template canvas dimensions:
+    Carousel (4:5): 1080 × 1350
+    Story (9:16): 1080 × 1920
+- browser_take_screenshot → save to outputs/{brand}/posts/[Platform]/[Slug]_slide-{N}_final.png
+```
+
+If Playwright MCP is unavailable, fall back to Step 4b (Gemini + Pillow) and log a note that the template was skipped due to a tooling gap.
+
+5. **Skip Pillow text overlay and logo overlay** — the template already includes both. Do not double-stamp.
+
+6. **Cleanup** — delete the working copy under `tmp/` after final PNGs are saved.
+
+After rendering via template, **skip Steps 4b–4e** for that asset and continue to **Step 4f / Zernio upload** (Step 4 — Upload below).
+
+If `brands/{brand}/design-system/` exists but no template applies (e.g. LinkedIn post), pass the design system's color tokens and font names into the Gemini prompt in Step 4b for stylistic alignment. Still apply Pillow text+logo overlays as usual.
+
+---
 
 ### Step 4b: Generate images via Gemini API
 
@@ -454,11 +535,15 @@ Status: Draft | Final
 Before finalizing any design output:
 
 **Brand compliance:**
-- [ ] Primary brand color (from `brands/{brand}/brand.md`) used for CTAs and key headings
+- [ ] `brands/{brand}/design-system/` was read before generating any visual
+- [ ] Colors, fonts, and component styles match the design system (not hardcoded)
+- [ ] Primary brand color used for CTAs and key headings
 - [ ] Accent color used sparingly — not dominant
-- [ ] Background color used for section/card backgrounds per brand spec
+- [ ] Background color used for section/card backgrounds per design system
 - [ ] No off-brand colors used
-- [ ] Typography follows the font stack and size scale from `brands/{brand}/brand.md`
+- [ ] Typography follows the font stack and size scale from the design system
+- [ ] For carousels (IG/FB): if `social-carousel-template/` exists, it was used; otherwise documented fallback to Gemini
+- [ ] For stories/reels (IG/FB): if `social-story-template/` exists, it was used; otherwise documented fallback to Gemini
 
 **Layout quality:**
 - [ ] Visual hierarchy is clear (headline → subheadline → body → CTA)
