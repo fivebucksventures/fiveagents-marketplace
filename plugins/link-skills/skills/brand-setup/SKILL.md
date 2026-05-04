@@ -562,6 +562,15 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 
 For every key the user provides in Step 7b (including `FIVEAGENTS_API_KEY`, `GEMINI_API_KEY`, `SLACK_NOTIFY_USER`, `REPORT_EMAIL`, `LATE_API_KEY`, and any optional keys), save it to `.claude/settings.local.json` under the `"env"` object using the exact env var name shown in the tables above. This is required — all skills read credentials from env vars at runtime.
 
+**Also save these two vars — required for all automated skills:**
+
+```
+DEFAULT_BRAND   → the brand slug (e.g. "five-agents", "npc-office") — used by all skills to determine the active brand without user input
+{BRAND}_NOTION_DB → the Notion Social Calendar DB page ID (e.g. "320c93e588f880b69cf6f52bd50444b5") — required by social-calendar and content-generator
+```
+
+To get the Notion DB ID: open the Social Calendar database in Notion → click Share → Copy link → the 32-character hex string in the URL is the page ID. Save it as `{BRAND}_NOTION_DB` where `{BRAND}` is the brand slug uppercased with hyphens removed (e.g. `FIVEAGENTS_NOTION_DB`, `NPCOFFICE_NOTION_DB`).
+
 **Also store API keys in the credential vault (for Cowork use):**
 
 After saving ALL keys to `settings.local.json`, store each external API key in the encrypted vault so the gateway can access it:
@@ -756,6 +765,14 @@ Show the user the events found:
 
 After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `TBD` event names with the confirmed GA4 event names.
 
+**8d. Workspace env vars (mandatory — required by automated skills):**
+
+18. **`DEFAULT_BRAND`** — Confirm `.claude/settings.local.json` `env` block contains `DEFAULT_BRAND` set to the brand slug (e.g. `"five-agents"`, `"npc-office"`). If missing, ask the user for the brand slug and save it now. Required by every skill to determine the active brand without user input on scheduled runs.
+
+19. **`{BRAND}_NOTION_DB`** — Confirm `.claude/settings.local.json` `env` block contains `{BRAND}_NOTION_DB` (e.g. `FIVEAGENTS_NOTION_DB`, `NPCOFFICE_NOTION_DB` — `{BRAND}` is the slug uppercased, hyphens removed) set to the 32-character hex page ID of the brand's Notion Social Calendar database. If missing, walk the user through it: Notion → open the Social Calendar database → click Share → Copy link → extract the 32-hex-char ID from the URL → save it now. Required by social-calendar and content-generator.
+
+Both env var checks are mandatory — they are NOT skippable. If either is missing, do not show ⏭ in the summary table; show ❌ and stop until the user provides the value.
+
 **After all tests, show a summary table:**
 
 | Integration | Status |
@@ -776,6 +793,8 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 | Windsor.ai (Google Ads + GA4) | ✅ / ❌ / ⏭ skipped |
 | Meta Ads MCP | ✅ / ❌ / ⏭ skipped |
 | Canva | ✅ / ❌ / ⏭ skipped |
+| `DEFAULT_BRAND` env var | ✅ / ❌ |
+| `{BRAND}_NOTION_DB` env var | ✅ / ❌ |
 
 Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving to Step 9. Save all results — they're used in the Step 9 completion email.
 
@@ -833,7 +852,9 @@ Build the JSON payload from Step 8 validation results:
     { "integration": "Google Calendar", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Windsor.ai", "status": "pass | fail | skipped", "notes": "Connected: Google Ads, GA4" },
     { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Custom connector — Facebook + Instagram campaign data" },
-    { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" }
+    { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "DEFAULT_BRAND env var", "status": "pass | fail", "notes": "Active brand slug — required by every skill (mandatory, not skippable)" },
+    { "integration": "{BRAND}_NOTION_DB env var", "status": "pass | fail", "notes": "Notion Social Calendar DB page ID — required by social-calendar and content-generator (mandatory, not skippable)" }
   ],
   "action_items": [
     { "integration": "{name}", "message": "{what failed or was skipped and how to fix / which skill needs it}" }
@@ -847,7 +868,7 @@ Also print the same summary to the chat and send a Slack notification to `$SLACK
 
 ```
 ✅ Brand "{brand}" setup complete
-• {N}/16 integrations connected
+• {N}/18 integrations connected
 • {N} action items (see email for details)
 • Brand files: brands/{brand}/
 ```
@@ -905,7 +926,11 @@ link_md_body = re.sub(r'^---\s*\n.*?\n---\s*\n', '', link_md_content, count=1, f
 
 Check if `CLAUDE.md` exists at the workspace root (same folder as `brands/` and `outputs/`).
 
-Build the **workspace block** to inject. Substitute `{LINK_MD_BODY}` with the stripped contents of `link_md_body` from 10a, verbatim:
+Build the **workspace block** to inject. Substitute these placeholders verbatim:
+- `{LINK_MD_BODY}` — the stripped contents of `link_md_body` from 10a
+- `{brand}` — the brand slug from Step 3 (same value saved as `DEFAULT_BRAND`, e.g. `five-agents`)
+- `{BRAND}` — the brand slug uppercased with hyphens removed, used as the env var prefix (e.g. `FIVEAGENTS`, `NPCOFFICE`)
+- `{notion_db_id}` — the 32-character Notion Social Calendar DB page ID collected in Step 7b
 
 ```markdown
 # {Brand Name} — Workspace Instructions
@@ -947,10 +972,18 @@ Run this **before** reading any env var (`FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USE
 
 ---
 
-## Active Brand
+## Workspace Defaults
 
-Default brand: **{brand}**
-Brand files: `brands/{brand}/`
+These values are hardcoded here at brand-setup time so any session reading `CLAUDE.md` has them immediately — no env lookup required for the common path. They are also saved in `.claude/settings.local.json` `env` block as a fallback.
+
+- **Active brand:** `{brand}` (env: `DEFAULT_BRAND`)
+- **Brand files:** `brands/{brand}/`
+- **Notion Social Calendar DB:** `{notion_db_id}` (env: `{BRAND}_NOTION_DB`)
+
+**Fallback rule:** if either tagged value above looks empty or stale (e.g. a literal `{brand}` placeholder that never got substituted, or this `CLAUDE.md` was copied from another workspace), run the credential loader and read from env:
+
+    brand = os.environ["DEFAULT_BRAND"]
+    notion_db = os.environ[f"{brand.replace('-', '').upper()}_NOTION_DB"]
 
 ## Workspace Structure
 

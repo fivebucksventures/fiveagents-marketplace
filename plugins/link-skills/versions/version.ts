@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.11';
+const DEFAULT_VERSION = 'v2.2.12';
 const DEFAULT_DATE = 'May 04, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.12',
+    date: 'May 04, 2026',
+    changes: [
+      'brand-setup: Step 7b — explicit instruction to save DEFAULT_BRAND (active brand slug) and {BRAND}_NOTION_DB (Notion Social Calendar DB page ID) to .claude/settings.local.json env block; how-to-get-Notion-DB-ID note included',
+      'brand-setup: Step 8d — new mandatory validation block (#18, #19) that checks DEFAULT_BRAND and {BRAND}_NOTION_DB are present in settings.local.json; both are non-skippable (❌ stops the flow)',
+      'brand-setup: Step 8 summary table and Step 9 completion-email connections[] now include the two env-var checks; Step 9 Slack message integration count bumped 16 → 18',
+      'brand-setup: Step 10b CLAUDE.md template — replaced "Active Brand" section with "Workspace Defaults" that hardcodes the brand slug and Notion DB ID inline (so any session sees them immediately) with an env-var fallback rule for stale/copied workspaces; placeholder list extended to {brand} / {BRAND} / {notion_db_id}',
+      'brand-setup: normalized {BRAND} env-var prefix convention (uppercased, hyphens removed) across Step 7b note, Step 8d, Step 8 summary, Step 9 connections, Step 10b template — replaces accidental {BRAND_UPPER} variants',
+    ],
+  },
   {
     version: 'v2.2.11',
     date: 'May 04, 2026',
@@ -213,16 +224,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: added Playwright test (#10) and Canva test (#16) in Step 8 validation',
       'brand-setup: added Playwright to Step 8 summary table and report block',
       'brand-setup: added logo.png to Step 9 brand context files summary',
-    ],
-  },
-  {
-    version: 'v2.1.3',
-    date: 'April 10, 2026',
-    changes: [
-      'brand-setup: added Windsor.ai free account signup as prerequisite (Step 2 and Step 7c)',
-      'brand-setup: Step 7c Windsor.ai now walks user through all 3 steps (signup → connect ad accounts → authorize)',
-      'brand-setup: added Canva to Step 2 prerequisites overview table',
-      'brand-setup: added Canva to Step 8 validation summary table and report block',
     ],
   },
 ];
