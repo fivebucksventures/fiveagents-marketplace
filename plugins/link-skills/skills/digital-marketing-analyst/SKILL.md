@@ -238,20 +238,20 @@ After saving, log to `memory/YYYY-MM-DD.md`:
 
 ### Step 1 — Pull Meta Ads Data
 
-Pull Meta Ads data via **Windsor.ai MCP** connector:
+Pull Meta Ads data via the **Meta Ads MCP** custom connector (`https://mcp.facebook.com/ads`) — Meta's official MCP for Facebook + Instagram campaign data. This replaces the previous Windsor.ai pull for the Meta side; Windsor.ai still handles Google Ads and GA4.
 
-```
-Use Windsor.ai MCP tool `get_data`:
-- source: "facebook"
-- date_preset: "last_30dT" (includes today — never use "last_30d" which excludes the current UTC day)
-- fields: ["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]
-```
+At runtime, list the Meta Ads MCP's available tools and pick the one that returns campaign-level insights for the requested date range. Typical request shape:
 
-⚠️ **Invalid fields** (not in Windsor for Facebook): `ad_set`, `ad`, `lp_views`, `landing_page_views`, `video_views`. Campaign is the lowest available breakdown.
-⚠️ **No conversion data** available for Facebook via Windsor.
+- **Ad accounts:** the brand's connected Meta Business ad accounts (the MCP knows these from the OAuth session)
+- **Date range:** yesterday's date in the brand's timezone (also fetch the prior day for DoD comparison)
+- **Required fields:** campaign name + status, clicks, impressions, ctr, spend, reach
+- **Drill-down (use when the MCP exposes them — Meta's Marketing API does, so the official MCP should surface them):** ad_set, ad, lp_views (landing page views), video_views, conversions, frequency, cpm, cpc
+
+Because the Meta Ads MCP queries Meta's Marketing API directly, ad-set / ad-level breakdowns and conversion data are available (they were not available via Windsor). Populate the corresponding fields in the JSON whenever the MCP returns them.
+
 ⚠️ Data is near-real-time — no lag. Use yesterday's date as the report date; today's data may be partial.
 
-- **Currency:** Facebook `spend` is USD. Convert to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`.
+- **Currency:** Meta `spend` is USD. Convert to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`.
 - **Date resolution:** Use the brand's timezone from `brands/{brand}/brand.md` for dates.
 
 ### Step 2 — Analyze Meta Ads
@@ -296,7 +296,7 @@ Cross-reference Meta Ads clicks with GA4 sessions from Meta paid traffic:
 
 Save to `tmp/meta-{YYYY-MM-DD}.json` where the date is **yesterday's date**.
 
-⚠️ **Windsor limitations for Facebook:** No ad_set/ad breakdown, no lp_views, no conversions. Campaign is the lowest breakdown. Only use fields Windsor actually returns: `campaign`, `clicks`, `impressions`, `ctr`, `spend`, `reach`.
+With the Meta Ads MCP, ad-set / ad-level data, lp_views, and conversions are available (Meta's Marketing API surfaces them). Populate `ad_sets`, `ads`, and the conversion-related fields whenever the MCP returns them.
 
 ```json
 {
@@ -331,7 +331,7 @@ Save to `tmp/meta-{YYYY-MM-DD}.json` where the date is **yesterday's date**.
 }
 ```
 
-⚠️ **`ad_sets` and `ads` arrays will be empty** when using Windsor (campaign-level only). The template handles this gracefully — it shows "No ad set data available." The fields exist so that if a future data source provides ad-level data, it renders automatically.
+**`ad_sets` and `ads` arrays:** Populate from the Meta Ads MCP response — Meta's Marketing API returns ad-set and ad-level breakdowns, so these arrays should now have data. If the MCP returns campaign-level only for a particular brand's setup, leave them as empty arrays — the template renders "No ad set data available." gracefully.
 
 After saving, log to `memory/YYYY-MM-DD.md`:
 ```markdown
@@ -510,14 +510,9 @@ Filter results for the target week range. Also pull prior week for WoW compariso
 
 ### Step 1b — Pull Weekly Meta Ads Data
 
-```
-Use Windsor.ai MCP tool `get_data`:
-- source: "facebook"
-- date_preset: "last_30dT"
-- fields: ["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]
-```
+Pull weekly Meta Ads data via the **Meta Ads MCP** custom connector (`https://mcp.facebook.com/ads`) — same approach as Phase 2 Step 1 in the daily flow. Request campaign-level fields (campaign, clicks, impressions, ctr, spend, reach) plus drill-down (ad_set, ad, lp_views, conversions, cpm, frequency) for the target week range, plus the prior week for WoW comparison.
 
-Filter for the target week. Convert USD spend to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`. Include WoW comparison from prior week.
+Filter for the target week. Convert USD spend to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`.
 
 ### Step 1c — Pull Weekly GA4 Data
 
@@ -596,14 +591,14 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 
 ## Notes
 
-- **Data sources:** All ads/analytics data pulled via Windsor.ai MCP connector (`get_data` tool). Google Ads, Meta Ads (Facebook), and GA4 are all connected in Windsor.
+- **Data sources:** Google Ads and GA4 data pulled via Windsor.ai MCP connector (`get_data` tool). Meta Ads (Facebook + Instagram) data pulled via the official Meta Ads MCP custom connector (`https://mcp.facebook.com/ads`).
 - **Email sending:** Use `fiveagents_send_email` (Postmark, requires Basic/Active maintenance plan). Falls back to `gmail_create_draft` if client has no maintenance plan (403).
-- **Windsor data lag:** All three connectors (Google Ads, Facebook, GA4) are near-real-time — no significant lag. Always use `last_30dT` (not `last_30d`) so today's UTC data is included. Report on yesterday's date; today may be partial.
-- **Currency:** Google Ads cost is in the account's local currency. Facebook spend is USD — convert using the exchange rate from `brands/{brand}/brand.md`.
+- **Data lag:** Windsor.ai (Google Ads, GA4) and the Meta Ads MCP are all near-real-time — no significant lag. For Windsor calls, always use `last_30dT` (not `last_30d`) so today's UTC data is included. Report on yesterday's date; today may be partial.
+- **Currency:** Google Ads cost is in the account's local currency. Meta Ads spend is USD — convert using the exchange rate from `brands/{brand}/brand.md`.
 - GA4 clean data start: **2026-03-08** — never pull or compare pre-Mar 8 data.
 - Brand-specific known issues should be documented in `brands/{brand}/funnel.md` notes section.
 - If one platform has no data yet, still send email with available data. Note the gap.
-- Future data sources to add: TikTok Ads (when connected to Windsor)
+- Future data sources to add: TikTok Ads (when an official MCP becomes available)
 
 ---
 
@@ -698,4 +693,4 @@ Use gateway MCP tool `fiveagents_log_run`:
 ```
 
 **Status values:** `success` (all data pulled + email sent), `partial` (one platform missing or email failed), `failed` (skill errored before completion).
-**All numeric fields must be numbers, not strings** — the dashboard uses these for DoD/WoW math. `null` is valid when a metric is unavailable (e.g. CPA with 0 conversions, lp_views not in Windsor).
+**All numeric fields must be numbers, not strings** — the dashboard uses these for DoD/WoW math. `null` is valid when a metric is unavailable (e.g. CPA with 0 conversions). With the Meta Ads MCP, `lp_views` and conversion-derived fields are now expected to be populated whenever the MCP returns them — only set them to `null` if Meta itself returned no value.

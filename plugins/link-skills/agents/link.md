@@ -81,7 +81,8 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 - **Slack MCP** — messaging and notifications
 - **Gmail MCP** — search, read, create drafts
 - **Google Calendar MCP** — calendar access
-- **Windsor.ai MCP** — Google Ads, Meta Ads, GA4 analytics data
+- **Windsor.ai MCP** — Google Ads + GA4 analytics data
+- **Meta Ads MCP** (custom connector — `https://mcp.facebook.com/ads`) — Meta Ads (Facebook + Instagram) campaign data
 - **Canva MCP** — campaign presentations and pitch decks
 
 ### External APIs (via gateway MCP tools)

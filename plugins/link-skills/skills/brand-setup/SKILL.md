@@ -93,8 +93,9 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
 | 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
 | 5 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
-| 6 | **Windsor.ai** | Google Ads, Meta Ads, GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads (Facebook Ads), and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
-| 7 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
+| 6 | **Windsor.ai** | Google Ads + GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
+| 7 | **Meta Ads** | Meta Ads (Facebook + Instagram) campaign data — official Meta MCP | Custom Connector — URL `https://mcp.facebook.com/ads` (configured in Step 7c) |
+| 8 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
@@ -584,13 +585,28 @@ Use these service names (must match what the gateway expects):
 
 Note: `FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, and `REPORT_EMAIL` do NOT need vault storage — they are passed directly as tool parameters or used by built-in MCP connectors. They still MUST be saved to `.claude/settings.local.json` (done above).
 
-Note: Google Ads, Meta Ads, and GA4 credentials are handled by the Windsor.ai MCP connector — no gateway storage needed.
+Note: Google Ads and GA4 credentials are handled by the Windsor.ai MCP connector. Meta Ads credentials are handled by the Meta Ads custom connector (`https://mcp.facebook.com/ads`). Neither needs gateway storage.
 
 Keys are encrypted via Supabase Vault and can never be retrieved after storage. If the user needs to update a key later, they can re-run this step or use the dashboard UI at fiveagents.io.
 
-**7c. MCP Connectors (user connects in Claude settings → Connected Apps):**
+**7c. MCP Connectors:**
 
 Walk the user through each one. Explain what it does, ask the user to confirm they've connected it. If "not now", move on and note as unconfigured.
+
+**Meta Ads custom connector (same flow as Five Agents in Step 7a):**
+
+Meta now ships an official MCP server for Meta Ads (Facebook + Instagram campaign data). It replaces Windsor.ai for the Meta side of paid reporting. Windsor.ai is still used for Google Ads and GA4.
+
+Ask the user to add the Meta Ads connector in Claude:
+1. In Cowork, go to **Customize → Connectors → "Add custom connector"**
+2. Name: `Meta Ads`
+3. URL: `https://mcp.facebook.com/ads`
+4. Click **Connect** and sign in with the Facebook/Meta Business account that owns the brand's ad accounts
+
+Ask:
+> Have you added the Meta Ads custom connector and signed in with your Meta Business account?
+
+**Connected Apps (OAuth via Settings → Connected Apps):**
 
 | # | MCP | What it does | How to connect |
 |---|---|---|---|
@@ -598,7 +614,7 @@ Walk the user through each one. Explain what it does, ask the user to confirm th
 | 2 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
 | 3 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
 | 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
-| 5 | **Windsor.ai** | Google Ads, Meta Ads, GA4 data | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads, Meta Ads, and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
+| 5 | **Windsor.ai** | Google Ads + GA4 data (Meta Ads is handled by the Meta Ads custom connector above — do not connect Meta Ads in Windsor) | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
 | 6 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 For Notion, Slack, Gmail, Google Calendar, and Canva, ask:
@@ -606,7 +622,7 @@ For Notion, Slack, Gmail, Google Calendar, and Canva, ask:
 
 For Windsor.ai specifically, walk the user through all 3 steps before asking if they're done:
 1. "First, do you have a Windsor.ai account? If not, sign up free at https://windsor.ai/register"
-2. "Once you have an account, go to your Windsor dashboard and connect your Google Ads, Meta Ads, and GA4 accounts"
+2. "Once you have an account, go to your Windsor dashboard and connect your Google Ads and GA4 accounts (skip Meta Ads — that's handled by the Meta Ads custom connector)"
 3. "Then in Claude, go to Settings → Connected Apps → Windsor.ai → Authorize"
 
 If yes to all, proceed. If "not now", acknowledge and move on.
@@ -722,11 +738,13 @@ slack_send_message to channel $SLACK_NOTIFY_USER:
 
 13. **Google Calendar** (if connected) — Try `gcal_list_calendars`. If it returns calendars, Google Calendar is connected.
 
-14. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / Facebook / GA4 accounts, Windsor is connected.
+14. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / GA4 accounts, Windsor is connected. Meta Ads is no longer expected here (it's handled by the Meta Ads MCP).
 
-15. **Canva** (if connected) — Try `list-brand-kits`. If it returns results (even empty), Canva is connected.
+15. **Meta Ads MCP** (if connected) — Call a basic listing tool on the Meta Ads connector (e.g. list ad accounts) and confirm it returns the user's Meta ad accounts without an auth error. If the call fails with an authorization error, ask the user to re-sign-in to the Meta Ads custom connector.
 
-16. **GA4 event discovery** (if Windsor.ai connected AND funnel.md has TBD events) — Discover the client's actual GA4 conversion events:
+16. **Canva** (if connected) — Try `list-brand-kits`. If it returns results (even empty), Canva is connected.
+
+17. **GA4 event discovery** (if Windsor.ai connected AND funnel.md has TBD events) — Discover the client's actual GA4 conversion events:
 ```
 Use Windsor.ai MCP tool `get_fields`:
 - source: "googleanalytics4"
@@ -755,7 +773,8 @@ After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `
 | Notion | ✅ / ❌ / ⏭ skipped |
 | Gmail | ✅ / ❌ / ⏭ skipped |
 | Google Calendar | ✅ / ❌ / ⏭ skipped |
-| Windsor.ai | ✅ / ❌ / ⏭ skipped |
+| Windsor.ai (Google Ads + GA4) | ✅ / ❌ / ⏭ skipped |
+| Meta Ads MCP | ✅ / ❌ / ⏭ skipped |
 | Canva | ✅ / ❌ / ⏭ skipped |
 
 Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving to Step 9. Save all results — they're used in the Step 9 completion email.
@@ -812,7 +831,8 @@ Build the JSON payload from Step 8 validation results:
     { "integration": "Notion", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Gmail", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Google Calendar", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Windsor.ai", "status": "pass | fail | skipped", "notes": "Connected: Google Ads, Meta Ads, GA4" },
+    { "integration": "Windsor.ai", "status": "pass | fail | skipped", "notes": "Connected: Google Ads, GA4" },
+    { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Custom connector — Facebook + Instagram campaign data" },
     { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" }
   ],
   "action_items": [
@@ -827,7 +847,7 @@ Also print the same summary to the chat and send a Slack notification to `$SLACK
 
 ```
 ✅ Brand "{brand}" setup complete
-• {N}/15 integrations connected
+• {N}/16 integrations connected
 • {N} action items (see email for details)
 • Brand files: brands/{brand}/
 ```
@@ -836,11 +856,11 @@ Also print the same summary to the chat and send a Slack notification to `$SLACK
 
 **This step is mandatory and must not be skipped.** It ensures every future session in this workspace (including scheduled/automated runs) loads the Link agent identity and credentials automatically.
 
-#### 10a. Find the agents/link.md path (ABSOLUTE PATH REQUIRED)
+We **embed the full content of `agents/link.md` directly into `CLAUDE.md`** rather than referencing an absolute path. This way the workspace is self-contained — scheduled runs, fresh clones, and machines without the plugin installed all still get the agent identity, because Claude Code auto-loads `CLAUDE.md` at session start.
 
-The agent definition file is bundled with the plugin at a path that varies per installation. The path written into `CLAUDE.md` **must be an absolute path** — relative paths will break scheduled/automated runs that start in different working directories.
+#### 10a. Locate and read agents/link.md
 
-Find it by running:
+The agent definition file is bundled with the plugin. Find it on disk and read its contents into a variable.
 
 ```python
 import glob, os
@@ -853,48 +873,52 @@ patterns = [
 found = [f for p in patterns for f in glob.glob(p, recursive=True)]
 
 if found:
-    # Resolve to absolute, canonical path (resolves symlinks/junctions, normalizes separators)
     link_md_path = os.path.abspath(os.path.realpath(found[0]))
+    link_md_content = open(link_md_path, encoding='utf-8').read()
 else:
     link_md_path = ""
-
-# Validate before proceeding
-assert link_md_path == "" or os.path.isabs(link_md_path), \
-    f"link.md path must be absolute, got: {link_md_path!r}"
+    link_md_content = ""
 ```
 
 If the search returns empty, ask the user:
-> I couldn't auto-detect the path to `agents/link.md`. Can you paste the **full absolute path**? (Hint: search for `link.md` inside your Claude application data folder. On Windows it starts with `C:\`, on macOS with `/Users/`, on Linux with `/home/`.)
+> I couldn't auto-detect `agents/link.md` inside your Claude plugin folder. Can you paste the **full absolute path** to it? (Hint: search for `link.md` inside your Claude application data folder. On Windows it starts with `C:\`, on macOS with `/Users/`, on Linux with `/home/`.)
 
-After the user pastes a path, normalize and validate it:
+After the user pastes a path, normalize, validate, and read:
 
 ```python
 user_path = os.path.abspath(os.path.expanduser(os.path.expandvars(user_input.strip().strip('"').strip("'"))))
-assert os.path.isabs(user_path), "Path must be absolute"
 assert os.path.isfile(user_path), f"File not found: {user_path}"
 link_md_path = user_path
+link_md_content = open(link_md_path, encoding='utf-8').read()
 ```
 
-`link_md_path` is now guaranteed to be an absolute path. Use it verbatim in 10b.
+**Strip the YAML frontmatter** from `link_md_content` before embedding (the `---` block at the top with `name:` / `description:`). The frontmatter is a plugin-loader directive and has no meaning inside `CLAUDE.md`:
+
+```python
+import re
+link_md_body = re.sub(r'^---\s*\n.*?\n---\s*\n', '', link_md_content, count=1, flags=re.DOTALL).lstrip()
+```
+
+`link_md_body` is what gets embedded in 10b.
 
 #### 10b. Read or create CLAUDE.md
 
 Check if `CLAUDE.md` exists at the workspace root (same folder as `brands/` and `outputs/`).
 
-Substitute `{link_md_path}` below with the **absolute path** resolved in 10a — verbatim, including drive letter on Windows (e.g. `C:\Users\jane\AppData\Roaming\Claude\...\agents\link.md`) or leading `/` on macOS/Linux. Never write a relative path here.
-
-Build the **Agent Identity block** to inject:
+Build the **workspace block** to inject. Substitute `{LINK_MD_BODY}` with the stripped contents of `link_md_body` from 10a, verbatim:
 
 ```markdown
 # {Brand Name} — Workspace Instructions
 
-## Agent Identity (REQUIRED — read this first on every session)
+## Agent Identity (auto-loaded every session)
 
-At the start of every session, read the Link agent definition (absolute path):
+The full content of `agents/link.md` is embedded below. It defines your identity (Link), active brand logic, available skills, tools, integrations, output conventions, and quality checklist. All skill runs depend on it.
 
-`{link_md_path}`
+<!-- BEGIN agents/link.md (embedded by brand-setup) -->
 
-This file defines your identity (Link), active brand logic, available skills, tools, integrations, output conventions, and quality checklist. All skill runs depend on it.
+{LINK_MD_BODY}
+
+<!-- END agents/link.md -->
 
 ---
 
@@ -945,11 +969,13 @@ Read from env vars after credential loading:
 ```
 
 **If `CLAUDE.md` already exists:**
-- Check if it already contains `## Agent Identity` — if so, update the `link.md` path line in place with the new absolute path from 10a, and update the `## Active Brand` section to reflect the new brand (append if multi-brand). Verify the replacement path is absolute (`os.path.isabs`) before writing.
-- If it does not contain `## Agent Identity`, prepend the Agent Identity block above all existing content.
+- If it contains the markers `<!-- BEGIN agents/link.md (embedded by brand-setup) -->` and `<!-- END agents/link.md -->`, replace everything between (and including) those markers with the freshly read `{LINK_MD_BODY}` wrapped in the same markers. Leave the rest of the file untouched.
+- If it contains an older `## Agent Identity` section that points to an absolute path (the previous format), replace the entire block from `## Agent Identity` down through the `---` separator with the new workspace block above.
+- Otherwise, prepend the new workspace block above all existing content.
+- Update the `## Active Brand` section to reflect the new brand (append if multi-brand).
 
 **If `CLAUDE.md` does not exist:**
-- Create it with the full Agent Identity block above.
+- Create it with the full workspace block above.
 
 Show the user what was written:
-> ✅ `CLAUDE.md` updated — Link agent identity and credential loader are now wired to this workspace. Every future session here will automatically load your brand context.
+> ✅ `CLAUDE.md` updated — the Link agent definition is now embedded directly in this workspace, so every future session loads it automatically (no plugin path lookups needed).

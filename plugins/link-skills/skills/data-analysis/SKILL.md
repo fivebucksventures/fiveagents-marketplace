@@ -40,7 +40,7 @@ Before starting, confirm these inputs with the user:
 
 | Input | Required | Notes |
 |-------|----------|-------|
-| Data source | Yes | Windsor.ai (Google Ads, Meta Ads, GA4), email metrics, lead data, or raw numbers pasted by user |
+| Data source | Yes | Windsor.ai (Google Ads, GA4), Meta Ads MCP (Facebook + Instagram), email metrics, lead data, or raw numbers pasted by user |
 | Time period | Yes | e.g., last 30 days, Q1 2026, week of March 10 |
 | Goal / benchmark | Yes | What were we trying to achieve? What's the target KPI? Read from `brands/{brand}/funnel.md` if available. |
 | Persona / campaign | Optional | Which campaign or audience segment does this data relate to? |
@@ -59,29 +59,33 @@ Before analyzing, confirm:
 
 If data is incomplete or missing, flag what's needed before proceeding.
 
-### Step 1a: Pull data from Windsor.ai (if applicable)
+### Step 1a: Pull data from Windsor.ai or Meta Ads MCP (if applicable)
 
-If the user is asking about Google Ads, Meta Ads, or GA4 data, pull it directly via **Windsor.ai MCP** — same tools and approach as digital-marketing-analyst:
+If the user is asking about Google Ads or GA4, pull via **Windsor.ai MCP**. If the user is asking about Meta Ads (Facebook + Instagram), pull via the **Meta Ads MCP** custom connector (`https://mcp.facebook.com/ads`) — Meta's official MCP. Same approach as digital-marketing-analyst.
+
+**Windsor.ai (Google Ads + GA4):**
 
 ```
 Use Windsor.ai MCP tool `get_data`:
-- source: "google_ads" / "facebook" / "googleanalytics4"
+- source: "google_ads" / "googleanalytics4"
 - date_preset: match the user's requested time period; always use "last_NdT" variants (e.g. "last_30dT") — never "last_Nd" which excludes today's UTC data
 - fields: see connector-specific field lists below
 ```
 
-**Connector field rules:**
 - Google Ads: `["date", "campaign", "campaign_status", "ad_group", "clicks", "impressions", "ctr", "cost", "conversions", "cpa"]` — `keyword` returns null, omit it; `ad_group` returns raw resource paths
-- Facebook: `["date", "campaign", "clicks", "impressions", "ctr", "spend", "reach"]` — `ad_set`, `ad`, `lp_views`, `landing_page_views`, `video_views` are not available in Windsor
 - GA4: `["date", "session_source_medium", "sessions", "bounce_rate"]` — `source`, `session_source`, `session_medium` are invalid; use only `session_source_medium`
 
+**Meta Ads MCP (Facebook + Instagram):**
+
+List the Meta Ads MCP's available tools at runtime and pick the one that returns campaign-level insights for the requested date range. Typical fields: `campaign`, `clicks`, `impressions`, `ctr`, `spend`, `reach`. Drill-down available via Meta's Marketing API: `ad_set`, `ad`, `lp_views`, `video_views`, `conversions`, `frequency`, `cpm`, `cpc`.
+
 **Currency:** Meta `spend` is USD — convert to the brand's local currency using exchange rate from `brands/{brand}/brand.md`. Google Ads `cost` is already in the account's local currency.
-**Data lag:** All three connectors are near-real-time. No lag adjustments needed.
+**Data lag:** Windsor.ai connectors and the Meta Ads MCP are all near-real-time. No lag adjustments needed.
 **GA4 data reliability:** Only use data from 2026-03-08 onwards (tracking bug before that date).
 **Paid traffic segments:** Filter `google / cpc` for Google Ads sessions; filter `meta / paid_social` for Meta paid sessions.
 
-If Windsor.ai is not connected and the user hasn't provided data, ask:
-> "I need data to analyze. You can either: (1) connect Windsor.ai for Google Ads / Meta Ads / GA4, or (2) paste your data here — CSV, table, or numbers."
+If neither Windsor.ai nor the Meta Ads MCP is connected for the requested data, and the user hasn't provided data, ask:
+> "I need data to analyze. You can either: (1) connect Windsor.ai (for Google Ads / GA4) or the Meta Ads MCP (for Meta Ads) — see brand-setup, or (2) paste your data here as CSV, table, or numbers."
 
 Do not proceed to analysis without data.
 
