@@ -81,8 +81,8 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 - **Slack MCP** — messaging and notifications
 - **Gmail MCP** — search, read, create drafts
 - **Google Calendar MCP** — calendar access
-- **Windsor.ai MCP** — Google Ads + GA4 analytics data
-- **Meta Ads MCP** (custom connector — `https://mcp.facebook.com/ads`) — Meta Ads (Facebook + Instagram) campaign data
+- **Windsor.ai MCP** *(required for every brand)* — Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data. Universal source; brand-setup mandates all three connectors. Meta data is pulled with `source: "facebook"`.
+- **Meta Ads MCP** (custom connector — `https://mcp.facebook.com/ads`) *(optional enhancement, limited rollout)* — Direct Marketing API access for Meta data. Only relevant when the user opted into the connector during brand-setup (`META_ADS_SOURCE=meta_ads_mcp`); when set, skills prefer the MCP for Meta and fall back to Windsor on MCP error. When the env var is unset (most accounts), Windsor handles Meta — there's no degraded mode. See `digital-marketing-analyst` Phase 2 Step 1 for the Windsor field map covering canonical Meta dimensions.
 - **Canva MCP** — campaign presentations and pitch decks
 
 ### External APIs (via gateway MCP tools)

@@ -93,8 +93,8 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
 | 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
 | 5 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
-| 6 | **Windsor.ai** | Google Ads + GA4 analytics data | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect your Google Ads and GA4 accounts<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
-| 7 | **Meta Ads** | Meta Ads (Facebook + Instagram) campaign data — official Meta MCP | Custom Connector — URL `https://mcp.facebook.com/ads` (configured in Step 7c) |
+| 6 | **Windsor.ai** *(required)* | Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data — the universal source for all paid-ads + analytics reporting | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect **all three**: Google Ads, GA4, and Meta Ads (Facebook Ads)<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
+| 7 | **Meta Ads** *(optional enhancement — limited rollout)* | Meta's official MCP for direct Marketing API access. When available, skills prefer it for Meta data; otherwise the Windsor.ai connection above already covers Meta Ads. | Custom Connector — URL `https://mcp.facebook.com/ads` (configured in Step 7c). Skip without prejudice if your account doesn't have access yet — Windsor.ai already covers Meta Ads. |
 | 8 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 Present this overview to the user, then ask:
@@ -594,7 +594,7 @@ Use these service names (must match what the gateway expects):
 
 Note: `FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, and `REPORT_EMAIL` do NOT need vault storage — they are passed directly as tool parameters or used by built-in MCP connectors. They still MUST be saved to `.claude/settings.local.json` (done above).
 
-Note: Google Ads and GA4 credentials are handled by the Windsor.ai MCP connector. Meta Ads credentials are handled by the Meta Ads custom connector (`https://mcp.facebook.com/ads`). Neither needs gateway storage.
+Note: Google Ads, GA4, and Meta Ads (Facebook + Instagram) credentials are all handled by the Windsor.ai MCP connector — no gateway storage needed. The optional Meta Ads custom connector (`https://mcp.facebook.com/ads`) likewise authenticates via OAuth and stores nothing in the gateway vault. The Meta Ads MCP is in limited rollout — when available, downstream skills prefer it; when not, Windsor.ai already covers Meta data.
 
 Keys are encrypted via Supabase Vault and can never be retrieved after storage. If the user needs to update a key later, they can re-run this step or use the dashboard UI at fiveagents.io.
 
@@ -602,18 +602,26 @@ Keys are encrypted via Supabase Vault and can never be retrieved after storage. 
 
 Walk the user through each one. Explain what it does, ask the user to confirm they've connected it. If "not now", move on and note as unconfigured.
 
-**Meta Ads custom connector (same flow as Five Agents in Step 7a):**
+**Meta Ads — Windsor.ai is the standard path; Meta Ads MCP is an optional enhancement:**
 
-Meta now ships an official MCP server for Meta Ads (Facebook + Instagram campaign data). It replaces Windsor.ai for the Meta side of paid reporting. Windsor.ai is still used for Google Ads and GA4.
+Meta Ads (Facebook + Instagram) data is **always pulled through Windsor.ai** (`source: "facebook"`) because Windsor is universally available and exposes near-parity with Meta's Marketing API — campaign / ad-set / ad / lp_views / video_views / conversions are all surfaced under their Windsor field names. **Connecting Meta Ads inside the Windsor.ai dashboard is mandatory** for every brand, and is part of the standard Windsor.ai Connected App setup further down this step.
 
-Ask the user to add the Meta Ads connector in Claude:
+Meta also ships an **official MCP server** at `https://mcp.facebook.com/ads`. It is currently in **limited rollout** — many accounts can't add it yet. Treat it as an **optional enhancement**: when the user has access, downstream skills will prefer it (it queries Meta's Marketing API directly with no Windsor middle-layer). When the user doesn't have access, Windsor.ai already covers everything those skills need — there is no degraded mode.
+
+**Optional — try the Meta Ads MCP (skip without prejudice if the user can't access it):**
+
 1. In Cowork, go to **Customize → Connectors → "Add custom connector"**
 2. Name: `Meta Ads`
 3. URL: `https://mcp.facebook.com/ads`
 4. Click **Connect** and sign in with the Facebook/Meta Business account that owns the brand's ad accounts
 
 Ask:
-> Have you added the Meta Ads custom connector and signed in with your Meta Business account?
+> (Optional) Meta has an official MCP server you can also try, which gives skills slightly more direct access to the Marketing API. Want to give it a shot? If "Add custom connector" isn't visible, or sign-in fails with a "not available" error, no problem — your Windsor.ai connection (next) already covers Meta Ads fully.
+
+- **If the user adds it successfully** → save `META_ADS_SOURCE=meta_ads_mcp` to `.claude/settings.local.json` `env` block. Downstream skills (`digital-marketing-analyst`, `data-analysis`) will prefer the MCP for Meta data.
+- **If the user skips or can't add it** → leave `META_ADS_SOURCE` unset. Downstream skills default to Windsor for Meta data, which is the universally-supported path.
+
+⚠️ **Connecting Meta Ads inside Windsor.ai is required regardless of whether the optional MCP was added** — never skip it. The MCP, when present, is layered on top of (not in place of) the Windsor connection.
 
 **Connected Apps (OAuth via Settings → Connected Apps):**
 
@@ -623,7 +631,7 @@ Ask:
 | 2 | **Slack** | Notifications after each skill run | Settings → Connected Apps → Slack → Authorize |
 | 3 | **Gmail** | Reading emails + report delivery | Settings → Connected Apps → Gmail → Authorize |
 | 4 | **Google Calendar** | Scheduling content drops and meetings | Settings → Connected Apps → Google Calendar → Authorize |
-| 5 | **Windsor.ai** | Google Ads + GA4 data (Meta Ads is handled by the Meta Ads custom connector above — do not connect Meta Ads in Windsor) | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect your Google Ads and GA4 accounts<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
+| 5 | **Windsor.ai** *(required)* | Google Ads + GA4 + Meta Ads (Facebook + Instagram) — **all three are mandatory**. Connecting Meta Ads in Windsor is required regardless of whether the optional Meta Ads MCP was added above. | 1. Sign up for a free account at https://windsor.ai/register (if you don't have one yet)<br>2. In Windsor dashboard, connect Google Ads, GA4, **and** Meta Ads (Facebook Ads)<br>3. Then in Claude: Settings → Connected Apps → Windsor.ai → Authorize |
 | 6 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
 
 For Notion, Slack, Gmail, Google Calendar, and Canva, ask:
@@ -631,7 +639,7 @@ For Notion, Slack, Gmail, Google Calendar, and Canva, ask:
 
 For Windsor.ai specifically, walk the user through all 3 steps before asking if they're done:
 1. "First, do you have a Windsor.ai account? If not, sign up free at https://windsor.ai/register"
-2. "Once you have an account, go to your Windsor dashboard and connect your Google Ads and GA4 accounts (skip Meta Ads — that's handled by the Meta Ads custom connector)"
+2. "Once you have an account, go to your Windsor dashboard and connect three accounts: **Google Ads, GA4, and Meta Ads (Facebook Ads)**. All three are required — Meta Ads in Windsor is the universal source for Meta data, regardless of whether you also added the optional Meta Ads MCP earlier."
 3. "Then in Claude, go to Settings → Connected Apps → Windsor.ai → Authorize"
 
 If yes to all, proceed. If "not now", acknowledge and move on.
@@ -747,9 +755,9 @@ slack_send_message to channel $SLACK_NOTIFY_USER:
 
 13. **Google Calendar** (if connected) — Try `gcal_list_calendars`. If it returns calendars, Google Calendar is connected.
 
-14. **Windsor.ai** (if connected) — Try Windsor MCP `get_connectors`. If it returns Google Ads / GA4 accounts, Windsor is connected. Meta Ads is no longer expected here (it's handled by the Meta Ads MCP).
+14. **Windsor.ai** (mandatory) — Try Windsor MCP `get_connectors`. Verify the result includes **all three required connectors**: Google Ads, GA4, **and** Facebook (Meta Ads). All three are non-skippable — if any are missing, ask the user to connect the missing one in their Windsor dashboard before continuing. Mark ❌ if any of the three is absent; do not pass partial.
 
-15. **Meta Ads MCP** (if connected) — Call a basic listing tool on the Meta Ads connector (e.g. list ad accounts) and confirm it returns the user's Meta ad accounts without an auth error. If the call fails with an authorization error, ask the user to re-sign-in to the Meta Ads custom connector.
+15. **Meta Ads MCP** (only if `META_ADS_SOURCE=meta_ads_mcp` — user opted into the optional MCP) — Call a basic listing tool on the Meta Ads connector (e.g. list ad accounts) and confirm it returns the user's Meta ad accounts without an auth error. If the call fails with an authorization error, ask the user to re-sign-in to the Meta Ads custom connector. **If `META_ADS_SOURCE` is unset** (user did not add the optional MCP, or couldn't), mark this row as ⏭ skipped — Meta data is fully validated through the Windsor.ai check above and downstream skills will use Windsor for Meta automatically.
 
 16. **Canva** (if connected) — Try `list-brand-kits`. If it returns results (even empty), Canva is connected.
 
@@ -790,8 +798,8 @@ Both env var checks are mandatory — they are NOT skippable. If either is missi
 | Notion | ✅ / ❌ / ⏭ skipped |
 | Gmail | ✅ / ❌ / ⏭ skipped |
 | Google Calendar | ✅ / ❌ / ⏭ skipped |
-| Windsor.ai (Google Ads + GA4) | ✅ / ❌ / ⏭ skipped |
-| Meta Ads MCP | ✅ / ❌ / ⏭ skipped |
+| Windsor.ai (Google Ads + GA4 + Meta Ads — all required) | ✅ / ❌ |
+| Meta Ads MCP (optional enhancement) | ✅ / ❌ / ⏭ skipped |
 | Canva | ✅ / ❌ / ⏭ skipped |
 | `DEFAULT_BRAND` env var | ✅ / ❌ |
 | `{BRAND}_NOTION_DB` env var | ✅ / ❌ |
@@ -850,8 +858,8 @@ Build the JSON payload from Step 8 validation results:
     { "integration": "Notion", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Gmail", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Google Calendar", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Windsor.ai", "status": "pass | fail | skipped", "notes": "Connected: Google Ads, GA4" },
-    { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Custom connector — Facebook + Instagram campaign data" },
+    { "integration": "Windsor.ai", "status": "pass | fail", "notes": "Required: Google Ads + GA4 + Meta Ads (Facebook + Instagram) all connected — universal source for paid ads + analytics" },
+    { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Optional enhancement — Marketing API direct access. When connected (META_ADS_SOURCE=meta_ads_mcp), downstream skills prefer it over Windsor for Meta data. When skipped or unavailable, Windsor.ai already covers Meta Ads fully." },
     { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "DEFAULT_BRAND env var", "status": "pass | fail", "notes": "Active brand slug — required by every skill (mandatory, not skippable)" },
     { "integration": "{BRAND}_NOTION_DB env var", "status": "pass | fail", "notes": "Notion Social Calendar DB page ID — required by social-calendar and content-generator (mandatory, not skippable)" }

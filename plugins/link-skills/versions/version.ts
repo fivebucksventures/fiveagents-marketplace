@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.12';
-const DEFAULT_DATE = 'May 04, 2026';
+const DEFAULT_VERSION = 'v2.2.13';
+const DEFAULT_DATE = 'May 05, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,25 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.13',
+    date: 'May 05, 2026',
+    changes: [
+      'brand-setup: Meta Ads framing reversed — Windsor.ai with Meta Ads (Facebook Ads) connected is now the MANDATORY universal path for every brand (because Meta Ads MCP rollout cannot be guaranteed); the Meta Ads MCP at https://mcp.facebook.com/ads is an optional enhancement that flips downstream behavior only when explicitly opted into',
+      'brand-setup: Step 2 prereq table — Windsor.ai marked *(required)* and now lists Google Ads + GA4 + Meta Ads as a combined required scope; Meta Ads MCP marked *(optional enhancement — limited rollout)* with explicit "skip without prejudice" wording',
+      'brand-setup: Step 7c — Meta Ads section rewritten so Windsor.ai is the standard path and the MCP is the optional layer-on-top; user prompt for the MCP starts with "(Optional)" and reassures the user that skipping costs nothing because Windsor already covers Meta fully',
+      'brand-setup: Step 7c Windsor.ai walkthrough — step 2 unconditionally instructs the user to connect Google Ads, GA4, AND Meta Ads in Windsor (no env-var conditional); Meta in Windsor is required regardless of MCP status',
+      'brand-setup: Step 7c — META_ADS_SOURCE env var contract: only set to "meta_ads_mcp" when user successfully added the optional MCP; left unset otherwise (skills default to Windsor)',
+      'brand-setup: Step 8 #14 — Windsor.ai test now verifies all three required connectors (Google Ads, GA4, Facebook); fails ❌ if any is missing (no partial pass). #15 Meta Ads MCP — only runs when META_ADS_SOURCE=meta_ads_mcp; skipped (not failed) otherwise since Windsor already covers Meta',
+      'brand-setup: Step 8 summary table + Step 9 JSON payload — Windsor.ai row is ✅/❌ only (no skip option), Meta Ads MCP row remains ✅/❌/⏭ with notes clarifying it is purely additive',
+      'digital-marketing-analyst: Phase 2 Step 1 + Weekly Step 1b — Windsor.ai with source: "facebook" is the documented default path; Meta Ads MCP is the opt-in alternative with automatic fallback to Windsor on runtime error',
+      'digital-marketing-analyst: Windsor field set verified live against Windsor get_fields(connector: "facebook") which exposes 741 fields. Field map covers campaign + adset_name/adset_id/adset_effective_status + ad_name/ad_id + clicks/impressions/ctr/spend/reach/frequency/cpm/cpc + actions_landing_page_view + actions_video_view + brand-funnel-specific actions_* conversion field — near-parity with Marketing API',
+      'digital-marketing-analyst: removed false claims that Windsor Facebook is "campaign-level only" and "no conversion data available" (those claims dated to a pre-2026 Windsor API and were inaccurate)',
+      'digital-marketing-analyst: meta_ads JSON block — added required "source" field ("windsor" | "meta_ads_mcp") so the dashboard can interpret which field-name space the data came from. On MCP→Windsor runtime fallback, source records the data actually used (windsor), not the path attempted first',
+      'data-analysis: Step 1a — same default-Windsor / opt-in-MCP branching with explicit Windsor field map and conversion-event guidance from brands/{brand}/funnel.md; corrected Windsor capability claims',
+      'agents/link.md: MCP Connectors list — Windsor.ai marked required (Google Ads + GA4 + Meta Ads); Meta Ads MCP marked optional enhancement with the META_ADS_SOURCE contract documented',
+    ],
+  },
   {
     version: 'v2.2.12',
     date: 'May 04, 2026',
@@ -207,23 +226,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'background-generator: model updated to gemini-3.1-flash-image-preview',
       'background-generator: fixed "Nano Banana" reference → Gemini in prompt rules',
       'background-generator: added No Python PIL fallback note',
-    ],
-  },
-  {
-    version: 'v2.1.4',
-    date: 'April 10, 2026',
-    changes: [
-      'brand-setup: Step 4 switched from Claude in Chrome to Playwright MCP for website analysis',
-      'brand-setup: improved browser_evaluate color selectors (h1, nav, a, button) — more reliable than body fallback',
-      'brand-setup: added Cloudflare/blocked-site fallback note in Step 4',
-      'brand-setup: Step 1 corrected MCP connectors reference from Step 2 to Step 7',
-      'brand-setup: added Playwright to Step 2 prerequisites MCP table',
-      'brand-setup: Step 5 GA4 event discovery now defers to Step 8 by default (Windsor.ai not yet set up)',
-      'brand-setup: Step 7a removed incorrect "Claude Code users can skip connector" note',
-      'brand-setup: added Playwright to Step 7c MCP connectors table',
-      'brand-setup: added Playwright test (#10) and Canva test (#16) in Step 8 validation',
-      'brand-setup: added Playwright to Step 8 summary table and report block',
-      'brand-setup: added logo.png to Step 9 brand context files summary',
     ],
   },
 ];

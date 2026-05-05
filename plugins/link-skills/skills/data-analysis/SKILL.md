@@ -61,7 +61,14 @@ If data is incomplete or missing, flag what's needed before proceeding.
 
 ### Step 1a: Pull data from Windsor.ai or Meta Ads MCP (if applicable)
 
-If the user is asking about Google Ads or GA4, pull via **Windsor.ai MCP**. If the user is asking about Meta Ads (Facebook + Instagram), pull via the **Meta Ads MCP** custom connector (`https://mcp.facebook.com/ads`) — Meta's official MCP. Same approach as digital-marketing-analyst.
+**Windsor.ai is the universal source** for Google Ads, GA4, **and** Meta Ads (Facebook + Instagram) — every brand has all three connected per brand-setup. The Meta Ads MCP at `https://mcp.facebook.com/ads` is an optional opt-in alternative for Meta data only; it is in limited rollout and most accounts won't have it.
+
+Branch on the `META_ADS_SOURCE` env var (saved by brand-setup, loaded into `os.environ` by the `CLAUDE.md` credential loader):
+
+- **Default (env var unset)** → Pull Meta data from Windsor.ai with `source: "facebook"`. Universal path, works for every brand.
+- **Opt-in (`META_ADS_SOURCE=meta_ads_mcp`)** → Pull Meta data from the Meta Ads MCP. On MCP error at runtime, fall back to the Windsor path (it is always connected for Meta per brand-setup).
+
+Same approach as digital-marketing-analyst.
 
 **Windsor.ai (Google Ads + GA4):**
 
@@ -75,17 +82,39 @@ Use Windsor.ai MCP tool `get_data`:
 - Google Ads: `["date", "campaign", "campaign_status", "ad_group", "clicks", "impressions", "ctr", "cost", "conversions", "cpa"]` — `keyword` returns null, omit it; `ad_group` returns raw resource paths
 - GA4: `["date", "session_source_medium", "sessions", "bounce_rate"]` — `source`, `session_source`, `session_medium` are invalid; use only `session_source_medium`
 
-**Meta Ads MCP (Facebook + Instagram):**
+**Meta Ads — default: Windsor.ai (`source: "facebook"`):**
 
-List the Meta Ads MCP's available tools at runtime and pick the one that returns campaign-level insights for the requested date range. Typical fields: `campaign`, `clicks`, `impressions`, `ctr`, `spend`, `reach`. Drill-down available via Meta's Marketing API: `ad_set`, `ad`, `lp_views`, `video_views`, `conversions`, `frequency`, `cpm`, `cpc`.
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "facebook"
+- date_preset: "last_NdT" (match user's requested period)
+- fields: [
+    "date",
+    "campaign", "campaign_effective_status",
+    "adset_name", "adset_id", "adset_effective_status",
+    "ad_name", "ad_id",
+    "clicks", "impressions", "ctr", "spend", "reach",
+    "frequency", "cpm", "cpc",
+    "actions_landing_page_view",
+    "actions_video_view",
+    "<conversion-actions-field>",
+    "<cost-per-conversion-field>"
+  ]
+```
 
-**Currency:** Meta `spend` is USD — convert to the brand's local currency using exchange rate from `brands/{brand}/brand.md`. Google Ads `cost` is already in the account's local currency.
-**Data lag:** Windsor.ai connectors and the Meta Ads MCP are all near-real-time. No lag adjustments needed.
+Windsor field map for canonical Meta dimensions: `ad_set` → `adset_name`/`adset_id`, `ad` → `ad_name`/`ad_id`, `lp_views` → `actions_landing_page_view`, `video_views` → `actions_video_view` (3-sec plays; ThruPlays via the `*_thruplay_*` family), `conversions` → the `actions_*` field that matches the brand's funnel objective (e.g. `actions_omni_purchase` for e-commerce, `actions_lead` / `actions_offsite_conversion_fb_pixel_lead` for lead-gen, `actions_complete_registration` for SaaS, `actions_mobile_app_install` for apps). For cost-per-conversion use the matching `cost_per_action_type_<event>`. If `brands/{brand}/funnel.md` doesn't pin a specific Meta event, pull the broad set and report whichever returns non-zero.
+
+**Meta Ads — opt-in alternative: Meta Ads MCP (only when `META_ADS_SOURCE=meta_ads_mcp`):**
+
+List the Meta Ads MCP's available tools at runtime and pick the one that returns campaign-level insights for the requested date range. Typical fields: `campaign`, `clicks`, `impressions`, `ctr`, `spend`, `reach`. Drill-down via Meta's Marketing API: `ad_set`, `ad`, `lp_views`, `video_views`, `conversions`, `frequency`, `cpm`, `cpc`. On MCP error, fall back to the Windsor path above.
+
+**Currency:** Meta `spend` is USD on both paths — convert to the brand's local currency using exchange rate from `brands/{brand}/brand.md`. Google Ads `cost` is already in the account's local currency.
+**Data lag:** Windsor.ai connectors (Google Ads, GA4, Facebook) and the Meta Ads MCP are all near-real-time. No lag adjustments needed.
 **GA4 data reliability:** Only use data from 2026-03-08 onwards (tracking bug before that date).
 **Paid traffic segments:** Filter `google / cpc` for Google Ads sessions; filter `meta / paid_social` for Meta paid sessions.
 
-If neither Windsor.ai nor the Meta Ads MCP is connected for the requested data, and the user hasn't provided data, ask:
-> "I need data to analyze. You can either: (1) connect Windsor.ai (for Google Ads / GA4) or the Meta Ads MCP (for Meta Ads) — see brand-setup, or (2) paste your data here as CSV, table, or numbers."
+If Windsor.ai is not connected (which would mean brand-setup wasn't completed), and the user hasn't provided their own data, ask:
+> "I need data to analyze. Either (1) complete brand-setup so Windsor.ai is connected for Google Ads, GA4, and Meta Ads, or (2) paste your data here as CSV, table, or numbers."
 
 Do not proceed to analysis without data.
 
