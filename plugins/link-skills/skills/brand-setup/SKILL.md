@@ -60,7 +60,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 - Your brand name
 - Your website URL (we'll auto-detect colors and fonts from your site)
 - Your logo file path (PNG, transparent background preferred — e.g. `~/Documents/my-brand/logo.png`)
-- A Claude account — we'll create your visual design system at https://claude.ai/design (mandatory in Step 4b)
+- A Claude account — we'll optionally create your visual design system at https://claude.ai/design (Step 4b — recommended for strongest brand consistency, but skippable; skills fall back to `brand.md` colors/fonts when absent)
 
 **Required API keys:**
 
@@ -121,7 +121,7 @@ brands/{brand}/
 ├── funnel.md
 ├── avatars.md
 ├── backgrounds/
-├── design-system/                  ← installed in Step 4b (Claude Design — MANDATORY)
+├── design-system/                  ← installed in Step 4b (Claude Design — OPTIONAL, recommended)
 ├── social-carousel-template/       ← installed in Step 4c-i (Claude Design — OPTIONAL)
 └── social-story-template/          ← installed in Step 4c-ii (Claude Design — OPTIONAL)
 ```
@@ -231,14 +231,15 @@ Show the user each draft and let them review/edit before saving.
 
 **Do not proceed to Step 4b until the user has reviewed and confirmed `brand.md` and `audience.md`.**
 
-### Step 4b — Claude Design System (MANDATORY)
+### Step 4b — Claude Design System (OPTIONAL — recommended)
 
-Anthropic launched **Claude Design** — a visual brand-system builder at https://claude.ai/design. Every brand on this plugin must have a Claude Design system. It is the single source of truth for visual identity (fonts, colors, components, spacing) and is referenced by every downstream skill that produces visuals.
+Anthropic ships **Claude Design** — a visual brand-system builder at https://claude.ai/design. When installed, it becomes the source of truth for visual identity (fonts, colors, components, spacing) and is preferred by every downstream skill that produces visuals. **It is recommended for the strongest brand consistency, but it is not required** — Step 9c will detect whether the design system was installed and skills will fall back to the colors/fonts/voice in `brands/{brand}/brand.md` (plus Gemini + Pillow rendering) when it isn't there.
 
-**Walk the user through this — do not skip.**
+Ask the user:
+> Want me to walk you through creating a Claude Design system for your brand? It's the strongest way to keep every image, post, and deck visually consistent. We can also skip and rely on the brand colors / fonts you already confirmed in `brand.md` — skills will fall back gracefully.
 
-> Before we generate any visuals, we need to create your brand's design system in Claude Design. This becomes the visual source of truth — every image, post, and deck we produce will follow it.
->
+If the user says skip, acknowledge and move on to Step 4c. If yes, walk them through the installation:
+
 > **Step A — Create the design system:**
 > 1. Open https://claude.ai/design in your browser
 > 2. Click **Create new project** (or **New Design System**)
@@ -254,64 +255,323 @@ Anthropic launched **Claude Design** — a visual brand-system builder at https:
 > 1. Click **Share** → **Download Project as .zip**
 > 2. Unzip the file on your computer (you'll get a folder named something like "{Brand Name} Design System")
 >
-> **Step C — Install into the brand folder:**
-> 1. Move the unzipped folder into `brands/{brand}/`
-> 2. **Rename the folder to `design-system/`** — exact lowercase, no spaces. Final path must be: `brands/{brand}/design-system/`
->
-> Let me know once it's in place — I'll verify the folder exists and inspect what's inside.
+> **Step C — Tell me the path to the unzipped folder; I'll copy it into place for you:**
+> 1. Make sure the unzipped folder is somewhere I can read it. In Cowork that means **inside your project folder** (anywhere — root, a subfolder, doesn't matter, as long as it's inside the project mount).
+> 2. Tell me the absolute or project-relative path to the folder. I'll copy its contents into `brands/{brand}/design-system/` and rename automatically — no manual renaming required.
 
-**Verification:**
+Then ask:
+> What's the path to your unzipped Claude Design folder? (Examples: `./design-temp/Acme Design System` if you dropped it into your project, or `~/Downloads/Acme Design System` if you're running this locally and your home directory is mounted.)
 
-After the user confirms, check that `brands/{brand}/design-system/` exists and is non-empty. Read `brands/{brand}/design-system/index.html` (or whatever entry file is present) to confirm it contains the brand's colors and typography. If the folder is missing or empty, do not proceed — re-explain Step C.
+After the user provides the path, copy the folder using Python:
 
-If colors/fonts in the Claude Design system differ from `brands/{brand}/brand.md` (e.g. user refined them in Claude Design), update `brand.md` to match. The design system is authoritative.
+```python
+import shutil
+from pathlib import Path
 
-**Do not proceed to Step 4c until `brands/{brand}/design-system/` exists and contains the user's design system.**
+raw = user_input.strip().strip('"').strip("'")
+src = Path(raw).expanduser().resolve()
+
+assert src.exists(),   f"Source not found: {src}"
+assert src.is_dir(),   f"Not a directory: {src}"
+assert any(src.iterdir()), f"Source folder is empty: {src}"
+
+# Handle the common nested-zip case — sometimes unzipping creates a wrapper
+# folder containing one inner folder with the same name. Reach inside it.
+contents = list(src.iterdir())
+if len(contents) == 1 and contents[0].is_dir():
+    src = contents[0]
+
+dst = Path("brands") / brand / "design-system"
+if dst.exists():
+    shutil.rmtree(dst)              # idempotent re-run support
+shutil.copytree(src, dst)
+```
+
+Confirm to the user:
+> ✅ Copied to `brands/{brand}/design-system/`. Your original folder is untouched and can be deleted whenever you like.
+
+If the user-provided path is invalid (not found, not a directory, or empty), tell them what was wrong and ask again — don't fall back to "manually rename" since the whole point of this step is to remove that burden.
+
+**Verification (after the copy succeeds):**
+
+Read `brands/{brand}/design-system/index.html` (or whatever entry file is present — `index.html`, `index.tsx`, `App.tsx`, `README.md`, etc.) to confirm the design system contains the brand's colors and typography. If nothing identifiable is found, surface the file listing to the user and ask whether the export looks right — Claude Design's export structure can vary.
+
+If colors/fonts in the Claude Design system differ from `brands/{brand}/brand.md` (e.g. user refined them in Claude Design), update `brand.md` to match. When the design system is installed, it is authoritative; when it isn't, `brand.md` remains the source of truth on its own.
+
+**Proceed to Step 4c whether or not the design system was installed** — Step 9c will record the actual installed/missing state in CLAUDE.md, and skills will branch accordingly at runtime.
 
 ---
 
 ### Step 4c — Social Templates (OPTIONAL — recommended)
 
-Two additional Claude Design templates can be installed for richer social content. **Both are optional.** If skipped, the creative-designer / content-generator / content-creation skills will fall back to standard Gemini image generation with Pillow text overlays.
+Two Claude Design templates can be installed — one for IG/FB Carousel posts (4:5, 6 slides: Cover + 4 sign slides + CTA), one for IG/FB Stories and Reels (9:16, 6 slides: Hook → Problem → Solution → Proof → Offer → CTA, with three direction styles A/B/C). Each template is a **self-contained React + Babel app** (entry HTML + JSX + CSS + assets + fonts) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block inside the entry HTML that exposes every editable copy field. At runtime, content-generator parses the JSON, substitutes post-specific copy, writes the modified HTML to a temp folder, renders it in Playwright, and screenshots each slide via stable offscreen DOM IDs — so brand consistency comes from the template's full React render (logo, layout chrome, slide-number kickers, CTA buttons, eyebrow chips, themes), not from any post-render Pillow overlay.
+
+**Both are optional.** If skipped, content-generator and creative-designer fall back to a Gemini-generated background + Pillow text overlay + Pillow logo overlay (no brand-specific layout chrome, but still produces working assets).
 
 Ask the user:
-> Want me to walk you through the optional social templates? They make Carousel and Story content more polished. We can skip if you're not ready.
+> Want me to walk you through the optional social templates? They give every Carousel and Story / Reel a fully branded layout instead of a generic Gemini-generated background — much more polished. We can skip if you're not ready.
 
 If the user says skip, acknowledge and move on to Step 5.
 
-#### 4c-i. Social Carousel Post Template (Instagram + Facebook, 4:5)
+#### 4c-i. Social Carousel Template (Instagram + Facebook, 4:5)
 
-> **Step A — Create the template:**
-> 1. Open https://claude.ai/design
-> 2. Create a new project: **Social Carousel Post Template**
-> 3. Set **canvas ratio to 4:5** (portrait — best for Instagram and Facebook carousel posts)
-> 4. Design 3–6 carousel slides using your design system (cover slide + value slides + CTA slide). Use placeholders for headline, body text, and image/visual slot — these will be swapped per post by the content-generator.
-> 5. Iterate until the visual feels on-brand
+**Step A — Generate the template in Claude Design:**
+
+The agent gives the user a fully-composed, copy-pasteable prompt to drop into Claude Design. Claude Design produces a ready-to-use React + Babel template app with an EDITMODE block — the user iterates on the design, not the code.
+
+**Compose the prompt before showing the user.** Substitute the placeholders below from `brands/{brand}/brand.md`. The user must see only the finished prompt — no `{...}` markers left over.
+
+| Placeholder | Source |
+|---|---|
+| `{BRAND_NAME}` | proper-cased brand name (from Step 3 — not the slug) |
+| `{PRIMARY_HEX}`, `{SECONDARY_HEX}`, `{ACCENT_HEX}` | `brand.md` Colors section |
+| `{HEADING_FONT}`, `{BODY_FONT}` | Google Fonts identified in Step 4 |
+| `{VOICE_TONE}` | `brand.md` Voice & Tone section, summarized to one short phrase |
+
+**Then present to the user, framed exactly like this:**
+
+> Here's a prompt I've put together for your carousel template. Copy and paste it into Claude Design:
 >
-> **Step B — Export & install:**
-> 1. **Share** → **Download Project as .zip** → unzip
-> 2. Move the unzipped folder into `brands/{brand}/`
-> 3. **Rename the folder to `social-carousel-template/`** (exact lowercase). Final path: `brands/{brand}/social-carousel-template/`
+> 1. Open https://claude.ai/design in your browser
+> 2. Create a new project (name it whatever you like — e.g. "Acme Carousel Template")
+> 3. Paste the prompt below into Claude Design's chat:
+>
+> ```
+> "I need a configurable Instagram + Facebook carousel template for {BRAND_NAME}. 4:5 portrait, 1080×1350, 6 slides total: 1 Cover slide + 4 sign / value slides + 1 CTA slide. Build it as a React + Babel app rendered from a single index.html (use Babel standalone via CDN — no build step). The agent will modify copy programmatically per post, so structure matters more than specific sample copy.
+>
+> The brand uses {PRIMARY_HEX} as primary, {SECONDARY_HEX} as secondary, {ACCENT_HEX} as accent. Headings are set in {HEADING_FONT}, body in {BODY_FONT}. The aesthetic is {VOICE_TONE}. Include the {BRAND_NAME} brand logo subtly in a corner of every slide. Each slide should also have a small page indicator (e.g. '1/6', '2/6'), and the 4 sign slides should have a large kicker numeral on the left ('01', '02', '03', '04').
+>
+> CRITICAL CONTRACT — wrap all editable copy in a single JSON object inside index.html, marked with /*EDITMODE-BEGIN*/ and /*EDITMODE-END*/ comment markers, exactly like this:
+>
+> ```
+> window.__TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+>   \"accent\": \"purple\",
+>   \"footer\": true,
+>   \"coverVariant\": \"type\",
+>   \"bodyVariant\": \"allnumbers\",
+>   \"slideTheme_1\": \"dark\",
+>   \"slideTheme_2\": \"cream\",
+>   \"slideTheme_3\": \"cream\",
+>   \"slideTheme_4\": \"cream\",
+>   \"slideTheme_5\": \"cream\",
+>   \"slideTheme_6\": \"dark\",
+>   \"handle\": \"@{BRAND_NAME_SLUG}\",
+>   \"hashtag\": \"#YourTag\",
+>   \"cover_eyebrow\": \"sample eyebrow\",
+>   \"cover_title\": \"sample cover headline\",
+>   \"cover_sub\": \"sample cover subline\",
+>   \"s2_kicker\": \"01\", \"s2_title\": \"...\", \"s2_body\": \"...\",
+>   \"s3_kicker\": \"02\", \"s3_title\": \"...\", \"s3_body\": \"...\",
+>   \"s4_kicker\": \"03\", \"s4_title\": \"...\", \"s4_body\": \"...\",
+>   \"s5_kicker\": \"04\", \"s5_title\": \"...\", \"s5_body\": \"...\",
+>   \"cta_eyebrow\": \"...\",
+>   \"cta_title\": \"...\",
+>   \"cta_sub\": \"...\",
+>   \"cta_button\": \"...\"
+> }/*EDITMODE-END*/;
+> ```
+>
+> Use these EXACT key names — the agent substitutes copy by parsing the JSON between the markers and writing back. Optional supporting keys per sign slide are welcome (e.g. s2_pullquote, s3_stat_value/s3_stat_label, s5_before/s5_after) — the agent can populate them when the post copy provides matching fields, otherwise leave defaults.
+>
+> Each slide must also be available at full 1080×1350 via a stable DOM ID (e.g. id=\"export-cover\", id=\"export-s2\"...\"export-s5\", id=\"export-cta\") — render these hidden offscreen via 'position: absolute; left: -99999px' so the agent can use Playwright `page.locator('#export-...').screenshot(...)` to grab each slide as a PNG. Include an Export button that downloads them as well, but the offscreen IDs are what the automation will use.
+>
+> Use the brand colors and fonts above. The template's sample copy will be replaced at runtime — don't worry about it being final."
+> ```
+>
+> Iterate with Claude inside Claude Design until the 6 slide layouts look on-brand — you can ask for tweaks like "make the cover darker" or "swap the gradient direction on slide 4". Don't worry about the sample copy; it gets replaced per post at runtime. Once the layout looks good, let me know and we'll move to Step B (export).
 
-Verify `brands/{brand}/social-carousel-template/` exists. If user skips, leave the folder absent — the skills detect this and fall back.
+**Wait for the user to confirm they're happy with the template before moving on to Step B.** Don't rush — the iteration inside Claude Design is the creative step; brand-setup should pause cleanly here.
+
+**Step B — Export the template from Claude Design:**
+
+Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts) — no PNG rendering at this stage. content-generator does the per-post render at runtime via Playwright.
+
+> Great — let's export it. In Claude Design's main toolbar, click **Share → Download Project as .zip** (the standard project export — gives you the full HTML/JSX/CSS source). Unzip the file somewhere inside your Cowork project mount so I can read it, then let me know the path.
+
+**Wait for the user to confirm the file is downloaded and unzipped before moving on to Step C.**
+
+**Step C — Give me the path; I'll copy the template into place:**
+
+Ask the user:
+
+> What's the path to your unzipped Carousel Template folder? (e.g. `./carousel-temp/Acme Carousel Template`)
+
+After the user provides the path, copy the folder and verify the EDITMODE contract:
+
+```python
+import re, shutil
+from pathlib import Path
+
+raw = user_input.strip().strip('"').strip("'")
+src = Path(raw).expanduser().resolve()
+assert src.exists() and src.is_dir() and any(src.iterdir()), f"Invalid source folder: {src}"
+
+# Handle nested-zip case
+contents = list(src.iterdir())
+if len(contents) == 1 and contents[0].is_dir():
+    src = contents[0]
+
+dst = Path("brands") / brand / "social-carousel-template"
+if dst.exists():
+    shutil.rmtree(dst)
+shutil.copytree(src, dst)
+
+# Verify EDITMODE block exists in an entry HTML
+entry_html = next(
+    (p for p in dst.glob("*.html")
+     if "EDITMODE-BEGIN" in p.read_text(encoding="utf-8")),
+    None
+)
+assert entry_html is not None, (
+    f"No entry HTML with EDITMODE-BEGIN block found in {dst}. "
+    "Re-export from Claude Design — the template must contain index.html (or similar) with "
+    "/*EDITMODE-BEGIN*/...JSON.../*EDITMODE-END*/ markers."
+)
+
+# Verify the JSON parses and contains the expected carousel keys
+import json
+m = re.search(r'/\*EDITMODE-BEGIN\*/(.*?)/\*EDITMODE-END\*/', entry_html.read_text(encoding="utf-8"), re.DOTALL)
+tweaks = json.loads(m.group(1))
+required_carousel_keys = {
+    "cover_eyebrow", "cover_title", "cover_sub",
+    "s2_kicker", "s2_title", "s2_body",
+    "s3_kicker", "s3_title", "s3_body",
+    "s4_kicker", "s4_title", "s4_body",
+    "s5_kicker", "s5_title", "s5_body",
+    "cta_eyebrow", "cta_title", "cta_sub", "cta_button",
+}
+missing_keys = required_carousel_keys - set(tweaks.keys())
+assert not missing_keys, (
+    f"EDITMODE block is missing required carousel keys: {sorted(missing_keys)}. "
+    "Re-iterate with Claude Design to ensure all Cover, s2-s5, and CTA keys are present."
+)
+```
+
+Confirm to the user:
+> ✅ Copied to `brands/{brand}/social-carousel-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required keys. Original folder untouched.
+
+If the path is invalid, re-ask. If the EDITMODE block is missing or the required keys are absent, tell the user what was wrong and ask them to re-iterate with Claude Design (referencing the prompt in Step A). If the user skips this template entirely, leave the folder absent — Step 9c records `missing` and skills fall back to Gemini + Pillow.
 
 #### 4c-ii. Social Story Template (Instagram + Facebook, 9:16)
 
-> **Step A — Create the template:**
-> 1. Open https://claude.ai/design
-> 2. Create a new project: **Social Story Template**
-> 3. Set **canvas ratio to 9:16** (vertical — Stories and Reels)
-> 4. Design 1–3 story frames using your design system. Use placeholders for headline, body text, and visual slot.
-> 5. Iterate until on-brand
+**Step A — Generate the template in Claude Design:**
+
+Same pattern as Step 4c-i: the agent composes a copy-pasteable prompt and gives it to the user. Claude Design produces a React + Babel template app with an EDITMODE block; the user iterates on the design.
+
+**Compose the prompt before showing the user.** Substitute the same placeholders as in 4c-i (from `brands/{brand}/brand.md`): `{BRAND_NAME}`, `{PRIMARY_HEX}`, `{SECONDARY_HEX}`, `{ACCENT_HEX}`, `{HEADING_FONT}`, `{BODY_FONT}`, `{VOICE_TONE}`. The user must see only the finished prompt — no `{...}` markers left over.
+
+**Then present to the user, framed exactly like this:**
+
+> Here's a prompt I've put together for your Story / Reel template. Copy and paste it into Claude Design:
 >
-> **Step B — Export & install:**
-> 1. **Share** → **Download Project as .zip** → unzip
-> 2. Move the unzipped folder into `brands/{brand}/`
-> 3. **Rename the folder to `social-story-template/`** (exact lowercase). Final path: `brands/{brand}/social-story-template/`
+> 1. Open https://claude.ai/design in your browser
+> 2. Create a new project (name it whatever you like — e.g. "Acme Story Template")
+> 3. Paste the prompt below into Claude Design's chat:
+>
+> ```
+> "I need a configurable Instagram + Facebook Story / Reel template for {BRAND_NAME}. 9:16 vertical, 1080×1920, 6 slides total following a Hook → Problem → Solution → Proof → Offer → CTA narrative. Build it as a React + Babel app rendered from a single entry HTML (Babel standalone via CDN — no build step). Three direction styles (A / B / C) sharing the same copy but different visual treatments.
+>
+> The brand uses {PRIMARY_HEX} as primary, {SECONDARY_HEX} as secondary, {ACCENT_HEX} as accent. Headings are set in {HEADING_FONT}, body in {BODY_FONT}. Aesthetic: {VOICE_TONE}. Include the {BRAND_NAME} brand logo on every slide. Respect IG safe zones (top ~14% for username/header, bottom ~14% for reply bar / Reel UI).
+>
+> Direction styles:
+> - **Direction A — Spotlight Dark:** brand-led campaigns. Eyebrow → headline → divider pill, dark backgrounds, accent color leading.
+> - **Direction B — Editorial Stat:** when a single big number is the hero. Oversized stat as the centerpiece.
+> - **Direction C — Cream Press:** light, magazine-style. For case studies, testimonials, founder posts.
+>
+> CRITICAL CONTRACT — wrap all editable copy in a JSON object inside the entry HTML, marked with /*EDITMODE-BEGIN*/ and /*EDITMODE-END*/ comment markers, using these EXACT key names per slide:
+>
+> ```
+> /*EDITMODE-BEGIN*/{
+>   \"_direction\": \"all\",
+>   \"_brandLogo\": true,
+>   \"handle\": \"@{BRAND_NAME_SLUG}\",
+>   \"s1_eyebrow\": \"...\", \"s1_headline_pre\": \"...\", \"s1_headline_accent\": \"...\", \"s1_sub\": \"...\", \"s1_live\": \"...\", \"s1_big\": \"...\", \"s1_big_unit\": \"...\",
+>   \"s2_eyebrow\": \"...\", \"s2_headline\": \"...\", \"s2_pain1\": \"...\", \"s2_pain2\": \"...\", \"s2_pain3\": \"...\",
+>   \"s3_eyebrow\": \"...\", \"s3_headline_pre\": \"...\", \"s3_headline_accent\": \"...\", \"s3_sub\": \"...\",
+>   \"s4_eyebrow\": \"...\", \"s4_headline\": \"...\", \"s4_stat1_num\": \"...\", \"s4_stat1_lbl\": \"...\", \"s4_stat2_num\": \"...\", \"s4_stat2_lbl\": \"...\", \"s4_stat3_num\": \"...\", \"s4_stat3_lbl\": \"...\", \"s4_stat4_num\": \"...\", \"s4_stat4_lbl\": \"...\", \"s4_quote\": \"...\", \"s4_quote_author\": \"...\",
+>   \"s5_eyebrow\": \"...\", \"s5_headline\": \"...\", \"s5_b1\": \"...\", \"s5_b2\": \"...\", \"s5_b3\": \"...\", \"s5_b4\": \"...\", \"s5_pill\": \"...\",
+>   \"s6_eyebrow\": \"...\", \"s6_headline_pre\": \"...\", \"s6_headline_accent\": \"...\", \"s6_sub\": \"...\", \"s6_cta\": \"...\", \"s6_url\": \"...\"
+> }/*EDITMODE-END*/;
+> ```
+>
+> Each slide × direction must also be available at full 1080×1920 via stable DOM IDs (`export-A-0` through `export-A-5`, `export-B-0`...`export-B-5`, `export-C-0`...`export-C-5`) rendered hidden offscreen so Playwright can screenshot them via `page.locator('#export-A-0').screenshot(...)`. Include an Export button as well, but the agent uses the offscreen IDs for automation.
+>
+> Use brand colors and fonts. Sample copy will be replaced at runtime."
+> ```
+>
+> Iterate with Claude inside Claude Design until the 6 slide layouts (Hook → Problem → Solution → Proof → Offer → CTA) and the 3 directions (A/B/C) all look on-brand. Don't worry about the sample copy; it gets replaced per post at runtime. Once the layout looks good, let me know and we'll move to Step B (export).
 
-Verify `brands/{brand}/social-story-template/` exists if the user installed it. If skipped, leave absent — skills fall back.
+**Wait for the user to confirm they're happy with the template before moving on to Step B.** Don't rush — the iteration inside Claude Design is the creative step; brand-setup should pause cleanly here.
 
-**Do not proceed to Step 5 until both 4b and 4c have been addressed (4b confirmed installed; 4c installed or explicitly skipped).**
+**Step B — Export the template from Claude Design:**
+
+Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts) — no PNG rendering at this stage. content-generator does the per-post render at runtime via Playwright.
+
+> Great — let's export it. In Claude Design's main toolbar, click **Share → Download Project as .zip** (the standard project export — gives you the full HTML/JSX/CSS source). Unzip the file somewhere inside your Cowork project mount so I can read it, then let me know the path.
+
+**Wait for the user to confirm the file is downloaded and unzipped before moving on to Step C.**
+
+**Step C — Give me the path; I'll copy the template into place:**
+
+Ask the user:
+
+> What's the path to your unzipped Story Template folder? (e.g. `./story-temp/Acme Story Template`)
+
+After the user provides the path, copy the folder and verify the EDITMODE contract:
+
+```python
+import json, re, shutil
+from pathlib import Path
+
+raw = user_input.strip().strip('"').strip("'")
+src = Path(raw).expanduser().resolve()
+assert src.exists() and src.is_dir() and any(src.iterdir()), f"Invalid source folder: {src}"
+
+contents = list(src.iterdir())
+if len(contents) == 1 and contents[0].is_dir():
+    src = contents[0]
+
+dst = Path("brands") / brand / "social-story-template"
+if dst.exists():
+    shutil.rmtree(dst)
+shutil.copytree(src, dst)
+
+# Verify EDITMODE block exists in an entry HTML
+entry_html = next(
+    (p for p in dst.glob("*.html")
+     if "EDITMODE-BEGIN" in p.read_text(encoding="utf-8")),
+    None
+)
+assert entry_html is not None, (
+    f"No entry HTML with EDITMODE-BEGIN block found in {dst}. "
+    "Re-export from Claude Design — the template must contain an entry HTML with "
+    "/*EDITMODE-BEGIN*/...JSON.../*EDITMODE-END*/ markers."
+)
+
+# Verify the JSON parses and contains the expected story keys
+m = re.search(r'/\*EDITMODE-BEGIN\*/(.*?)/\*EDITMODE-END\*/', entry_html.read_text(encoding="utf-8"), re.DOTALL)
+tweaks = json.loads(m.group(1))
+required_story_keys = {
+    "s1_eyebrow", "s1_headline_pre", "s1_headline_accent", "s1_sub",
+    "s2_eyebrow", "s2_headline", "s2_pain1", "s2_pain2", "s2_pain3",
+    "s3_eyebrow", "s3_headline_pre", "s3_headline_accent", "s3_sub",
+    "s4_eyebrow", "s4_headline",
+    "s5_eyebrow", "s5_headline", "s5_b1", "s5_b2", "s5_b3", "s5_b4",
+    "s6_eyebrow", "s6_headline_pre", "s6_headline_accent", "s6_sub", "s6_cta", "s6_url",
+}
+missing_keys = required_story_keys - set(tweaks.keys())
+assert not missing_keys, (
+    f"EDITMODE block is missing required story keys: {sorted(missing_keys)}. "
+    "Re-iterate with Claude Design to ensure all H/P/S/P/O/CTA slide keys (s1_* through s6_*) are present."
+)
+```
+
+Confirm to the user:
+> ✅ Copied to `brands/{brand}/social-story-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required H/P/S/P/O/CTA keys. Original folder untouched.
+
+If the path is invalid, re-ask. If the EDITMODE block is missing or required keys are absent, tell the user what was wrong and ask them to re-iterate with Claude Design (referencing the prompt in Step A). If the user skips this template entirely, leave the folder absent — Step 9c records `missing` and skills fall back to Gemini + Pillow.
+
+**Do not proceed to Step 5 until both 4b and 4c have been addressed — installed or explicitly skipped. Either outcome is acceptable; Step 9c will record the actual state in CLAUDE.md.**
 
 ### Step 5 — Research & Context Generation
 
@@ -436,10 +696,29 @@ Pick avatars that match the brand's target market demographics.
 
 ### Step 6 — Logo
 
-Ask the user:
-> What is the file path to your logo? (PNG, transparent background preferred — e.g. `~/Documents/my-brand/logo.png`)
+Make sure the logo file is somewhere I can read it. **In Cowork that means inside your project folder** (anywhere — root, a subfolder, doesn't matter, as long as it's inside the project mount). On local Claude Code, any path under your `$HOME` works.
 
-Copy the file from the provided path to `brands/{brand}/logo.png`. This file is read by Python Pillow in content-generator and creative-designer for logo compositing.
+Ask the user:
+> What is the file path to your logo? (PNG, transparent background preferred. Examples: `./logo.png` or `./assets/logo.png` if you dropped it into your project — for Cowork, this needs to be inside your project mount.)
+
+Copy the file from the provided path to `brands/{brand}/logo.png`:
+
+```python
+import shutil
+from pathlib import Path
+
+raw = user_input.strip().strip('"').strip("'")
+src = Path(raw).expanduser().resolve()
+
+assert src.exists(),  f"Logo not found: {src}"
+assert src.is_file(), f"Not a file: {src}"
+
+dst = Path("brands") / brand / "logo.png"
+dst.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(src, dst)
+```
+
+If the path is invalid, tell the user what was wrong and ask again. This file is read by Python Pillow in content-generator and creative-designer for logo compositing.
 
 Note: Google Font and brand colors were already discovered and saved to `brands/{brand}/brand.md` in Step 4.
 
@@ -804,101 +1083,38 @@ Both env var checks are mandatory — they are NOT skippable. If either is missi
 | `DEFAULT_BRAND` env var | ✅ / ❌ |
 | `{BRAND}_NOTION_DB` env var | ✅ / ❌ |
 
-Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving to Step 9. Save all results — they're used in the Step 9 completion email.
+Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving on. Save all results — they are used in the Step 10 completion email after CLAUDE.md is wired in Step 9.
 
 **Do not proceed to Step 9 until every configured integration has been tested and the summary table has been shown to the user.**
 
-### Step 9 — Summary & Completion Email
+### Step 9 — Initialize Workspace CLAUDE.md
 
-**This step is mandatory and must not be skipped.** Always send the completion email and Slack notification at the end of setup, regardless of how many integrations were configured.
-
-Send a completion email to `$REPORT_EMAIL` with the full setup report.
-
-⚠️ **Do NOT generate HTML.** Build a JSON object. The server-side template (`brand-setup.ts`) renders the styled email with tables, status badges, and callouts.
-
-```
-Use gateway MCP tool `fiveagents_send_email`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- to: ${REPORT_EMAIL}
-- subject: "✅ Brand setup complete — {brand}"
-- html_body: JSON.stringify(payload)
-- tag: "brand-setup"
-```
-
-⚠️ **`tag` must be exactly `"brand-setup"`** — this routes to the server-side template.
-
-Build the JSON payload from Step 8 validation results:
-
-```json
-{
-  "brand": "{brand}",
-  "files": [
-    { "file": "brands/{brand}/brand.md", "status": "created" },
-    { "file": "brands/{brand}/product.md", "status": "created" },
-    { "file": "brands/{brand}/audience.md", "status": "created" },
-    { "file": "brands/{brand}/competitors.md", "status": "created" },
-    { "file": "brands/{brand}/funnel.md", "status": "created" },
-    { "file": "brands/{brand}/avatars.md", "status": "created" },
-    { "file": "brands/{brand}/logo.png", "status": "created | missing" },
-    { "file": "brands/{brand}/design-system/", "status": "installed | missing" },
-    { "file": "brands/{brand}/social-carousel-template/", "status": "installed | skipped" },
-    { "file": "brands/{brand}/social-story-template/", "status": "installed | skipped" }
-  ],
-  "connections": [
-    { "integration": "Five Agents gateway", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Credential vault", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Email (Postmark)", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Gemini", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Image text overlay", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Image logo overlay", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Zernio", "status": "pass | fail | skipped", "notes": "Connected: Facebook, Instagram, LinkedIn" },
-    { "integration": "Argil", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "DataforSEO", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Slack", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Notion", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Gmail", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Google Calendar", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "Windsor.ai", "status": "pass | fail", "notes": "Required: Google Ads + GA4 + Meta Ads (Facebook + Instagram) all connected — universal source for paid ads + analytics" },
-    { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Optional enhancement — Marketing API direct access. When connected (META_ADS_SOURCE=meta_ads_mcp), downstream skills prefer it over Windsor for Meta data. When skipped or unavailable, Windsor.ai already covers Meta Ads fully." },
-    { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" },
-    { "integration": "DEFAULT_BRAND env var", "status": "pass | fail", "notes": "Active brand slug — required by every skill (mandatory, not skippable)" },
-    { "integration": "{BRAND}_NOTION_DB env var", "status": "pass | fail", "notes": "Notion Social Calendar DB page ID — required by social-calendar and content-generator (mandatory, not skippable)" }
-  ],
-  "action_items": [
-    { "integration": "{name}", "message": "{what failed or was skipped and how to fix / which skill needs it}" }
-  ]
-}
-```
-
-Use `"status": "pass"` for ✅, `"fail"` for ❌, `"skipped"` for ⏭. Only include `action_items` entries for failures and skips that affect skill functionality.
-
-Also print the same summary to the chat and send a Slack notification to `$SLACK_NOTIFY_USER`:
-
-```
-✅ Brand "{brand}" setup complete
-• {N}/18 integrations connected
-• {N} action items (see email for details)
-• Brand files: brands/{brand}/
-```
-
-### Step 10 — Initialize Workspace CLAUDE.md
-
-**This step is mandatory and must not be skipped.** It ensures every future session in this workspace (including scheduled/automated runs) loads the Link agent identity and credentials automatically.
+**This step is mandatory and must not be skipped.** It ensures every future session in this workspace (including scheduled/automated runs) loads the Link agent identity and credentials automatically. It runs **before** the completion email in Step 10 so that any CLAUDE.md write failure is caught and surfaced in the email rather than silently leaving the workspace half-configured.
 
 We **embed the full content of `agents/link.md` directly into `CLAUDE.md`** rather than referencing an absolute path. This way the workspace is self-contained — scheduled runs, fresh clones, and machines without the plugin installed all still get the agent identity, because Claude Code auto-loads `CLAUDE.md` at session start.
 
-#### 10a. Locate and read agents/link.md
+#### 9a. Locate and read agents/link.md
 
 The agent definition file is bundled with the plugin. Find it on disk and read its contents into a variable.
+
+The skill runs inside the **Cowork sandbox** (Ubuntu Linux VM, regardless of host OS), so the canonical search location is `$CLAUDE_CONFIG_DIR/**/agents/link.md`. The host-OS patterns are kept as fallbacks for the rare case the skill is invoked outside Cowork (e.g. local Claude Code on the user's machine).
 
 ```python
 import glob, os
 
-patterns = [
-    os.path.expandvars(r'%APPDATA%\Claude\**\agents\link.md'),       # Windows
-    os.path.expanduser('~/.claude/**/agents/link.md'),                # Linux
-    os.path.expanduser('~/Library/Application Support/Claude/**/agents/link.md'),  # macOS
-]
+# Cowork-first: $CLAUDE_CONFIG_DIR is the canonical plugin root inside the sandbox
+# (e.g. /sessions/<name>/mnt/.claude). $HOME/.claude is a secondary location.
+config_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+
+patterns = []
+if config_dir:
+    patterns.append(os.path.join(config_dir, "**/agents/link.md"))
+patterns.extend([
+    os.path.expanduser("~/.claude/**/agents/link.md"),                              # Linux / Cowork sandbox $HOME
+    os.path.expandvars(r"%APPDATA%\Claude\**\agents\link.md"),                      # Windows host (Claude Code locally)
+    os.path.expanduser("~/Library/Application Support/Claude/**/agents/link.md"),   # macOS host (Claude Code locally)
+])
+
 found = [f for p in patterns for f in glob.glob(p, recursive=True)]
 
 if found:
@@ -909,8 +1125,10 @@ else:
     link_md_content = ""
 ```
 
+**Why `$CLAUDE_CONFIG_DIR` first:** Cowork runs all skill code inside a sandboxed Ubuntu VM where `process.platform === "linux"` always. The Windows `%APPDATA%` and macOS `~/Library/Application Support/Claude` patterns will never match inside the sandbox (they're for the user's host OS, which isn't reachable from skill code). `$CLAUDE_CONFIG_DIR` is the env var Cowork sets to point at the mounted plugin tree (typically `/sessions/<session>/mnt/.claude`), so it's the only pattern guaranteed to find link.md inside Cowork. The `~/.claude` pattern works in some Cowork configurations via bindfs mounts but isn't reliable.
+
 If the search returns empty, ask the user:
-> I couldn't auto-detect `agents/link.md` inside your Claude plugin folder. Can you paste the **full absolute path** to it? (Hint: search for `link.md` inside your Claude application data folder. On Windows it starts with `C:\`, on macOS with `/Users/`, on Linux with `/home/`.)
+> I couldn't auto-detect `agents/link.md`. Can you paste the **full absolute path** to it? (Hint: in Cowork, run `echo $CLAUDE_CONFIG_DIR` in a terminal and look under that directory; on local Claude Code, search your Claude application data folder — Windows `%APPDATA%\Claude`, macOS `~/Library/Application Support/Claude`, Linux `~/.claude`.)
 
 After the user pastes a path, normalize, validate, and read:
 
@@ -928,14 +1146,14 @@ import re
 link_md_body = re.sub(r'^---\s*\n.*?\n---\s*\n', '', link_md_content, count=1, flags=re.DOTALL).lstrip()
 ```
 
-`link_md_body` is what gets embedded in 10b.
+`link_md_body` is what gets embedded in 9b.
 
-#### 10b. Read or create CLAUDE.md
+#### 9b. Read or create CLAUDE.md
 
 Check if `CLAUDE.md` exists at the workspace root (same folder as `brands/` and `outputs/`).
 
 Build the **workspace block** to inject. Substitute these placeholders verbatim:
-- `{LINK_MD_BODY}` — the stripped contents of `link_md_body` from 10a
+- `{LINK_MD_BODY}` — the stripped contents of `link_md_body` from 9a
 - `{brand}` — the brand slug from Step 3 (same value saved as `DEFAULT_BRAND`, e.g. `five-agents`)
 - `{BRAND}` — the brand slug uppercased with hyphens removed, used as the env var prefix (e.g. `FIVEAGENTS`, `NPCOFFICE`)
 - `{notion_db_id}` — the 32-character Notion Social Calendar DB page ID collected in Step 7b
@@ -995,9 +1213,16 @@ These values are hardcoded here at brand-setup time so any session reading `CLAU
 
 ## Workspace Structure
 
-    brands/{brand}/     — brand context (brand.md, audience.md, product.md, logo.png, backgrounds/)
-    outputs/{brand}/    — all generated content (copy .md, images .png, videos .mp4)
-    tmp/                — scratch space for scripts, intermediate files
+    brands/{brand}/                          — brand context root
+      ├─ brand.md, audience.md, product.md,  — written by brand-setup Steps 4–5
+      │  competitors.md, funnel.md,
+      │  avatars.md, logo.png
+      ├─ backgrounds/                        — pre-generated background images (background-generator skill)
+      ├─ design-system/                      — Claude Design export (Step 4b — see Visual System below)
+      ├─ social-carousel-template/           — 4:5 IG/FB carousel template (Step 4c-i — optional)
+      └─ social-story-template/              — 9:16 Stories/Reels template (Step 4c-ii — optional)
+    outputs/{brand}/                         — all generated content (copy .md, images .png, videos .mp4)
+    tmp/                                     — scratch space for scripts, intermediate files
 
 ## Account IDs (Zernio / Late API)
 
@@ -1013,10 +1238,165 @@ Read from env vars after credential loading:
 - If it contains the markers `<!-- BEGIN agents/link.md (embedded by brand-setup) -->` and `<!-- END agents/link.md -->`, replace everything between (and including) those markers with the freshly read `{LINK_MD_BODY}` wrapped in the same markers. Leave the rest of the file untouched.
 - If it contains an older `## Agent Identity` section that points to an absolute path (the previous format), replace the entire block from `## Agent Identity` down through the `---` separator with the new workspace block above.
 - Otherwise, prepend the new workspace block above all existing content.
-- Update the `## Active Brand` section to reflect the new brand (append if multi-brand).
+- Refresh the `## Workspace Defaults` section: rewrite **Active brand**, **Brand files**, and **Notion Social Calendar DB** to point at the brand from this run. For multi-brand workspaces, do NOT overwrite — append a new sub-block under `## Workspace Defaults` titled `### Brand: {brand}` with the same three bullets, leaving prior brands' sub-blocks intact. The `DEFAULT_BRAND` env var still selects which brand is active per session.
 
 **If `CLAUDE.md` does not exist:**
 - Create it with the full workspace block above.
 
 Show the user what was written:
 > ✅ `CLAUDE.md` updated — the Link agent definition is now embedded directly in this workspace, so every future session loads it automatically (no plugin path lookups needed).
+
+#### 9c. Detect and wire brand visual assets (best-effort — non-mandatory)
+
+After `CLAUDE.md` is written by 9b, scan `brands/{brand}/` for the three brand visual asset folders that Steps 4b and 4c may have installed. Their canonical names (lowercase, hyphenated — exactly as the user was instructed to rename them) are:
+
+| Folder | Installed by | Used by |
+|---|---|---|
+| `brands/{brand}/design-system/` | Step 4b (Claude Design system export) | every visual-producing skill — colors, typography, components, spacing |
+| `brands/{brand}/social-carousel-template/` | Step 4c-i (4:5 IG/FB carousel template export) | content-generator and creative-designer for rendering; content-creation reads the EDITMODE key contract to size copy correctly |
+| `brands/{brand}/social-story-template/` | Step 4c-ii (9:16 Stories/Reels template export) | content-generator and creative-designer for rendering; content-creation reads the EDITMODE key contract to size copy correctly |
+
+⚠️ **Non-mandatory.** All three folders are optional (Steps 4b and 4c are recommended-but-skippable). This detection step does **not** fail or block when folders are missing — it just records each as `missing` so the email and CLAUDE.md reflect reality. Skills fall back to `brand.md` colors/fonts + Gemini + Pillow rendering when a folder is absent. Never error out, never block the Step 10 completion email.
+
+```python
+from pathlib import Path
+
+brand_root = Path("brands") / brand  # `brand` is the slug from Step 3
+
+def folder_status(name):
+    p = brand_root / name
+    if p.is_dir() and any(p.iterdir()):
+        return "installed"
+    return "not installed"
+
+design_system_status = folder_status("design-system")
+carousel_template_status = folder_status("social-carousel-template")
+story_template_status = folder_status("social-story-template")
+```
+
+**Build the Visual System block** to inject into `CLAUDE.md`. Substitute each `{*_status}` placeholder verbatim with `installed` or `not installed`:
+
+```markdown
+<!-- BEGIN visual-system (managed by brand-setup Step 9c) -->
+
+## Visual System
+
+Detected at brand-setup time. Re-run Step 9c (or the full brand-setup) after installing additional templates to refresh.
+
+- **Design system:** `brands/{brand}/design-system/` — **{design_system_status}** (source of truth for colors, typography, components, spacing — read by every visual-producing skill)
+- **Carousel template (4:5, IG/FB feed):** `brands/{brand}/social-carousel-template/` — **{carousel_template_status}**
+- **Story template (9:16, Stories/Reels):** `brands/{brand}/social-story-template/` — **{story_template_status}**
+
+**How skills use this:** when a template folder shows `installed`, `creative-designer` and `content-generator` render via Playwright against the template's React + Babel app — substituting copy into the EDITMODE-BEGIN/END JSON block, then screenshotting each slide via stable offscreen DOM IDs. `content-creation` reads the same EDITMODE key contract to size per-slide copy correctly (it does not render). When `not installed`, all skills fall back to Gemini image generation + Pillow text overlay + Pillow logo overlay. The fallback path is fully functional — visuals are still produced, just without brand-specific layout chrome. Skills should still filesystem-probe at runtime as a safety check; this section is a hint, not a contract.
+
+<!-- END visual-system (managed by brand-setup Step 9c) -->
+```
+
+**Inject into `CLAUDE.md` idempotently:**
+- If `CLAUDE.md` already contains the markers `<!-- BEGIN visual-system (managed by brand-setup Step 9c) -->` and `<!-- END visual-system (managed by brand-setup Step 9c) -->`, replace everything between (and including) those markers with the freshly built block. Leave the rest of the file untouched.
+- Otherwise, append the new block to the end of `CLAUDE.md` preceded by a blank line.
+
+Show the user a concise status line:
+> ✅ `CLAUDE.md` Visual System section refreshed:
+> - design-system: **{design_system_status}**
+> - social-carousel-template: **{carousel_template_status}**
+> - social-story-template: **{story_template_status}**
+
+If all three came back `not installed`, gently prompt:
+> Heads up — none of your brand visual asset folders are present yet. Skills will still work (they fall back to Gemini + Pillow), but for the most on-brand visuals, run Step 4b (design system) and optionally Step 4c (carousel/story templates) when you have time.
+
+This step is non-blocking and safe to re-run on its own at any later point — useful when the user finishes installing a template after initial brand-setup.
+
+**Do not proceed to Step 10 until 9b has written `CLAUDE.md` (9c is best-effort and may report `not installed` for any folder without blocking).** If the 9b write itself failed, fix it first — Step 10 will report the actual write status in the email, but a hard write failure should be resolved before the user is told setup is complete.
+
+### Step 10 — Summary & Completion Email
+
+**This step is mandatory and must not be skipped.** It is the final step of brand-setup. Always send the completion email and Slack notification once Steps 8 (validation) and 9 (CLAUDE.md) have completed, regardless of how many integrations were configured.
+
+Send a completion email to `$REPORT_EMAIL` with the full setup report.
+
+⚠️ **Do NOT generate HTML.** Build a JSON object. The server-side template (`brand-setup.ts`) renders the styled email with tables, status badges, and callouts.
+
+```
+Use gateway MCP tool `fiveagents_send_email`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- to: ${REPORT_EMAIL}
+- subject: "✅ Brand setup complete — {brand}"
+- html_body: JSON.stringify(payload)
+- tag: "brand-setup"
+```
+
+⚠️ **`tag` must be exactly `"brand-setup"`** — this routes to the server-side template.
+
+Build the JSON payload from Step 8 validation results **and** Step 9 CLAUDE.md / visual-asset status:
+
+```json
+{
+  "brand": "{brand}",
+  "files": [
+    { "file": "brands/{brand}/brand.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/product.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/audience.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/competitors.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/funnel.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/avatars.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/logo.png", "status": "present | missing | failed" },
+    { "file": "CLAUDE.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/design-system/", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/social-carousel-template/", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/social-story-template/", "status": "present | missing | failed" }
+  ],
+  "connections": [
+    { "integration": "Five Agents gateway", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Credential vault", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Email (Postmark)", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Gemini", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Image text overlay", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Image logo overlay", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Zernio", "status": "pass | fail | skipped", "notes": "Connected: Facebook, Instagram, LinkedIn" },
+    { "integration": "Argil", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "DataforSEO", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Slack", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Notion", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Gmail", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Google Calendar", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Windsor.ai", "status": "pass | fail", "notes": "Required: Google Ads + GA4 + Meta Ads (Facebook + Instagram) all connected — universal source for paid ads + analytics" },
+    { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Optional enhancement — Marketing API direct access. When connected (META_ADS_SOURCE=meta_ads_mcp), downstream skills prefer it over Windsor for Meta data. When skipped or unavailable, Windsor.ai already covers Meta Ads fully." },
+    { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "DEFAULT_BRAND env var", "status": "pass | fail", "notes": "Active brand slug — required by every skill (mandatory, not skippable)" },
+    { "integration": "{BRAND}_NOTION_DB env var", "status": "pass | fail", "notes": "Notion Social Calendar DB page ID — required by social-calendar and content-generator (mandatory, not skippable)" }
+  ],
+  "action_items": [
+    { "integration": "{name}", "message": "{what failed or was skipped and how to fix / which skill needs it}" }
+  ]
+}
+```
+
+**`files[]` status enum** — every row uses the same three values:
+- `present` — file or folder exists with expected content (the happy path; covers "newly created", "already existed and updated", and "installed by user").
+- `missing` — file/folder absent because the relevant step was skipped or the user didn't supply input (e.g. `logo.png` when the user skipped Step 6, `social-carousel-template/` when the user skipped Step 4c).
+- `failed` — the write/copy/folder-probe operation raised an error during this run (e.g. permission denied, disk full, Step 9b couldn't write CLAUDE.md). A `failed` value on `CLAUDE.md` MUST also produce an `action_items` entry pointing the user to retry Step 9.
+
+**Where each `files[]` status comes from:**
+- `.md` rows and `logo.png` — set during the file-generation steps (3, 4, 5, 6). Use `present` if written, `missing` if the user skipped the step, `failed` if the write raised.
+- `CLAUDE.md` — set by Step 9b: `present` if the file is on disk with the expected workspace block (whether newly created or refreshed in place), `failed` if the write raised. (`missing` should never appear since Step 9 is mandatory.)
+- The three visual asset folder rows — set by Step 9c's `folder_status()` results: `present` when the folder exists and is non-empty, `missing` when absent or empty.
+
+**`connections[]` status enum** — `pass | fail | skipped`. Use `"pass"` for ✅, `"fail"` for ❌, `"skipped"` for ⏭. Only include `action_items` entries for failures and skips that **actually affect skill functionality**. Specifically:
+
+- ✅ **Do** add an action item for any `fail` (these always need user action).
+- ✅ **Do** add an action item for `skipped` keys/MCPs whose absence breaks a skill (e.g. `LATE_API_KEY` skipped → social-publisher can't post; `GEMINI_API_KEY` skipped → no image generation).
+- ✅ **Do** add an action item if `CLAUDE.md` came back `failed` from Step 9b — scheduled / automated runs depend on it.
+- ❌ **Do NOT** add an action item for skipped **Meta Ads MCP** — Windsor.ai already covers Meta data fully when the MCP isn't available, so a skip here is a no-op for downstream skills, not a gap.
+- ❌ **Do NOT** add an action item for genuinely optional integrations the user explicitly declined (e.g. `ARGIL_API_KEY` skipped because the brand doesn't want avatar videos).
+- ❌ **Do NOT** add an action item for visual asset folders showing `missing` — Step 9c already nudged the user inline; padding the email with these rows isn't useful.
+
+Also print the same summary to the chat and send a Slack notification to `$SLACK_NOTIFY_USER`:
+
+```
+✅ Brand "{brand}" setup complete
+• {N}/18 integrations connected
+• CLAUDE.md: {present | failed}
+• {N} action items (see email for details)
+• Brand files: brands/{brand}/
+```

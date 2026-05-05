@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.14';
+const DEFAULT_VERSION = 'v2.2.15';
 const DEFAULT_DATE = 'May 05, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,31 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.15',
+    date: 'May 05, 2026',
+    changes: [
+      'brand-setup: Step 9 ↔ Step 10 swap — CLAUDE.md initialization (was Step 10) is now Step 9 and runs BEFORE the Step 10 completion email, so the email reflects the actual CLAUDE.md write status and visual-asset detection rather than lying about success when the post-validation steps fail',
+      'brand-setup: Step 4b (Claude Design System) MANDATORY → OPTIONAL — when absent, downstream skills fall back to brand.md colors/voice + Google Font names from Step 4; no hard block on missing design-system',
+      'brand-setup: agents/link.md visual rule softened to match — design-system/ is now "optional but recommended"; new lookup order documented: design-system/ (when present) → brand.md (universal fallback)',
+      'brand-setup: Step 4b/4c install flow rewritten — user provides path to unzipped folder, agent copies + renames into canonical brands/{brand}/{folder}/ (mirrors Step 6 logo pattern); Cowork-aware path guidance ("must be inside your project mount"); idempotent re-run support via shutil.rmtree before copytree; nested-zip detection',
+      'brand-setup: Step 6 (logo) install now path-based with Python copy + validation — matches the Step 4b/4c pattern',
+      'brand-setup: Step 9a glob patterns Cowork-aware — $CLAUDE_CONFIG_DIR/**/agents/link.md tried first (canonical inside Cowork sandbox), with $HOME/.claude/ + Windows/macOS host fallbacks; eliminates the "couldn\'t auto-detect, please paste path" prompt in 99% of Cowork runs',
+      'brand-setup: Step 9b "Workspace Defaults" multi-brand handling — append "### Brand: {brand}" sub-block on re-run instead of overwriting prior brands\' defaults; DEFAULT_BRAND env var still selects which brand is active per session',
+      'brand-setup: Step 9c — best-effort, non-mandatory detection of design-system/, social-carousel-template/, social-story-template/; results wired into CLAUDE.md as "Visual System" section bracketed by BEGIN/END markers for idempotent re-runs; step is independently re-runnable',
+      'brand-setup: Step 10 (completion email) files[] vocab harmonized to `present | missing | failed` across all rows (was a mix of `created`/`installed`/`updated`/`missing` per-row); Slack message includes CLAUDE.md write status; action_items rule explicitly carves out Meta Ads MCP skips and other intentionally-optional integrations',
+      'brand-setup: Step 4c rewrite — social templates are now React + Babel apps with EDITMODE-BEGIN/END JSON contracts (not blank background shells); both Carousel (6 slides: Cover + 4 signs + CTA) and Story (6 slides: Hook → Problem → Solution → Proof → Offer → CTA, three direction styles A/B/C) prompts produce a fully-laid-out template app with stable export DOM IDs; agent verifies the EDITMODE block parses and contains all required keys at install time',
+      'content-generator: shell-path replaced with template-path (Step 4c-template) — read entry HTML, parse EDITMODE JSON, merge post copy, write modified HTML to tmp, render in Playwright, screenshot each slide via stable offscreen export DOM IDs (#export-cover/#export-s2.../#export-cta for carousel; #export-{A|B|C}-0...-5 for story)',
+      'content-generator: Notion calendar schema gained Direction column at index 9, pushing Status to index 10 (now 11 columns: Date/Platform/Format/Topic/Persona/ContentAngle/CTA/Hashtags/ImageBrief/Direction/Status); Step 6 status update + cell index references updated',
+      'content-generator: new Step 3b — generate structured _copy.json for template-path posts matching the template\'s key contract (cover_*/s2-5_*/cta_* for carousel, s1-6_* for story); skipped for non-template posts',
+      'content-generator: Gemini + Pillow text + Pillow logo fallback path (Step 4c-image / 4d / 4e) preserved verbatim, including v2.2.14\'s text overlay improvements and Step 4h visual verification — universal fallback for LinkedIn, non-template formats, and any template-path failure',
+      'content-generator: design-system/ MANDATORY → OPTIONAL — never log a `failed` run for missing visual assets; brand.md provides the fallback colors/voice',
+      'social-calendar: Direction column added to the planning table — picker rules per format (Carousel: coverVariant-bodyVariant combos like type-allnumbers/sticker-editorial/editorial-mixed; Story/Reel: A/B/C per template subtitle hint; LinkedIn / Reel(Argil): blank); Notion table column count 10 → 11; Quality Checklist requires Direction populated',
+      'creative-designer: Step 4a switched from shell-path to template-path; delegates canonical implementation to content-generator/SKILL.md; Step 4b Gemini + Pillow fallback unchanged (incl. v2.2.14\'s Step 3b visual verification); design-system/ mandate softened to optional with brand.md fallback',
+      'content-creation: Carousel/Story copy outputs now produce structured _copy.json next to _copy.md, matching the templates\' EDITMODE key contracts with per-key character budgets; Direction is explicitly NOT content-creation\'s concern (lives in social-calendar\'s Notion column); naming convention split into social ([Slug]_[Date]) vs non-social ([ContentType]_[Date])',
+      'background-generator: Role section updated to clarify it produces a separate general-purpose backgrounds library at brands/{brand}/backgrounds/ (used by Reel video production), distinct from the social-{carousel,story}-template/ template apps that Steps 4c-i / 4c-ii install',
+    ],
+  },
   {
     version: 'v2.2.14',
     date: 'May 05, 2026',
@@ -193,51 +218,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'fiveagents-gateway: new late_list_profiles tool (GET /v1/profiles)',
       'fiveagents-gateway: new late_list_accounts tool (GET /v1/accounts with profileId filter)',
       'fiveagents-gateway: updated docs — 22 tools total',
-    ],
-  },
-  {
-    version: 'v2.2.0',
-    date: 'April 10, 2026',
-    changes: [
-      'digital-marketing-analyst: agent now sends structured JSON instead of HTML — server-side template renders styled email',
-      'digital-marketing-analyst: fixed double title bug (wrapInTemplate no longer renders subject as heading)',
-      'digital-marketing-analyst: intermediate JSON schemas updated to match template (notes, top_recommendation, reach instead of lp_views)',
-      'digital-marketing-analyst: removed all hardcoded currency (SGD), timezone (SGT), exchange rate (1.36) — reads from brands/{brand}/brand.md Locale',
-      'brand-setup: added Locale section to brand.md template (Currency, Timezone, Meta USD exchange rate)',
-      'brand-setup: Step 4 website analysis now infers locale from TLD, address, phone country code, currency symbols',
-      'brand-setup: funnel.md cost benchmarks reference brand.md currency instead of hardcoded SGD',
-      'social-publisher: replaced hardcoded Asia/Singapore timezone and SGT publish times with brand timezone from brand.md',
-      'content-generator: replaced hardcoded 09:00 SGT and TZ=Asia/Singapore with brand timezone from brand.md',
-      'social-calendar: replaced hardcoded 09:00 SGT with cron schedule reference',
-      'research-strategy: replaced hardcoded USD→SGD 1.357 CPC conversion with brand.md exchange rate',
-      'data-analysis: replaced hardcoded SGD/1.36 currency conversion with brand.md Locale',
-      'commit-to-git: replaced hardcoded 11PM SGT and TZ=Asia/Singapore with brand timezone',
-      'fiveagents.io email/send/route.ts: template routing — tag-based renderer dispatch (paid-ads-daily/weekly → paid-ads-brief.ts)',
-      'fiveagents.io email/send/route.ts: wrapInTemplate simplified to logo + footer only (no duplicate title)',
-      'fiveagents.io: new lib/email/templates/paid-ads-brief.ts — server-side HTML renderer ported from Link render_brief.py',
-      'fiveagents.io: new lib/email/templates/index.ts — template registry for future skill renderers',
-    ],
-  },
-  {
-    version: 'v2.1.5',
-    date: 'April 10, 2026',
-    changes: [
-      'content-generator: gemini_generate_image returns JSON — parse image_base64 before passing to image_add_text_overlay',
-      'content-generator: image_add_text_overlay returns JSON — parse image_base64 before passing to image_add_logo',
-      'content-generator: image_add_logo returns JSON — parse image_base64 for upload',
-      'content-generator: model updated to gemini-3.1-flash-image-preview',
-      'content-generator: clarified image_base64 source for pre-stored vs generated backgrounds in Step 4d',
-      'creative-designer: gemini_generate_image returns JSON — parse image_base64 for pipeline',
-      'creative-designer: image_add_text_overlay and image_add_logo return JSON — parse between steps',
-      'creative-designer: model updated to gemini-3.1-flash-image-preview',
-      'creative-designer: added aspect_ratio param to gemini_generate_image call',
-      'creative-designer: fixed duplicate Step 5 heading — Argil section renumbered to Step 6',
-      'creative-designer: fixed day-of-week rotation label (bottom/top → always bottom)',
-      'creative-designer: added No Python PIL fallback note',
-      'background-generator: gemini_generate_image returns JSON — parse image_base64 to save file',
-      'background-generator: model updated to gemini-3.1-flash-image-preview',
-      'background-generator: fixed "Nano Banana" reference → Gemini in prompt rules',
-      'background-generator: added No Python PIL fallback note',
     ],
   },
 ];

@@ -53,31 +53,31 @@ Before starting, confirm these inputs with the user:
 
 ## Design constraints
 
-### Brand system — `brands/{brand}/design-system/` is the source of truth
+### Brand system — `brands/{brand}/design-system/` is the source of truth WHEN PRESENT
 
-The Claude Design system installed in `brand-setup` Step 4b is the authoritative visual reference for every output. **Read it before applying any colors, typography, layout, or component styles.**
+The Claude Design system optionally installed in `brand-setup` Step 4b is the authoritative visual reference when present. **Read it before applying colors, typography, layout, or component styles.** When absent, fall back to `brand.md` colors and Google Fonts identified during brand-setup Step 4 — never block.
 
-1. **First** read `brands/{brand}/design-system/` — list its files, then read the entry HTML/CSS (typically `index.html`, `styles.css`, or `tokens.json`). Extract:
+1. **First** read `brands/{brand}/design-system/` if it exists — list its files, then read the entry HTML/CSS (typically `index.html`, `styles.css`, or `tokens.json`). Extract:
    - Color tokens (CSS variables, palette HEX codes)
    - Typography (font-family, weight scale, size scale)
    - Component styles (buttons, cards, headers, badges)
    - Spacing scale (gaps, padding, border-radius)
-2. **Then** read `brands/{brand}/brand.md` for voice/tone, approved phrases, and Do/Don't rules.
+2. **Then** read `brands/{brand}/brand.md` for voice/tone, approved phrases, Do/Don't rules — and (when design-system/ is missing) for canonical colors and the Google Font name.
 
-If `brands/{brand}/design-system/` does not exist, ask the user to run `/link-skills:brand-setup` Step 4b before continuing — the design system is mandatory.
+If `brands/{brand}/design-system/` does not exist, **continue** — derive colors and fonts from `brand.md` and proceed. You may suggest the user run `/link-skills:brand-setup` Step 4b for tighter brand consistency, but it is not a hard block.
 
-Never hardcode colors or fonts from memory. Always derive them from the design system. If the design system and `brand.md` disagree on colors/fonts, the design system wins and `brand.md` should be updated to match.
+Never hardcode colors or fonts from memory. Always derive them from `design-system/` (preferred) or `brand.md` (fallback). If the design system and `brand.md` disagree on colors/fonts, the design system wins and `brand.md` should be updated to match.
 
-### Optional templates — Carousel and Story
+### Optional Claude Design templates — Carousel and Story
 
 Two optional Claude Design templates may exist:
 
 | Template | Path | Used for | Fallback if missing |
 |----------|------|----------|---------------------|
-| Carousel (4:5) | `brands/{brand}/social-carousel-template/` | Instagram + Facebook carousel posts | Generate each slide with Gemini + Pillow text overlay using design-system colors/fonts |
-| Story (9:16) | `brands/{brand}/social-story-template/` | Instagram + Facebook stories and reels (static) | Generate with Gemini + Pillow text overlay using design-system colors/fonts |
+| Carousel template (4:5) | `brands/{brand}/social-carousel-template/` | IG + FB carousel posts (6 slides: Cover + 4 signs + CTA) | Generate the full background fresh with Gemini + Pillow text overlay using design-system / brand.md colors |
+| Story template (9:16) | `brands/{brand}/social-story-template/` | IG + FB Stories + Reels (6 slides: Hook → Problem → Solution → Proof → Offer → CTA, three direction styles A/B/C) | Same Gemini + Pillow fallback |
 
-Detect availability with a folder existence check before each render. If the template folder exists, use it (see "Render via template" below). If absent, fall back to the standard image-generation pipeline — never block on a missing optional template.
+Each folder is a self-contained React + Babel app (entry HTML + JSX + CSS + assets) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block in the entry HTML that exposes the editable copy keys. At runtime: substitute post copy into the JSON, render the modified HTML in Playwright, and screenshot each slide via stable offscreen DOM IDs. See "Render via template" in Step 4a. If the folder is missing or the EDITMODE block can't be located, fall through to Step 4b's Gemini-only pipeline — never block.
 
 ### Standard asset dimensions (platform-fixed — same across all brands)
 | Asset | Dimensions | Notes |
@@ -110,12 +110,12 @@ Detect availability with a folder existence check before each render. If the tem
 ## Step-by-step workflow
 
 ### Step 1: Read brand and content context
-- **brands/{brand}/design-system/** — Claude Design visual system (READ FIRST — authoritative for colors, fonts, components, spacing)
-- **brands/{brand}/brand.md** — Voice, tone, approved phrases, Do/Don't rules
-- **skills/creative-designer/style-guide.md** — Generic fallback rules (use only when design-system is absent or silent on a topic)
+- **brands/{brand}/design-system/** — Claude Design visual system (read first when present — authoritative for colors, fonts, components, spacing). When absent, skip and use brand.md fallback.
+- **brands/{brand}/brand.md** — Voice, tone, approved phrases, Do/Don't rules; also canonical colors and Google Font name (used as fallback when design-system/ is absent)
+- **skills/creative-designer/style-guide.md** — Generic fallback rules (use only when both design-system/ and brand.md are silent on a topic)
 - Confirm the headline and key message (from content-creation or user input)
-- For carousel asset type → check `brands/{brand}/social-carousel-template/`
-- For story / reel (static) asset type → check `brands/{brand}/social-story-template/`
+- For carousel asset type → check `brands/{brand}/social-carousel-template/` for an entry HTML containing an `EDITMODE-BEGIN` block
+- For story / reel (static) asset type → check `brands/{brand}/social-story-template/` for an entry HTML containing an `EDITMODE-BEGIN` block
 
 ### Step 2: Define the layout structure
 Sketch the component hierarchy before writing code:
@@ -139,64 +139,44 @@ For design spec output:
 - Describe each section with: dimensions, colors (hex), font sizes, spacing, and component type
 - Include copy placeholders clearly marked
 
-### Step 4a: Carousel and Story — render via template if available
+### Step 4a: Carousel and Story — render via Claude Design template if available
 
-Before falling through to Gemini image generation, branch on asset type:
+Before falling through to Gemini-only image generation (Step 4b — the universal fallback), branch on asset type:
 
 **Decision tree:**
 
 ```
 asset_type == "carousel" AND platform in {instagram, facebook}
-  → if brands/{brand}/social-carousel-template/ exists:
+  → if brands/{brand}/social-carousel-template/ has an entry HTML with EDITMODE-BEGIN block:
       → render via template (instructions below)
     else:
-      → fall through to Step 4b (Gemini per-slide)
+      → fall through to Step 4b (Gemini full background per slide + Pillow text + Pillow logo)
 
 asset_type in {"story", "reel"} AND platform in {instagram, facebook}
-  → if brands/{brand}/social-story-template/ exists:
+  → if brands/{brand}/social-story-template/ has an entry HTML with EDITMODE-BEGIN block:
       → render via template (instructions below)
     else:
-      → fall through to Step 4b (Gemini)
+      → fall through to Step 4b (Gemini full background + Pillow text + Pillow logo)
 
 all other cases (LinkedIn posts, banners, ads, mockups, etc.)
-  → fall through to Step 4b (Gemini)
+  → fall through to Step 4b (Gemini + Pillow text + Pillow logo)
 ```
 
-**Render via template:**
+**Render via template — copy substitution + Playwright render. No Gemini, no Pillow on this path.**
 
-**Gemini is still required.** The template defines layout, fonts, colors, text frames, and logo placement — Gemini fills the visual slot inside that frame with a fresh photograph/illustration per post. Do not skip Gemini.
+The template is a Claude Design React + Babel app installed via brand-setup Step 4c. It produces fully-laid-out slides with all chrome (logo, page indicator, kicker numerals, eyebrow chips, CTA buttons, themes) baked in. The agent's only job is copy substitution; the template's own React render produces the final slide PNGs. **For the canonical implementation see `content-generator/SKILL.md` Step 4c-template** — both skills follow the same procedure:
 
-1. **Inspect the template folder** — list its files and read the entry HTML (typically `index.html`). Identify:
-   - Per-slide structure (separate files like `slide-1.html` or sections within `index.html`)
-   - Text placeholder elements (often marked with `data-slot="headline"`, `data-slot="body"`, or class names like `.slot-headline`). If no explicit slots, use the placeholder copy that's already in the template as text-replace anchors.
-   - Image placeholder elements (typically `<img data-slot="visual">` or sections with `data-slot="image"`). Some templates use CSS `background-image` instead.
+1. Locate the entry HTML containing `EDITMODE-BEGIN`/`EDITMODE-END`. If absent, fall through to Step 4b.
+2. Parse the JSON block, merge the post copy dict (`cover_*`/`s2_*`...`cta_*` for carousel, `s1_*`...`s6_*` for story), apply the `Direction` from the calendar entry (`_direction` for story, `coverVariant` + `bodyVariant` for carousel — defaults if Direction blank).
+3. Write modified HTML to `tmp/{brand}/{slug}/`, copy template's other assets across.
+4. Playwright: navigate, wait for React, screenshot each slide via stable offscreen export DOM IDs (`#export-cover`/`#export-s2`...`#export-cta` for carousel, `#export-{A|B|C}-0`...`-5` for story).
+5. Save final PNGs.
+6. Skip Steps 4d (Pillow text overlay) and 4e (Pillow logo overlay) — the template render already includes them.
+7. Cleanup `tmp/`.
 
-2. **Generate any required visuals** — for image slots, use `gemini_generate_image` with the design-system aesthetic in the prompt and the template's slot dimensions. Save each visual to `outputs/{brand}/posts/[Platform]/_tmp/`.
+After the template-path completes, continue to upload (Step 4f) — do NOT re-run Step 4b's Gemini path; the template-path has already produced final assets.
 
-3. **Substitute content** — copy the template folder to a working directory under `tmp/` (do not modify the source template). For each slide:
-   - Replace text placeholders with the post's headline/body/CTA from content-creation output
-   - Replace image placeholders with the local file paths from step 2
-   - For carousel: produce one HTML per slide
-
-4. **Render to PNG via Playwright MCP:**
-```
-For each rendered slide HTML:
-- browser_navigate to the local file URL (file:///<absolute-path>/slide.html)
-- Set viewport to template canvas dimensions:
-    Carousel (4:5): 1080 × 1350
-    Story (9:16): 1080 × 1920
-- browser_take_screenshot → save to outputs/{brand}/posts/[Platform]/[Slug]_slide-{N}_final.png
-```
-
-If Playwright MCP is unavailable, fall back to Step 4b (Gemini + Pillow) and log a note that the template was skipped due to a tooling gap.
-
-5. **Skip Pillow text overlay and logo overlay** — the template already includes both. Do not double-stamp.
-
-6. **Cleanup** — delete the working copy under `tmp/` after final PNGs are saved.
-
-After rendering via template, **skip Steps 4b–4e** for that asset and continue to **Step 4f / Zernio upload** (Step 4 — Upload below).
-
-If `brands/{brand}/design-system/` exists but no template applies (e.g. LinkedIn post), pass the design system's color tokens and font names into the Gemini prompt in Step 4b for stylistic alignment. Still apply Pillow text+logo overlays as usual.
+**The Gemini + Pillow fallback in Step 4b remains the universal path** for: LinkedIn posts, banners, ads, mockups, any post where the matching template folder is missing or has no EDITMODE block, and any failure on the template-path. That fallback path applies Pillow text overlay (Step 4d) AND Pillow logo overlay (Step 4e) — both required since the Gemini-generated background has no copy and no logo. The day-of-week `text_align` and `logo_position` rotations apply only on this Step 4b path.
 
 ---
 
@@ -617,15 +597,18 @@ Status: Draft | Final
 Before finalizing any design output:
 
 **Brand compliance:**
-- [ ] `brands/{brand}/design-system/` was read before generating any visual
-- [ ] Colors, fonts, and component styles match the design system (not hardcoded)
+- [ ] `brands/{brand}/design-system/` was read when present; brand.md fallback used when absent — no hard block on missing design-system
+- [ ] Colors, fonts, and component styles match design-system (when present) or brand.md (when fallback) — never hardcoded
 - [ ] Primary brand color used for CTAs and key headings
 - [ ] Accent color used sparingly — not dominant
-- [ ] Background color used for section/card backgrounds per design system
 - [ ] No off-brand colors used
-- [ ] Typography follows the font stack and size scale from the design system
-- [ ] For carousels (IG/FB): if `social-carousel-template/` exists, it was used; otherwise documented fallback to Gemini
-- [ ] For stories/reels (IG/FB): if `social-story-template/` exists, it was used; otherwise documented fallback to Gemini
+- [ ] Typography follows the design-system font stack OR brand.md Google Fonts (whichever applied)
+- [ ] For IG/FB Carousel: if `social-carousel-template/` has entry HTML with EDITMODE block, template-path used (copy substitution → Playwright render → screenshot via export DOM IDs); else Gemini-only fallback (Step 4b) documented
+- [ ] For IG/FB Story/Reel (static): if `social-story-template/` has entry HTML with EDITMODE block, template-path used; else Gemini-only fallback (Step 4b) documented
+- [ ] Template-path: post copy dict matches the template's key contract (carousel: cover_*/s2-5_*/cta_*; story: s1-6_*); Direction from calendar applied
+- [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — template renders include all chrome
+- [ ] Gemini-only fallback path (Step 4b): Pillow text overlay (Step 4d) AND Pillow logo overlay (Step 4e) BOTH applied — Gemini background has no copy and no logo
+- [ ] Day-of-week `text_align` and `logo_position` rotations applied only on the Gemini-only fallback path; not used on template-path
 
 **Layout quality:**
 - [ ] Visual hierarchy is clear (headline → subheadline → body → CTA)

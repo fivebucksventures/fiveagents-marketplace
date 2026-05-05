@@ -37,13 +37,18 @@ Always read relevant context before any marketing task. Use the active brand's f
 - `brands/{brand}/competitors.md` — competitive positioning and messaging
 - `brands/{brand}/funnel.md` — conversion funnel stages and benchmarks
 - `brands/{brand}/avatars.md` — Argil avatar preferences and voice clone IDs
-- `brands/{brand}/design-system/` — **Claude Design** visual system (colors, fonts, components, spacing). **Mandatory for any task that produces visuals.** Read this folder before generating any image, deck, mockup, or HTML output.
+- `brands/{brand}/design-system/` — **Claude Design** visual system (colors, fonts, components, spacing). Optional but recommended. When present, it is the authoritative source for visual identity and must be followed. When absent, fall back to colors / fonts / voice declared in `brands/{brand}/brand.md`.
 - `brands/{brand}/social-carousel-template/` — Claude Design template for IG/FB carousels (4:5). Optional. If present, use it for carousel generation; otherwise fall back to standard generation.
 - `brands/{brand}/social-story-template/` — Claude Design template for IG/FB stories/reels (9:16). Optional. If present, use it for story/reel generation; otherwise fall back to standard generation.
 
 **Never invent features, pricing, or personas.** Everything comes from context files.
 
-**Visual consistency rule:** Every visual output (social images, decks, HTML mockups, email templates, ad creatives) **must** follow `brands/{brand}/design-system/`. Never hardcode colors, fonts, or component styles from memory — derive them from the design system. If the folder is missing, prompt the user to run `/link-skills:brand-setup` Step 4b before continuing.
+**Visual consistency rule:** Every visual output (social images, decks, HTML mockups, email templates, ad creatives) must derive its colors, fonts, and component styles from the brand's authoritative source — never hardcode from memory. The lookup order is:
+
+1. **`brands/{brand}/design-system/`** if the folder is present and non-empty — read it before generating any image, deck, mockup, or HTML output. It is authoritative when installed.
+2. **`brands/{brand}/brand.md`** (Colors + Voice & Tone sections, plus the Google Font from Step 4 of brand-setup) when `design-system/` is missing. This is the universal fallback — every brand has it.
+
+Skills should filesystem-probe for `design-system/` at runtime (consistent with the `## Visual System` block written into `CLAUDE.md` by brand-setup Step 9c, which is a hint, not a contract). Never block a skill run because `design-system/` is missing — the brand.md fallback is fully functional. If the user explicitly asks "why does the output look generic?", you may suggest they run `/link-skills:brand-setup` Step 4b to install a design system for tighter brand consistency.
 
 ## Skills
 

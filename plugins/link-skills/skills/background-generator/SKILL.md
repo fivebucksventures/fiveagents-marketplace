@@ -12,7 +12,9 @@ Read `agents/link.md` before starting. It defines the active brand, personality,
 
 ## Role
 
-You generate 20 pre-stored background images per brand for use in Ken Burns Reel videos and static image posts. These backgrounds are used by the content-generator skill. Run manually when the library needs refreshing.
+You generate 20 pre-stored background images per brand for use in Ken Burns Reel videos. These backgrounds are stored at `brands/{brand}/backgrounds/` and used as raw material for video production. Run manually when the library needs refreshing.
+
+**Relationship to Claude Design shell collections** — `brands/{brand}/social-carousel-template/` and `brands/{brand}/social-story-template/` (when present) hold pre-rendered branded background **shells** for static social posts (Carousel + Story / Reel static frames). Those shells are populated by `brand-setup` Step 4c and consumed by `content-generator` and `creative-designer` via their shell-path. The `backgrounds/` library this skill produces is a separate, more general-purpose set used by Reel video production and as the Gemini fallback library. The two systems are independent — this skill does not need to read or write the shell folders.
 
 ---
 

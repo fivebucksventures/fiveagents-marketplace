@@ -94,7 +94,36 @@ Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table,
 | CTA | Specific action (≤8 words) |
 | Hashtags | 3–5 hashtags |
 | Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." |
+| Direction | Template variant for the post — see "Direction selection" below. Required for IG/FB Carousel and Story/Reel posts; leave blank for LinkedIn / Reel(Argil) / formats without a Claude Design template. |
 | Status | Planned |
+
+### Direction selection — pick the template variant per post
+
+The `Direction` field tells `content-generator` which template variant to render at production time. Direction is your responsibility (planning); content-generator just applies what you set.
+
+**For Carousel posts** — combine the carousel template's two variant axes as `coverVariant-bodyVariant`:
+- `type-allnumbers` — default. Big typographic cover, all sign slides have large kicker numerals (01/02/03/04). Good for educational carousels with strong listicle structure.
+- `sticker-editorial` — Sticker-style cover (badge / playful), editorial body slides (less number-forward). Good for personality-led / opinion / hot-take content.
+- `editorial-mixed` — Editorial cover (magazine), mixed body slide treatments. Good for story / case-study carousels where each slide has a different visual rhythm.
+
+Pick by content type:
+- Educational / how-to / "N signs of..." → `type-allnumbers`
+- Hot take / opinion / personality → `sticker-editorial`
+- Case study / customer story → `editorial-mixed`
+
+**For Story / Reel posts** — pick one of the story template's three direction styles:
+- `A` — Spotlight Dark. Brand-led campaigns: eyebrow → headline → divider pill, dark backgrounds, accent color leading. Good for product launches, brand campaigns, urgent CTAs.
+- `B` — Editorial Stat. When a single big number is the story (oversized stat as hero). Good for ROI proof, benchmark posts, "X% faster" / "$Y saved" data points.
+- `C` — Cream Press. Light, magazine-style. Good for case studies, testimonials, founder posts, customer stories.
+
+Pick by content type:
+- Brand campaign / launch / direct CTA → `A`
+- Stat-driven proof / benchmark → `B`
+- Case study / testimonial / founder voice → `C`
+
+**For LinkedIn posts, Reel(Argil), or any format without a matching Claude Design template** — leave Direction blank.
+
+If you assign a Direction the brand's template doesn't support (e.g. carousel template only ships `type-allnumbers`), content-generator falls back to the template defaults and logs a warning — but planning quality suffers, so check the entry HTML inside `brands/{brand}/social-carousel-template/` and `brands/{brand}/social-story-template/` (look for the `*.html` file that contains the `EDITMODE-BEGIN` block) for which variants the brand actually has before assigning.
 
 ### Content mix across 14 posts:
 
@@ -138,7 +167,7 @@ e.g. `SocialCalendar_17Mar-22Mar2026`
 3. **Create new page (2a):** Use `mcp__notion__API-post-page` with:
    - `parent`: `{"database_id": "<BRAND_NOTION_DB>"}`
    - `properties`: `{"Name": {"title": [{"text": {"content": "SocialCalendar_[DDMon]-[DDMonYYYY]"}}]}}`
-   - `children`: Convert the markdown calendar into Notion blocks — heading_1 for `#`, heading_2 for `##`, table block for the calendar table (10 columns, has_column_header: true), paragraphs for other text. Max 100 blocks per call; use `mcp__notion__API-patch-block-children` for overflow.
+   - `children`: Convert the markdown calendar into Notion blocks — heading_1 for `#`, heading_2 for `##`, table block for the calendar table (**11 columns** — Date, Platform, Format, Topic, Persona, Content Angle, CTA, Hashtags, Image Brief, Direction, Status — with has_column_header: true), paragraphs for other text. Max 100 blocks per call; use `mcp__notion__API-patch-block-children` for overflow.
 
 4. **Update existing page (2b):** Delete all existing child blocks via `mcp__notion__API-get-block-children` + `mcp__notion__API-delete-a-block` for each, then append new blocks via `mcp__notion__API-patch-block-children`.
 
@@ -158,9 +187,9 @@ Notion: {url}
 
 # Social Calendar: [Mon DD Mon] – [Sat DD Mon YYYY]
 
-| Date | Platform | Format | Topic | Persona | Content Angle | CTA | Hashtags | Image Brief | Status |
-|---|---|---|---|---|---|---|---|---|---|
-| 06 Apr 2026 | LinkedIn | Post | ... | ... | ... | ... | ... | ... | Planned |
+| Date | Platform | Format | Topic | Persona | Content Angle | CTA | Hashtags | Image Brief | Direction | Status |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 06 Apr 2026 | LinkedIn | Post | ... | ... | ... | ... | ... | ... | (blank) | Planned |
 ... (14 data rows)
 
 ## Content Mix
@@ -208,6 +237,7 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 - [ ] Persona rotation applied — no persona used more than 2× across 14 posts
 - [ ] Content mix: 5 edu / 3 proof / 3 product / 2 CTA / 1 engage
 - [ ] All image briefs end with "No text. No logos. No watermarks."
+- [ ] **Direction column populated** for every IG/FB Carousel post (one of `type-allnumbers` / `sticker-editorial` / `editorial-mixed` — or whatever combos the brand's carousel template supports) and every IG/FB Story / Reel post (one of `A` / `B` / `C`); left blank for LinkedIn posts and Reel(Argil)
 - [ ] Notion page URL logged to memory
 - [ ] Agent run logged to dashboard
 

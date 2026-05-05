@@ -60,16 +60,106 @@ Always read before writing:
 - **brands/{brand}/audience.md** — Target persona pain points, objections, buying triggers, language notes
 - **brands/{brand}/product.md** — Features, pricing, differentiators to cite
 - **brands/{brand}/competitors.md** — If a competitive angle is needed
-- **brands/{brand}/design-system/** — Read when copy will be paired with visuals, so headline length, body length, and CTA fit the design system's text frames
+- **brands/{brand}/design-system/** — Read when present; informs voice / tonal alignment for copy paired with visuals. When absent, fall back to `brand.md` Voice & Tone.
 
-When the brief is for a **carousel** (IG/FB) or **story / reel** (IG/FB), also check the matching template folder — if present, the copy must fit the template's slot structure:
+When the brief is for a **carousel** (IG/FB) or **story / reel** (IG/FB), the matching Claude Design template folder may exist. If it does, copy must be produced as a **structured JSON artifact** matching the template's key contract — content-generator substitutes those keys directly into the template's EDITMODE block at render time. Save the JSON next to the markdown copy file as `_copy.json`.
 
-| Format | Template path | If present, do this |
-|--------|---------------|---------------------|
-| Carousel (IG/FB) | `brands/{brand}/social-carousel-template/` | Inspect the template to count slides and identify each slide's text-slot character budget. Write copy as N discrete blocks (one per slide), each within its slot length. |
-| Story / Reel static (IG/FB) | `brands/{brand}/social-story-template/` | Inspect the template's text frames. Write copy that fits within the headline + body slots — don't exceed slot length. |
+#### Carousel template copy contract (IG/FB)
 
-If the template folder does not exist, fall back to the standard format defaults below. Never block on a missing template.
+When `brands/{brand}/social-carousel-template/` is present, output `_copy.json` with these keys (6 slides — Cover + 4 sign slides + CTA):
+
+```json
+{
+  "cover_eyebrow":  "≤ 30 chars, all caps category tag (e.g. 'AI FOR SME OWNERS')",
+  "cover_title":    "≤ 60 chars, the carousel's main headline",
+  "cover_sub":      "≤ 140 chars, supporting subline",
+
+  "s2_kicker":      "01",
+  "s2_title":       "≤ 50 chars, sign 1 headline",
+  "s2_body":        "≤ 220 chars, sign 1 body paragraph",
+  "s2_pullquote":   "(optional, ≤ 80 chars) — used by templates with pullquote variant",
+
+  "s3_kicker":      "02",
+  "s3_title":       "≤ 50 chars, sign 2 headline",
+  "s3_body":        "≤ 220 chars, sign 2 body paragraph",
+  "s3_stat_value":  "(optional, ≤ 12 chars, e.g. '~3 hrs')",
+  "s3_stat_label":  "(optional, ≤ 60 chars)",
+
+  "s4_kicker":      "03",
+  "s4_title":       "≤ 50 chars",
+  "s4_body":        "≤ 220 chars",
+
+  "s5_kicker":      "04",
+  "s5_title":       "≤ 50 chars",
+  "s5_body":        "≤ 220 chars",
+  "s5_before":      "(optional, ≤ 50 chars) — used by templates with before/after variant",
+  "s5_after":       "(optional, ≤ 80 chars)",
+
+  "cta_eyebrow":    "≤ 20 chars (e.g. 'READY?')",
+  "cta_title":      "≤ 50 chars, CTA headline",
+  "cta_sub":        "≤ 200 chars, CTA body / value reinforcement",
+  "cta_button":     "≤ 30 chars (e.g. 'fiveagents.io →')"
+}
+```
+
+#### Story template copy contract (IG/FB Stories + Reels)
+
+When `brands/{brand}/social-story-template/` is present, output `_copy.json` with these keys (6 slides — Hook → Problem → Solution → Proof → Offer → CTA):
+
+```json
+{
+  "s1_eyebrow":         "≤ 30 chars, all caps (e.g. 'AI THAT WORKS WHILE YOU SLEEP')",
+  "s1_headline_pre":    "first line of hook headline",
+  "s1_headline_accent": "second line, accent-colored",
+  "s1_sub":             "≤ 200 chars supporting line",
+  "s1_live":            "≤ 18 chars badge (e.g. 'Running live')",
+  "s1_big":             "≤ 12 chars big stat (e.g. '3 hrs')",
+  "s1_big_unit":        "≤ 40 chars unit/qualifier (e.g. 'saved every single day.')",
+
+  "s2_eyebrow":         "(e.g. 'THE PROBLEM')",
+  "s2_headline":        "≤ 60 chars problem headline",
+  "s2_pain1":           "≤ 100 chars pain bullet 1",
+  "s2_pain2":           "≤ 100 chars pain bullet 2",
+  "s2_pain3":           "≤ 100 chars pain bullet 3",
+
+  "s3_eyebrow":         "(e.g. 'THE FIX')",
+  "s3_headline_pre":    "first line of solution headline",
+  "s3_headline_accent": "second line, accent-colored",
+  "s3_sub":             "≤ 200 chars supporting line",
+
+  "s4_eyebrow":         "(e.g. 'REAL RESULTS')",
+  "s4_headline":        "≤ 60 chars proof headline",
+  "s4_stat1_num":       "≤ 12 chars",  "s4_stat1_lbl": "≤ 50 chars",
+  "s4_stat2_num":       "≤ 12 chars",  "s4_stat2_lbl": "≤ 50 chars",
+  "s4_stat3_num":       "≤ 12 chars",  "s4_stat3_lbl": "≤ 50 chars",
+  "s4_stat4_num":       "≤ 12 chars",  "s4_stat4_lbl": "≤ 50 chars",
+  "s4_quote":           "≤ 200 chars testimonial quote",
+  "s4_quote_author":    "≤ 60 chars author + role",
+
+  "s5_eyebrow":         "(e.g. 'WHAT YOU GET')",
+  "s5_headline":        "≤ 60 chars offer headline",
+  "s5_b1":              "≤ 80 chars bullet 1",
+  "s5_b2":              "≤ 80 chars bullet 2",
+  "s5_b3":              "≤ 80 chars bullet 3",
+  "s5_b4":              "≤ 80 chars bullet 4",
+  "s5_pill":            "≤ 30 chars pill (e.g. 'Live in 1 week')",
+
+  "s6_eyebrow":         "(e.g. 'READY?')",
+  "s6_headline_pre":    "first line of CTA headline",
+  "s6_headline_accent": "second line, accent-colored",
+  "s6_sub":             "≤ 200 chars CTA supporting line",
+  "s6_cta":             "≤ 30 chars button label (e.g. 'Book a Free Call')",
+  "s6_url":             "destination URL (e.g. 'fiveagents.io')"
+}
+```
+
+**Save both files per post:**
+- `outputs/{brand}/posts/[Platform]/[Slug]_[Date]_copy.md` — human-readable narrative draft (still required for review)
+- `outputs/{brand}/posts/[Platform]/[Slug]_[Date]_copy.json` — structured copy that content-generator feeds into the template's EDITMODE block
+
+If the template folder does NOT exist (or has no EDITMODE block), `_copy.json` is optional — content-generator will fall through to its Gemini-only path and read narrative copy from `_copy.md` instead.
+
+**Direction is set by `social-calendar`, not by content-creation.** Your job is the copy contract; the calendar entry's `Direction` column drives template-variant routing at render time.
 
 ### Step 1b: Supplement with live research via Perplexity MCP
 Use the **WebSearch tool** when writing SEO content or competitive copy:
@@ -151,12 +241,22 @@ When writing video ad scripts for Argil AI avatar generation:
 - Output format: plain text script with metadata header specifying avatar ID and voice ID
 
 **Naming convention:**
+
+For **social posts** (LinkedIn / Facebook / Instagram — the files content-generator picks up downstream), use the post's topic slug so the filename matches what content-generator expects:
+
+```
+[Slug]_[DDMonYYYY]_copy.md
+[Slug]_[DDMonYYYY]_copy.json   (when a Carousel/Story template is installed — see Step 1 contracts)
+```
+
+For **non-social outputs** (blog post, email, landing page, ad copy, etc.), use the content-type prefix:
+
 ```
 [ContentType]_[DDMonYYYY]_copy.md
 ```
 
 Examples:
-- `SocialPost_10Mar2026_copy.md`
+- Social: `AISearchSEOFoundations_10Mar2026_copy.md` (paired with `..._copy.json` for IG/FB Carousel/Story when template exists)
 - `BlogPost_10Mar2026_copy.md`
 - `Email_10Mar2026_copy.md`
 - `LandingPage_10Mar2026_copy.md`
@@ -193,9 +293,10 @@ Before finalizing any content output:
 - [ ] Voice follows brands/{brand}/brand.md (practical, confident, not hypey)
 - [ ] Approved phrases used where appropriate
 - [ ] Do/Don't list followed
-- [ ] Brand colors and typography referenced correctly if visual specs included — derive from `brands/{brand}/design-system/` (authoritative), not from memory
-- [ ] For IG/FB carousel copy: if `social-carousel-template/` exists, copy is split into per-slide blocks within slot lengths
-- [ ] For IG/FB story/reel copy: if `social-story-template/` exists, copy fits the template's headline + body slot budgets
+- [ ] Brand colors and typography referenced correctly if visual specs included — derive from `brands/{brand}/design-system/` when present, `brand.md` otherwise; never from memory
+- [ ] For IG/FB Carousel posts when `social-carousel-template/` exists: `_copy.json` produced with all required cover_*/s2-5_*/cta_* keys; per-key character budgets respected
+- [ ] For IG/FB Story/Reel posts when `social-story-template/` exists: `_copy.json` produced with all required s1_*/s2_*/s3_*/s4_*/s5_*/s6_* keys; per-key character budgets respected
+- [ ] Direction NOT set in `_copy.json` — that's social-calendar's responsibility (lives in the Notion calendar entry's Direction column)
 
 **Messaging effectiveness:**
 - [ ] Headline addresses persona's specific pain point or desired outcome
