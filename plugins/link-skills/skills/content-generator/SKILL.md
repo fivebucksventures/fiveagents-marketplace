@@ -134,14 +134,14 @@ Determine the day-of-week for the post date, then apply:
 
 | Day | text_align | text_position | logo_position |
 |-----|------------|---------------|---------------|
-| Mon | left | bottom | top-right |
-| Tue | center | bottom | top-left |
-| Wed | right | bottom | top-right |
-| Thu | left | bottom | top-left |
+| Mon | center | bottom | top-right |
+| Tue | center | top | top-left |
+| Wed | center | bottom | top-right |
+| Thu | center | top | top-left |
 | Fri | center | bottom | top-right |
-| Sat | right | bottom | top-left |
+| Sat | center | top | top-left |
 
-`text_position` is **always "bottom"** — never "top".
+`text_align` is **always "center"**. `text_position` alternates between "bottom" (Mon/Wed/Fri) and "top" (Tue/Thu/Sat).
 
 ### Step 4c — Choose asset type: Image or Video
 
@@ -281,37 +281,84 @@ Use Python Pillow to add gradient scrim + headline + subline. Do NOT use `image_
 
 ```python
 from PIL import Image, ImageDraw, ImageFont
+import textwrap
 
-def add_text_overlay(input_path, output_path, headline, subline, target_w, target_h, text_align='center'):
+def add_text_overlay(input_path, output_path, headline, subline, target_w, target_h, text_position='bottom'):
     img = Image.open(input_path).convert('RGBA')
+    # Resize + center-crop to target canvas
     r = img.width / img.height; tr = target_w / target_h
     if r > tr: nw = int(img.width * target_h / img.height); nh = target_h
     else: nw = target_w; nh = int(img.height * target_w / img.width)
     img = img.resize((nw, nh), Image.LANCZOS)
     img = img.crop(((nw-target_w)//2, (nh-target_h)//2, (nw-target_w)//2+target_w, (nh-target_h)//2+target_h))
-    scrim = Image.new('RGBA', (target_w, target_h), (0,0,0,0))
-    ds = ImageDraw.Draw(scrim)
-    ss = int(target_h * 0.55)
-    for y in range(ss, target_h):
-        ds.line([(0,y),(target_w,y)], fill=(0,0,0,int(185*(y-ss)/(target_h-ss))))
-    img = Image.alpha_composite(img, scrim)
-    draw = ImageDraw.Draw(img)
-    hs = max(36, int(target_w * 0.048)); ss2 = max(22, int(target_w * 0.026))
+
+    pad = int(target_w * 0.06)
+    hs = max(36, int(target_w * 0.048))
+    ss2 = max(22, int(target_w * 0.026))
     try:
         fh = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', hs)
         fs = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', ss2)
-    except: fh = fs = ImageFont.load_default()
-    # Draw wrapped text (white headline, pink #ec4899 subline)
-    pad = int(target_w * 0.05)
-    # ... (word-wrap and draw logic)
+    except:
+        fh = fs = ImageFont.load_default()
+
+    # Word-wrap both lines to fit within canvas width minus padding
+    max_chars = max(10, int((target_w - 2 * pad) / (hs * 0.55)))
+    h_lines = textwrap.wrap(headline, width=max_chars)
+    s_lines = textwrap.wrap(subline, width=max_chars + 10)
+
+    # Measure total text block height
+    line_gap = int(hs * 0.3)
+    block_h = len(h_lines) * (hs + line_gap) + int(hs * 0.5) + len(s_lines) * (ss2 + line_gap)
+
+    # Position scrim and text block
+    scrim_h = block_h + pad * 2
+    scrim = Image.new('RGBA', (target_w, target_h), (0, 0, 0, 0))
+    ds = ImageDraw.Draw(scrim)
+
+    if text_position == 'bottom':
+        scrim_top = target_h - scrim_h
+        text_y = scrim_top + pad
+        # Gradient: transparent at top, dark at bottom
+        for y in range(scrim_top, target_h):
+            alpha = int(200 * (y - scrim_top) / (target_h - scrim_top))
+            ds.line([(0, y), (target_w, y)], fill=(0, 0, 0, alpha))
+    else:  # top
+        scrim_top = 0
+        text_y = pad
+        # Gradient: dark at top, transparent at bottom
+        for y in range(0, scrim_h):
+            alpha = int(200 * (1 - y / scrim_h))
+            ds.line([(0, y), (target_w, y)], fill=(0, 0, 0, alpha))
+
+    img = Image.alpha_composite(img, scrim)
+    draw = ImageDraw.Draw(img)
+
+    # Draw headline lines (white, centered)
+    for line in h_lines:
+        bbox = draw.textbbox((0, 0), line, font=fh)
+        lw = bbox[2] - bbox[0]
+        x = (target_w - lw) // 2
+        draw.text((x, text_y), line, font=fh, fill=(255, 255, 255, 255))
+        text_y += hs + line_gap
+
+    text_y += int(hs * 0.3)  # gap between headline and subline
+
+    # Draw subline lines (pink, centered)
+    for line in s_lines:
+        bbox = draw.textbbox((0, 0), line, font=fs)
+        lw = bbox[2] - bbox[0]
+        x = (target_w - lw) // 2
+        draw.text((x, text_y), line, font=fs, fill=(236, 72, 153, 255))
+        text_y += ss2 + line_gap
+
     img.convert('RGB').save(output_path, 'PNG', optimize=True)
 ```
 
 - `headline`: max 6–8 words, title case or all caps — use the post hook (NOT the topic name verbatim)
 - `subline`: **always provide a subline** — never pass `""`. Use a short supporting line: brand tagline, key benefit, or CTA teaser (read from `brands/{brand}/brand.md`)
 - `target_w`, `target_h`: canvas dimensions from Step 4a
-- `text_align`: from day-of-week rotation (Step 4b)
-- Text position: always bottom. Save output as `_with_text.png`.
+- `text_position`: from day-of-week rotation (Step 4b) — either `"bottom"` or `"top"`
+- Text is always **centered horizontally** and word-wrapped to stay within canvas bounds. Save output as `_with_text.png`.
 
 ### Step 4e — Apply logo overlay — USE PILLOW
 
@@ -353,6 +400,45 @@ outputs/{brand}/posts/[Platform]/[TopicSlug]_[DDMonYYYY]_final.png
 ### Step 4g — Cleanup
 
 Only `_final.png` (or `_final.mp4`) should remain in the output folder. Delete any intermediate files (`_raw.png`, `_with_text.png`) for every post before moving to Step 5.
+
+---
+
+### Step 4h — Visual verification (MANDATORY before publishing)
+
+For every `_final.png`, read the image file and visually inspect it before uploading to Zernio. Check all of the following:
+
+**Text overlay:**
+- [ ] Headline is fully visible — no characters clipped at the left, right, or bottom edge
+- [ ] Subline is fully visible — not cut off
+- [ ] Text has sufficient contrast against the background (gradient scrim is dark enough)
+- [ ] Text does not overlap the logo
+
+**Logo:**
+- [ ] Logo is fully visible — not clipped by any edge
+- [ ] Logo has sufficient contrast/visibility against the background behind it
+- [ ] Logo visual margin from the top edge and right (or left) edge looks approximately equal — the logo should not appear to "float" lower or higher than its corner margin
+
+**Overall composition:**
+- [ ] Text and logo do not overlap each other
+- [ ] The image looks intentional and on-brand — not accidental or broken
+
+**If any check fails, fix before publishing:**
+
+| Issue | Fix |
+|---|---|
+| Text clipped at left/right edge | Increase `pad` to `int(target_w * 0.08)` and re-render |
+| Text clipped at top/bottom edge | Reduce `hs` by 10% and re-render |
+| Subline cut off | Reduce `ss2` by 10% and re-render |
+| Low text contrast | Increase scrim opacity — change `200` to `230` in the gradient alpha and re-render |
+| Text overlaps logo | If `text_position == 'bottom'` and logo is `bottom-*`: switch logo to `top-*` position. If text is `top` and logo is `top-*`: switch logo to `bottom-*`. Re-render. |
+| Logo clipped at edge | Reduce `scale` by 0.02 and re-render |
+| Logo visually offset (top margin ≠ side margin) | Crop transparent padding: `logo = logo.crop(logo.getbbox())` before resizing, then re-render |
+| Logo too small to read | Increase `scale` to 0.22 and re-render |
+| Logo too large / dominates image | Reduce `scale` to 0.14 and re-render |
+| Logo blends into background (low contrast) | Add a subtle white semi-transparent circle/rect behind the logo: `bg = Image.new('RGBA', (logo_w + pad, logo_h + pad), (255,255,255,160))`, paste at `(x - pad//2, y - pad//2)` before pasting logo |
+| Logo placed over busy image area | Switch to the opposite corner (e.g. `top-right` → `top-left`) where the background is calmer, then re-render |
+
+Re-render until all checks pass. Only then proceed to Step 5.
 
 ---
 
@@ -503,9 +589,8 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Image dimensions are correct for platform/format
 - [ ] For IG/FB Carousel: if `social-carousel-template/` exists, it was used (Gemini still ran for visual slots); else fallback documented
 - [ ] For IG/FB Story/Reel (static): if `social-story-template/` exists, it was used (Gemini still ran for visual slots); else fallback documented
-- [ ] When falling back to Gemini-only path: text overlay applied with correct day-of-week text_align
+- [ ] When falling back to Gemini-only path: text overlay applied with correct day-of-week text_position (bottom Mon/Wed/Fri, top Tue/Thu/Sat), text always centered horizontally
 - [ ] When falling back to Gemini-only path: logo at 0.18 scale with correct day-of-week logo_position
-- [ ] When falling back to Gemini-only path: text_position is always "bottom" — never "top"
 - [ ] When falling back to Gemini-only path: both text overlay and logo overlay applied (never skip either)
 - [ ] When using template path: text/logo overlays NOT applied (template already includes them — no double-stamp)
 - [ ] Final images saved to correct `outputs/{brand}/posts/[Platform]/` folder

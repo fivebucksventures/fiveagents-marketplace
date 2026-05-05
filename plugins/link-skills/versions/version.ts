@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.13';
+const DEFAULT_VERSION = 'v2.2.14';
 const DEFAULT_DATE = 'May 05, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,18 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.2.14',
+    date: 'May 05, 2026',
+    changes: [
+      'content-generator + creative-designer: text overlay — text_align fixed to always "center"; day-of-week rotation now alternates text_position between "bottom" (Mon/Wed/Fri) and "top" (Tue/Thu/Sat) instead of rotating left/center/right alignment',
+      'content-generator + creative-designer: add_text_overlay stub replaced with complete Pillow implementation — uses textwrap.wrap() with max_chars calculated from canvas width and font size, draws each line centered via textbbox pixel measurement; text cannot overflow canvas',
+      'content-generator + creative-designer: gradient scrim dynamically sized to fit the text block (no fixed 45% assumption); scrim direction flips correctly for top vs bottom position',
+      'content-generator: Step 4h (mandatory visual verification before Zernio) — agent reads final image and checks text visibility, logo visibility, equal visual margins, contrast, and no overlap; fix table covers clipping, offset, blending, size, and overlap issues',
+      'creative-designer: Step 3b (mandatory visual verification before Zernio upload) — same checks and fix table as content-generator; covers all per-client logo variations without assuming logo internal structure',
+      'content-generator + creative-designer: fix table includes logo getbbox() crop for transparent-padding logos, scale adjustments, corner switching for busy backgrounds, semi-transparent backing for low-contrast logos',
+    ],
+  },
   {
     version: 'v2.2.13',
     date: 'May 05, 2026',
