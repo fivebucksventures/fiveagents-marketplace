@@ -4,6 +4,25 @@ description: Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio f
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.5 | April 26, 2026 |
+
+**Description:** Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand
+
+### Change Log
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
+**v2.2.2** — April 10, 2026
+- Removed late_upload_media from tools list; added requests.put note
+
+**v2.2.1** — April 10, 2026
+- Zernio publishing integrated (LinkedIn, Facebook, Instagram, Twitter/X)
+
 # SKILL.md — Social Publisher
 
 ## Before Executing

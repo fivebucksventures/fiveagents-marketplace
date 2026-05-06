@@ -4,6 +4,34 @@ description: Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 fu
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.13 | May 05, 2026 |
+
+**Description:** Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs for any active brand
+
+### Change Log
+
+**v2.2.13** — May 05, 2026
+- Windsor.ai (source: "facebook") documented as default; Meta Ads MCP is opt-in alternative
+- Windsor field set verified — 741 fields; corrected false "campaign-level only" claims
+- meta_ads JSON block — added required "source" field ("windsor" | "meta_ads_mcp")
+
+**v2.2.11** — May 04, 2026
+- Phase 2 daily Meta pull + Weekly Step 1b migrated to Meta Ads MCP
+- ad_set / ad / lp_views / video_views / conversions / cpm fields added
+
+**v2.2.8** — April 28, 2026
+- date_preset changed from "last_30d" to "last_30dT" — fixes missing data for current UTC day
+- Removed outdated ~12-day Windsor data lag warnings
+- Fixed invalid GA4 fields — removed "source" and "medium"
+- fiveagents_log_run metrics block rewritten with real data placeholders
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # SKILL.md — Digital Marketing Analyst
 
 ## Before Executing

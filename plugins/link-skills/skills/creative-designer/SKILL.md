@@ -4,6 +4,40 @@ description: Visual design and asset creation — social media graphics, HTML/CS
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.3.0 | May 06, 2026 |
+
+**Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
+
+### Change Log
+
+**v2.3.0** — May 06, 2026
+- Step 4a template-path — gateway renders the template server-side via template_render MCP; Playwright removed
+- Step 4b intro text corrected — removed stale "render the modified HTML in Playwright" reference
+
+**v2.2.15** — May 05, 2026
+- Step 4a switched to template-path; delegates canonical implementation to content-generator/SKILL.md
+- design-system/ mandate softened to optional with brand.md fallback
+- Step 4b Gemini + Pillow fallback unchanged (incl. Step 3b visual verification)
+
+**v2.2.14** — May 05, 2026
+- text_align fixed to "center"; gradient scrim dynamically sized to text block
+- Step 3b — mandatory visual verification before Zernio upload
+
+**v2.2.10** — May 04, 2026
+- design-system/ is source of truth for visuals (replaces brand.md as primary reference)
+- Step 4a — branches Carousel/Story to template-render via Playwright when templates installed
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
+**v2.2.2** — April 10, 2026
+- gemini_generate_image result auto-saved to temp file; Python decodes to PNG on disk
+- Replaced image_add_text_overlay and image_add_logo gateway tools with Python Pillow
+
 # Creative Designer Skill
 
 ## Before Executing
@@ -77,7 +111,7 @@ Two optional Claude Design templates may exist:
 | Carousel template (4:5) | `brands/{brand}/social-carousel-template/` | IG + FB carousel posts (6 slides: Cover + 4 signs + CTA) | Generate the full background fresh with Gemini + Pillow text overlay using design-system / brand.md colors |
 | Story template (9:16) | `brands/{brand}/social-story-template/` | IG + FB Stories + Reels (6 slides: Hook → Problem → Solution → Proof → Offer → CTA, three direction styles A/B/C) | Same Gemini + Pillow fallback |
 
-Each folder is a self-contained React + Babel app (entry HTML + JSX + CSS + assets) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block in the entry HTML that exposes the editable copy keys. At runtime: substitute post copy into the JSON, render the modified HTML in Playwright, and screenshot each slide via stable offscreen DOM IDs. See "Render via template" in Step 4a. If the folder is missing or the EDITMODE block can't be located, fall through to Step 4b's Gemini-only pipeline — never block.
+Each folder is a self-contained React + Babel app (entry HTML + JSX + CSS + assets) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block in the entry HTML that exposes the editable copy keys. At runtime: the gateway renders the template server-side (Vercel + Playwright on the gateway) and PUTs slide PNGs directly to presigned Zernio URLs — no local Playwright required. See "Render via template" in Step 4a. If the folder is missing or the EDITMODE block can't be located, fall through to Step 4b's Gemini-only pipeline — never block.
 
 ### Standard asset dimensions (platform-fixed — same across all brands)
 | Asset | Dimensions | Notes |
@@ -162,17 +196,18 @@ all other cases (LinkedIn posts, banners, ads, mockups, etc.)
   → fall through to Step 4b (Gemini + Pillow text + Pillow logo)
 ```
 
-**Render via template — copy substitution + Playwright render. No Gemini, no Pillow on this path.**
+**Render via template — gateway template_render. No local Playwright, no Pillow on this path.**
 
-The template is a Claude Design React + Babel app installed via brand-setup Step 4c. It produces fully-laid-out slides with all chrome (logo, page indicator, kicker numerals, eyebrow chips, CTA buttons, themes) baked in. The agent's only job is copy substitution; the template's own React render produces the final slide PNGs. **For the canonical implementation see `content-generator/SKILL.md` Step 4c-template** — both skills follow the same procedure:
+The template is a Claude Design React + Babel app installed via brand-setup Step 4c and uploaded to the gateway. The gateway renders it server-side (Vercel + Playwright) and PUTs slide PNGs directly to presigned Zernio URLs. **For the canonical implementation see `content-generator/SKILL.md` Step 4c-template** — both skills follow the same procedure:
 
-1. Locate the entry HTML containing `EDITMODE-BEGIN`/`EDITMODE-END`. If absent, fall through to Step 4b.
-2. Parse the JSON block, merge the post copy dict (`cover_*`/`s2_*`...`cta_*` for carousel, `s1_*`...`s6_*` for story), apply the `Direction` from the calendar entry (`_direction` for story, `coverVariant` + `bodyVariant` for carousel — defaults if Direction blank).
-3. Write modified HTML to `tmp/{brand}/{slug}/`, copy template's other assets across.
-4. Playwright: navigate, wait for React, screenshot each slide via stable offscreen export DOM IDs (`#export-cover`/`#export-s2`...`#export-cta` for carousel, `#export-{A|B|C}-0`...`-5` for story).
-5. Save final PNGs.
-6. Skip Steps 4d (Pillow text overlay) and 4e (Pillow logo overlay) — the template render already includes them.
-7. Cleanup `tmp/`.
+1. Confirm the template folder has an entry HTML with `EDITMODE-BEGIN`/`EDITMODE-END`. If absent, fall through to Step 4b.
+2. Call `template_list(verbose=true)` to get `edit_keys` and `image_slots` from the gateway.
+3. Generate Gemini visual(s) — one per `image_slots` entry, kept in memory as base64. Do not upload anywhere.
+4. Presign one Zernio upload slot per output slide via `late_presign_upload` (run immediately before the render call).
+5. Build `edits` payload from the post copy dict; apply Direction (`_direction` for story, `coverVariant`/`bodyVariant` for carousel — leave template defaults if Direction blank).
+6. Call `template_render` with `edits`, `slots` (base64 visuals), and `upload_targets` (presigned Zernio slots). Gateway renders and PUTs slide PNGs; returns `images[n].public_url`.
+7. On success: use `public_url` values for upload. Skip Steps 4d and 4e (Pillow overlays — template render includes all chrome).
+8. On failure (5xx/504): fall through to Step 4b (Gemini + Pillow fallback).
 
 After the template-path completes, continue to upload (Step 4f) — do NOT re-run Step 4b's Gemini path; the template-path has already produced final assets.
 
@@ -603,10 +638,11 @@ Before finalizing any design output:
 - [ ] Accent color used sparingly — not dominant
 - [ ] No off-brand colors used
 - [ ] Typography follows the design-system font stack OR brand.md Google Fonts (whichever applied)
-- [ ] For IG/FB Carousel: if `social-carousel-template/` has entry HTML with EDITMODE block, template-path used (copy substitution → Playwright render → screenshot via export DOM IDs); else Gemini-only fallback (Step 4b) documented
+- [ ] For IG/FB Carousel: if `social-carousel-template/` has entry HTML with EDITMODE block, template-path used (template_list → Gemini base64 → presign slots → template_render → publicUrls); else Gemini-only fallback (Step 4b) documented
 - [ ] For IG/FB Story/Reel (static): if `social-story-template/` has entry HTML with EDITMODE block, template-path used; else Gemini-only fallback (Step 4b) documented
-- [ ] Template-path: post copy dict matches the template's key contract (carousel: cover_*/s2-5_*/cta_*; story: s1-6_*); Direction from calendar applied
-- [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — template renders include all chrome
+- [ ] Template-path: `template_list(verbose=true)` called to get `edit_keys` and `image_slots`; Gemini visuals held in memory as base64 (not uploaded)
+- [ ] Template-path: `edits` payload matches the template's key contract; Direction applied (`_direction` for story, `coverVariant`/`bodyVariant` for carousel)
+- [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome
 - [ ] Gemini-only fallback path (Step 4b): Pillow text overlay (Step 4d) AND Pillow logo overlay (Step 4e) BOTH applied — Gemini background has no copy and no logo
 - [ ] Day-of-week `text_align` and `logo_position` rotations applied only on the Gemini-only fallback path; not used on template-path
 

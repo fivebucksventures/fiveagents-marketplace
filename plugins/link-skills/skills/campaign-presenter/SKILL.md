@@ -4,6 +4,19 @@ description: Package marketing strategies into presentation decks — campaign d
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.5 | April 26, 2026 |
+
+**Description:** Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks for any active brand
+
+### Change Log
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # Campaign Presenter Skill
 
 ## Before Executing

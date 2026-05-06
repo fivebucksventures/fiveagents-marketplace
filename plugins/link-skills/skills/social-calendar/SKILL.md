@@ -4,6 +4,27 @@ description: Plan weekly 14-post social media content calendar across LinkedIn, 
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.15 | May 05, 2026 |
+
+**Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
+
+### Change Log
+
+**v2.2.15** — May 05, 2026
+- Direction column added to planning table — picker rules per format (Carousel/Story/LinkedIn)
+- Notion table column count 10 → 11
+- Quality Checklist requires Direction populated
+
+**v2.2.9** — April 30, 2026
+- Replaced "Ken Burns background video (pre-stored images)" references with "Gemini-generated images"
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # SKILL.md — Social Calendar
 
 ## Before Executing
@@ -153,25 +174,106 @@ Research-driven adjustments:
 
 ## Step 3 — Save to Notion
 
-Use **Notion MCP** to save the calendar to Notion.
+Use **Notion MCP** to save the calendar to Notion. The calendar page must live **inside the brand's social-calendar database** so `content-generator` Step 1 can find it via `${BRAND}_NOTION_DB`.
 
 Page title: `SocialCalendar_[DDMon]-[DDMonYYYY]`
 e.g. `SocialCalendar_17Mar-22Mar2026`
 
-### Steps
+### Step 3a — Ensure the brand's social-calendar DB exists (first-run only)
 
-1. Save local backup first: `outputs/{brand}/strategy/SocialCalendar_[DDMon]-[DDMonYYYY].md`
+This step is primarily for the **first-ever calendar run** for a brand. On subsequent weekly runs, the env var is already set and the DB already exists — fetch and proceed.
 
-2. **Check if page already exists:** Use `mcp__notion__API-post-search` with `query: "SocialCalendar_[DDMon]-[DDMonYYYY]"` and `filter: {"property": "object", "value": "page"}`. If a matching page is found, update it (step 2b). Otherwise, create it (step 2a).
+Read `${BRAND}_NOTION_DB` from `.claude/settings.local.json` (e.g. `FIVEBUCKS_NOTION_DB`).
 
-3. **Create new page (2a):** Use `mcp__notion__API-post-page` with:
-   - `parent`: `{"database_id": "<BRAND_NOTION_DB>"}`
-   - `properties`: `{"Name": {"title": [{"text": {"content": "SocialCalendar_[DDMon]-[DDMonYYYY]"}}]}}`
-   - `children`: Convert the markdown calendar into Notion blocks — heading_1 for `#`, heading_2 for `##`, table block for the calendar table (**11 columns** — Date, Platform, Format, Topic, Persona, Content Angle, CTA, Hashtags, Image Brief, Direction, Status — with has_column_header: true), paragraphs for other text. Max 100 blocks per call; use `mcp__notion__API-patch-block-children` for overflow.
+**Decision:**
 
-4. **Update existing page (2b):** Delete all existing child blocks via `mcp__notion__API-get-block-children` + `mcp__notion__API-delete-a-block` for each, then append new blocks via `mcp__notion__API-patch-block-children`.
+```
+IF env var is set:
+  fetch the DB → if fetch succeeds → DB exists → DO NOT create. Skip to Step 3b.
+  (only create if fetch returns 404 / not_found, meaning the DB was deleted)
 
-5. Capture the page URL from the response for the Slack notification.
+IF env var is NOT set:
+  → first-ever run for this brand → create the DB (instructions below).
+```
+
+```
+Use mcp__notion__notion-fetch:
+- id: "${BRAND}_NOTION_DB"
+```
+
+**If env var is set and fetch succeeds → skip to Step 3b. Do not create another DB.**
+
+**Create only when env var is unset (or fetch returns not_found):**
+```
+Use mcp__notion__notion-create-database:
+- parent: { "type": "page_id", "page_id": "<brand_parent_page_or_workspace_root>" }
+- title: "{Brand Name} Social Media Calendar"
+- properties: {
+    "Name":          { "title": {} },
+    "Date Range":    { "rich_text": {} },
+    "Status":        { "select": { "options": [
+                        {"name": "Planned"},
+                        {"name": "Published"},
+                        {"name": "Archived"}
+                      ] } },
+    "Posts":         { "number": { "format": "number" } },
+    "Created":       { "created_time": {} }
+  }
+```
+
+If no brand parent page exists yet, `notion-search` for `"{Brand}"` first; if nothing is found, create a parent page with `notion-create-pages` titled `"{Brand Name}"` at the workspace root, then nest the DB under it.
+
+After creation, **persist the new DB ID back to `.claude/settings.local.json`** under `env.{BRAND}_NOTION_DB`. Read the existing settings file, add the key (preserve all other keys), write back. This makes the DB discoverable by `content-generator` and by every future weekly social-calendar run.
+
+Notify the user in chat (first-run only):
+> Created new Notion DB **{Brand Name} Social Media Calendar** and saved its ID as `${BRAND}_NOTION_DB` in `.claude/settings.local.json`. Future runs will reuse this DB — no re-creation.
+
+### Step 3b — Save local backup
+
+Save local backup first: `outputs/{brand}/strategy/SocialCalendar_[DDMon]-[DDMonYYYY].md`
+
+### Step 3c — Find or create this week's calendar page inside the brand DB
+
+1. **Resolve the DB to a `data_source_url`** (needed for scoped search):
+   ```
+   Use mcp__notion__notion-fetch:
+   - id: "${BRAND}_NOTION_DB"
+   ```
+   Extract the `collection://` URL from the response — typically `data_sources[0].url`. Save as `data_source_url`.
+
+2. **Check if the week's page already exists, scoped to the brand DB only:**
+   ```
+   Use mcp__notion__notion-search:
+   - query: "SocialCalendar_[DDMon]-[DDMonYYYY]"
+   - data_source_url: <data_source_url from step 1>
+   - query_type: "internal"
+   ```
+   ⚠️ Never run a bare workspace-wide `notion-search` for the page name — it can return another brand's calendar with the same week label. Always pass `data_source_url`.
+
+3. **If no matching page → create it:**
+   ```
+   Use mcp__notion__notion-create-pages:
+   - parent: { "database_id": "${BRAND}_NOTION_DB" }
+   - pages: [{
+       "properties": { "Name": "SocialCalendar_[DDMon]-[DDMonYYYY]", "Status": "Planned", "Posts": 14 },
+       "content": "<markdown of the calendar — heading + 11-column table + content mix + persona distribution>"
+     }]
+   ```
+   The `content` field accepts markdown. Use a markdown table with **11 columns** — Date, Platform, Format, Topic, Persona, Content Angle, CTA, Hashtags, Image Brief, Direction, Status. The Notion connector converts markdown headings, tables, and paragraphs into the appropriate block types automatically.
+
+4. **If the page already exists → update it in place:**
+   ```
+   Use mcp__notion__notion-update-page:
+   - page_id: <existing page id>
+   - properties: { "Status": "Planned", "Posts": 14 }
+   - replace_content: true
+   - content: "<same markdown as step 3>"
+   ```
+   `replace_content: true` clears existing child blocks before appending the new content — avoids duplicate tables stacking up across re-runs.
+
+5. Capture the returned page URL for the Slack notification.
+
+**Brand-header sanity check before Slack:** the returned page's parent database title must contain the active brand. If somehow it doesn't (shouldn't happen given the DB-scoped flow), abort with a `failed` log — do not announce a calendar that landed in another brand's DB.
 
 ### Local backup file structure
 

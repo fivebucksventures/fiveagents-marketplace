@@ -4,6 +4,19 @@ description: Market research, ICP definition, positioning, competitive analysis,
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.5 | April 26, 2026 |
+
+**Description:** Market research, ICP definition, positioning, competitive analysis, campaign briefs for any active brand
+
+### Change Log
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # Research & Strategy Skill
 
 ## Before Executing

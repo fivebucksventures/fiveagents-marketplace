@@ -4,6 +4,25 @@ description: Generate 20 background images per brand for Reel video production. 
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.15 | May 05, 2026 |
+
+**Description:** Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
+
+### Change Log
+
+**v2.2.15** — May 05, 2026
+- Role section clarified — produces backgrounds library at brands/{brand}/backgrounds/ for Reel production, distinct from social-{carousel,story}-template/ apps
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
+**v2.2.2** — April 10, 2026
+- gemini_generate_image result decoded via Python to brands/{brand}/backgrounds/
+
 # SKILL.md — Background Generator
 
 ## Before Executing

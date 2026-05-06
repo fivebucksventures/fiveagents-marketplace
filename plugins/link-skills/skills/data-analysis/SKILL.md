@@ -4,6 +4,29 @@ description: Analyze campaign performance data — KPI dashboards, weekly/monthl
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.13 | May 05, 2026 |
+
+**Description:** Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand
+
+### Change Log
+
+**v2.2.13** — May 05, 2026
+- Step 1a — Windsor.ai is default path; Meta Ads MCP is opt-in with automatic fallback
+- Windsor field map and conversion-event guidance added; corrected capability claims
+
+**v2.2.11** — May 04, 2026
+- Step 1a split — Windsor.ai block for Google Ads + GA4; separate Meta Ads MCP block for Facebook + Instagram
+
+**v2.2.8** — April 28, 2026
+- date_preset → last_30dT; GA4 invalid field corrections; per-connector field reference table added
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # Data Analysis Skill
 
 ## Before Executing

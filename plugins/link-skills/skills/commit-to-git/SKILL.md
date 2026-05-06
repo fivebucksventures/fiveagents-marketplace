@@ -4,6 +4,19 @@ description: Stage all changes, bump patch version in version.ts, commit with ve
 allowed-tools: Bash, Read, Edit
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.5 | April 26, 2026 |
+
+**Description:** Stage all changes, bump patch version in version.ts, commit with version-prefixed message, push to origin, and tag the release
+
+### Change Log
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # Commit to Git Skill
 
 ## Before Executing

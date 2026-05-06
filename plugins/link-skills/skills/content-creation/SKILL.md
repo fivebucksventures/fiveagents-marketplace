@@ -4,6 +4,28 @@ description: Write persona-targeted marketing copy — landing pages, emails, ad
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.2.15 | May 05, 2026 |
+
+**Description:** Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
+
+### Change Log
+
+**v2.2.15** — May 05, 2026
+- Carousel/Story copy outputs now produce structured _copy.json with per-slide blocks + character budgets
+- Direction is NOT content-creation's concern (lives in social-calendar's Notion column)
+- Naming convention split: social ([Slug]_[Date]) vs non-social ([ContentType]_[Date])
+
+**v2.2.10** — May 04, 2026
+- Reads design-system/ to size copy against text frames
+- For IG/FB carousel/story copy, inspects template to write per-slide blocks within slot lengths
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # Content Creation Skill
 
 ## Before Executing

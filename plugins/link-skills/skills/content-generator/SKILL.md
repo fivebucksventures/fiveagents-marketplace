@@ -4,6 +4,41 @@ description: Daily automated content production — generate copy and images fro
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.3.0 | May 06, 2026 |
+
+**Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
+
+### Change Log
+
+**v2.3.0** — May 06, 2026
+- Step 4c-template — migrated from Playwright to gateway template_render MCP tool; no local browser required
+- _copy.json shell_path now resolved via template_list then passed to template_render as template_id
+
+**v2.2.15** — May 05, 2026
+- Step 4c-template — Playwright render via stable offscreen DOM IDs (#export-cover, #export-s2…)
+- Notion calendar schema gained Direction column (now 11 columns)
+- Step 3b — generate structured _copy.json for template-path posts
+- design-system/ MANDATORY → OPTIONAL — fallback to brand.md
+
+**v2.2.14** — May 05, 2026
+- text_align fixed to "center"; text_position alternates top/bottom by day-of-week
+- Complete Pillow text overlay — textwrap, textbbox pixel measurement, gradient scrim
+- Step 4h — mandatory visual verification before Zernio publish
+
+**v2.2.10** — May 04, 2026
+- Step 4c-template — renders via Playwright for IG/FB Carousel/Story when templates installed
+- Step 2 reads design-system/ + detects optional templates
+
+**v2.2.9** — April 30, 2026
+- Removed pre-stored background lookup — all images now generated fresh via Gemini
+
+**v2.2.5** — April 26, 2026
+- Added "Before Executing" section — reads agents/link.md before starting
+
 # SKILL.md — Content Generator
 
 ## Before Executing
@@ -35,18 +70,45 @@ Runs daily Mon–Sun on cron schedule. Targets posts scheduled for **today** (in
 
 Use **Notion MCP** to read the calendar. Follow these steps:
 
-**1a. Query the database to find the latest SocialCalendar_ page:**
+> ⚠️ **Never run a bare workspace-wide `notion-search`** (e.g. searching `"SocialCalendar_"` with no `data_source_url` filter). It returns matches from every brand and other unrelated databases in the workspace, and content-generator will publish the wrong brand's content. The search MUST be scoped to the active brand's database.
 
-Use `mcp__notion__API-query-data-source` with:
-- `data_source_id`: the brand's Notion DB ID (from env var `${BRAND}_NOTION_DB`)
-- `sorts`: `[{"property": "Name", "direction": "descending"}]`
-- `page_size`: 10
+**1a. Resolve the brand's database to a `collection://` URL, then search inside it:**
 
-From the results, find the page whose title contains `SocialCalendar_` and whose date range covers today. Title format: `SocialCalendar_DDMon-DDMonYYYY` (e.g. `SocialCalendar_06Apr-11Apr2026`).
+The available Notion MCP tools are `notion-fetch` and `notion-search` (the schemaful `mcp__notion__API-query-data-source` is not exposed by the Notion connector). Use this two-step pattern:
 
-**1b. Read the table from that page:**
+1. **Fetch the brand's DB to discover its collection URL:**
+```
+Use mcp__notion__notion-fetch:
+- id: "${BRAND}_NOTION_DB"   # the brand's DB ID from env var, e.g. FIVEBUCKS_NOTION_DB
+```
+Inspect the response and extract the `collection://` URL — typically returned as `data_sources[0].url` or under a `collection` field. Save it as `data_source_url`.
 
-Use `mcp__notion__API-get-block-children` with the page ID. Find the first block with `type: "table"`, then call `mcp__notion__API-get-block-children` again with the table's block ID to get all `table_row` blocks.
+2. **Search inside that collection:**
+```
+Use mcp__notion__notion-search:
+- query: "SocialCalendar_"
+- data_source_url: <data_source_url from step 1>
+- query_type: "internal"
+```
+
+This restricts results to pages inside the brand's social calendar DB. From the results, pick the page whose title contains `SocialCalendar_` and whose date range covers today. Title format: `SocialCalendar_DDMon-DDMonYYYY` (e.g. `SocialCalendar_06Apr-11Apr2026`).
+
+**Brand-header validation (mandatory before proceeding):** open the candidate page with `notion-fetch` and confirm the page's parent / database title matches `${BRAND}` — e.g. parent is "Fivebucks Social Media Calendar", not "NPC Office Social Media Calendar". If the brand header doesn't match, abort with a `failed` run log — do not publish content from another brand's calendar.
+
+**Fallback (only if step 1 returns no `collection://` URL):**
+
+If `notion-fetch` on the DB ID does not yield a usable `data_source_url`, fall back to a workspace-wide `notion-search` AND apply the brand-header validation strictly:
+
+```
+Use mcp__notion__notion-search:
+- query: "SocialCalendar_ ${BRAND}"   # include brand name to disambiguate
+```
+
+Filter every result by checking the page's parent database title contains the brand. Reject any result whose parent does not include the active brand. If no result passes the brand check, log `failed` and exit — never default to the first match.
+
+**1b. Read the table from the chosen page:**
+
+Use `mcp__notion__notion-fetch` with the page ID to retrieve the page content. Locate the table block (or the page's child database, depending on how the calendar was structured) and extract its `table_row` children. If the table is nested as a child page rather than inline, fetch the child page first.
 
 **1c. Parse rows into post objects:**
 
@@ -81,6 +143,7 @@ Read before generating any image — **all optional, never block on missing fold
 - `brands/{brand}/design-system/` — Claude Design visual system (colors, fonts, components, spacing). When present, informs the Gemini-only image-path's prompt aesthetic. When absent, fall back to the Colors and Voice & Tone sections of `brands/{brand}/brand.md` plus the Google Font names captured in brand-setup Step 4.
 - `brands/{brand}/social-carousel-template/` — when present, contains a Claude Design React + Babel template app (entry HTML + JSX + CSS + assets) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block in the entry HTML. Used for IG/FB Carousel via Step 4c-template.
 - `brands/{brand}/social-story-template/` — when present, contains the same kind of Claude Design template app with the EDITMODE contract, plus three direction styles (A/B/C). Used for IG/FB Story / Reel via Step 4c-template.
+- `brands/{brand}/brand.md` `## Social Templates` section — when present, records the `version_hash` and slot/key counts written by brand-setup Step 4c after gateway upload. If this section exists for a template type, it means the template is uploaded to the gateway and ready for `template_render`.
 
 If `design-system/` and the relevant template folder are both missing, fall back to the Gemini-only path (Step 4c-image) using brand.md colors/voice. Never log a `failed` run for missing visual assets.
 
@@ -179,8 +242,8 @@ Check the post `Format` from the calendar:
 
 | Platform | Format | Asset Type | Tool |
 |---|---|---|---|
-| FB/IG | Carousel | Static images | If `social-carousel-template/` has an entry HTML with EDITMODE block → **Step 4c-template** (substitute copy → Playwright render → 6 PNGs). Else → **Step 4c-image** (Gemini background → text overlay → logo). |
-| FB/IG | Story | Static image | If `social-story-template/` has an entry HTML with EDITMODE block → **Step 4c-template** (substitute copy → Playwright render → 6 PNGs, one direction). Else → **Step 4c-image** (publish as Story). |
+| FB/IG | Carousel | Static images | If `social-carousel-template/` has an entry HTML with EDITMODE block → **Step 4c-template** (Gemini base64 → presign Zernio slots → gateway `template_render` → 6 publicUrls). Else → **Step 4c-image** (Gemini background → text overlay → logo). |
+| FB/IG | Story | Static image | If `social-story-template/` has an entry HTML with EDITMODE block → **Step 4c-template** (same gateway render flow, 6 slides per direction). Else → **Step 4c-image** (publish as Story). |
 | FB/IG | Reel (Argil) | **AI avatar video** | **Argil API** (1 per brand per week, tagged by social-calendar) |
 | FB/IG | Reel | **Static image as Story** | If `social-story-template/` has entry HTML with EDITMODE block → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
 | LinkedIn | Post | Static image | **Step 4c-image** (templates don't apply on LinkedIn) |
@@ -195,108 +258,138 @@ Check the post `Format` from the calendar:
 5. If Format = `"Reel"` (no template, no Argil tag) → use **Step 4c-image** (static image, publish as Story).
 6. All other formats (or template missing / EDITMODE block absent) → use **Step 4c-image** (Gemini-generated background + text overlay + logo).
 
-### Step 4c-template — Render via Claude Design template (Carousel / Story)
+### Step 4c-template — Render via gateway template_render (Carousel / Story)
 
-Use this path when the applicable template folder contains an entry HTML with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block. The template is a self-contained React + Babel app installed via brand-setup Step 4c. The agent:
-1. Substitutes post-specific copy into the EDITMODE JSON block,
-2. Renders the modified template in a Playwright browser context,
-3. Screenshots each slide via stable offscreen DOM IDs.
+Use this path when the applicable template folder contains an entry HTML with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block AND the brand's `## Social Templates` section in `brand.md` confirms the template is uploaded to the gateway (written by brand-setup Step 4c). Rendering is server-side — **no local Playwright required**.
 
-**No Pillow text overlay, no Pillow logo overlay, no Gemini focal compositing on this path** — the template's React app produces fully-rendered slides with all chrome (logo, page indicator, kicker numerals, CTA buttons, eyebrow chips, themes) baked in. The agent's only job is copy substitution.
+**No Pillow text overlay, no Pillow logo overlay on this path.** The gateway renders the React + Babel template server-side (Vercel + Playwright) and PUTs finished slide PNGs directly to presigned Zernio URLs. The skill's jobs: Gemini visuals (base64 only, in memory) → presign Zernio slots → call template_render → receive publicUrls.
 
 **Steps:**
 
-#### 1. Locate the entry HTML and parse the EDITMODE block
+#### 1. Call `template_list` to get schema (cache for the run)
 
-```python
-import re, json
-from pathlib import Path
-
-template_dir = Path("brands") / brand / "social-carousel-template"  # or social-story-template
-entry_html = next(
-    (p for p in template_dir.glob("*.html")
-     if "EDITMODE-BEGIN" in p.read_text(encoding="utf-8")),
-    None
-)
-if entry_html is None:
-    use_path("4c-image"); return  # fall back
-
-source = entry_html.read_text(encoding="utf-8")
-m = re.search(r'/\*EDITMODE-BEGIN\*/(.*?)/\*EDITMODE-END\*/', source, re.DOTALL)
-tweaks = json.loads(m.group(1))   # current defaults; we'll mutate per post
+```
+Use gateway MCP tool template_list:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- brand: "{brand}"
+- verbose: true
 ```
 
-#### 2. Build the post copy dict
+Returns `edit_keys: string[]` and `image_slots: string[]` for each template type. Cache the result for the entire daily run — don't call per post.
 
-`content-creation` produces a structured copy artifact for each Carousel / Story post matching the template's key contract. Read it from the post's `_copy.json` if present (next to `_copy.md`), or derive from the calendar entry + persona context.
+Derive slide count from `edit_keys`:
+- **Carousel**: count distinct slide-section prefixes (cover + s2…s5 + cta = 6 slides by default; let the template's structure be the truth).
+- **Story**: 6 slides per direction (each direction A/B/C renders 6 frames).
 
-**Carousel keys** (must include all required, optional ones welcome): `cover_eyebrow`, `cover_title`, `cover_sub`, `s2_kicker`, `s2_title`, `s2_body`, `s3_kicker`, `s3_title`, `s3_body`, `s4_kicker`, `s4_title`, `s4_body`, `s5_kicker`, `s5_title`, `s5_body`, `cta_eyebrow`, `cta_title`, `cta_sub`, `cta_button`. Optional template-specific: `s2_pullquote`, `s3_stat_value`, `s3_stat_label`, `s5_before`, `s5_after`.
+**Sanity check**: confirm the Direction value from Notion matches values represented in `edit_keys`. If a mismatch, default to template defaults and log a warning.
 
-**Story keys**: `s1_eyebrow`, `s1_headline_pre`, `s1_headline_accent`, `s1_sub`, `s1_live`, `s1_big`, `s1_big_unit`, `s2_eyebrow`, `s2_headline`, `s2_pain1`, `s2_pain2`, `s2_pain3`, `s3_eyebrow`, `s3_headline_pre`, `s3_headline_accent`, `s3_sub`, `s4_eyebrow`, `s4_headline`, `s4_stat1_num`, `s4_stat1_lbl` (×4), `s4_quote`, `s4_quote_author`, `s5_eyebrow`, `s5_headline`, `s5_b1`–`s5_b4`, `s5_pill`, `s6_eyebrow`, `s6_headline_pre`, `s6_headline_accent`, `s6_sub`, `s6_cta`, `s6_url`.
+#### 2. Generate Gemini visual(s) for each image slot
 
-#### 3. Apply the calendar's Direction to the tweaks
+For each slot in `image_slots`, generate a Gemini image. Keep each result **in memory as base64** — do NOT upload to Zernio or anywhere else. These are render inputs only.
 
-Direction is set by `social-calendar` per post (column 9 in the Notion table — see Step 1c).
-
-**For Story posts:** map `Direction` to the template's `_direction` key:
-```python
-if format == "Story" or format == "Reel":
-    tweaks["_direction"] = post.direction or "A"   # default to A if unset
+```
+Use gateway MCP tool gemini_generate_image:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- prompt: "<ImageBrief from Notion + brand visual style + 'no text, no people'>"
+- aspect_ratio: "4:5"   # carousel; use "9:16" for story
+- model: "gemini-3.1-flash-image-preview"
 ```
 
-**For Carousel posts:** parse `Direction` as `"<coverVariant>-<bodyVariant>"`:
+Decode to base64 string (hold in memory, not written to a permanent path):
 ```python
+import glob, json, os
+result_file = max(glob.glob('/sessions/*/mnt/.claude/projects/*/tool-results/mcp-*gemini_generate_image*.txt'), key=os.path.getmtime)
+with open(result_file) as f:
+    parsed = json.loads(json.load(f)[0]['text'])
+slot_b64 = parsed['image_base64']   # in memory only
+```
+
+#### 3. Presign one Zernio upload per output slide
+
+Run presigns immediately before the `template_render` call (presigned URLs expire; render p95 < 18 s, well within the 5-minute lifetime):
+
+```python
+upload_targets = []
+for i in range(1, slide_count + 1):
+    presign = late_presign_upload(
+        fiveagents_api_key=API_KEY,
+        filename=f"{slug}_slide-{i}_{date}.png",
+        content_type="image/png",
+    )
+    upload_targets.append({
+        "slide_index":  i,
+        "upload_url":   presign["uploadUrl"],
+        "content_type": "image/png",
+        "public_url":   presign["publicUrl"],
+    })
+```
+
+#### 4. Build the `edits` payload
+
+Map post copy fields to the template's EDITMODE key contract. Send only keys you're overriding — gateway preserves template defaults for any missing key.
+
+**Carousel** (read full key contract from `content-creation/SKILL.md` carousel copy contract):
+```python
+edits = {
+    "cover_eyebrow": post.eyebrow.upper(),
+    "cover_title":   post.hook,
+    "cover_sub":     post.subline,
+    "s2_kicker": "01", "s2_title": slide_titles[0], "s2_body": slide_bodies[0],
+    "s3_kicker": "02", "s3_title": slide_titles[1], "s3_body": slide_bodies[1],
+    "s4_kicker": "03", "s4_title": slide_titles[2], "s4_body": slide_bodies[2],
+    "s5_kicker": "04", "s5_title": slide_titles[3], "s5_body": slide_bodies[3],
+    "cta_eyebrow": post.cta_eyebrow, "cta_title": post.cta_title,
+    "cta_sub": post.cta_sub, "cta_button": post.cta_button,
+    "handle": brand.handle, "hashtag": post.primary_hashtag,
+}
 if format == "Carousel" and post.direction:
     cover_v, body_v = post.direction.split("-", 1)
-    tweaks["coverVariant"] = cover_v   # e.g. "type" / "sticker" / "editorial"
-    tweaks["bodyVariant"]  = body_v    # e.g. "allnumbers" / "editorial" / "mixed"
+    edits["coverVariant"] = cover_v   # e.g. "type" / "sticker" / "editorial"
+    edits["bodyVariant"]  = body_v    # e.g. "allnumbers" / "editorial" / "mixed"
 ```
 
-If `Direction` is blank, leave the template defaults in place.
-
-#### 4. Merge post copy into tweaks and write modified HTML to tmp
-
+**Story** (map into s1_*…s6_* keys per the story EDITMODE contract; include `_direction`):
 ```python
-tweaks.update(post_copy)        # post_copy is the dict from step 2 (only keys present in post_copy are overwritten)
-
-new_block = "/*EDITMODE-BEGIN*/" + json.dumps(tweaks, indent=2, ensure_ascii=False) + "/*EDITMODE-END*/"
-modified = re.sub(r'/\*EDITMODE-BEGIN\*/.*?/\*EDITMODE-END\*/', new_block, source, count=1, flags=re.DOTALL)
-
-import shutil
-tmp_dir = Path("tmp") / brand / slug
-if tmp_dir.exists(): shutil.rmtree(tmp_dir)
-shutil.copytree(template_dir, tmp_dir)             # copy assets, fonts, jsx, css
-(tmp_dir / entry_html.name).write_text(modified, encoding="utf-8")
+edits = {
+    "s1_eyebrow": ..., "s1_headline_pre": ..., "s1_headline_accent": ..., "s1_sub": ...,
+    "s2_eyebrow": ..., "s2_headline": ..., "s2_pain1": ..., "s2_pain2": ..., "s2_pain3": ...,
+    # ...s3_* through s6_* from _copy.json or Step 3 post copy
+    "handle": brand.handle,
+    "_direction": post.direction or "A",   # default to A if calendar Direction is blank
+}
 ```
 
-#### 5. Render via Playwright and screenshot each slide
-
-The template renders all slides into hidden offscreen DOM elements with stable IDs. Use Playwright MCP browser tools:
+#### 5. Call `template_render`
 
 ```
-1. browser_navigate to file:///{absolute-path-to-tmp}/index.html (or whatever the entry HTML is named)
-2. Wait for React render to settle: browser_wait_for selector e.g. "#export-cover" (carousel) or "#export-A-0" (story)
-3. For each slide, screenshot the offscreen export element:
-
-   Carousel — 6 slides at IDs (matches template defaults):
-     #export-cover, #export-s2, #export-s3, #export-s4, #export-s5, #export-cta
-
-   Story — 6 slides for the chosen direction (A, B, or C):
-     #export-{D}-0 ... #export-{D}-5  where {D} is the direction letter
-
-4. Save each screenshot to outputs/{brand}/posts/[Platform]/[Slug]_[Date]_slide-{N}_final.png
-   For single-frame Story (publish as a Story, not a Reel sequence), only screenshot the slide the post needs — typically slide 0 (Hook) or whichever slide makes sense for that post's narrative beat. The calendar's ImageBrief / ContentAngle hints which slide to use for single-Story posts. For multi-slide Story sequences (rare, treat as a "story carousel"), screenshot all 6.
+Use gateway MCP tool template_render:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- brand: "{brand}"
+- template_type: "carousel"    # or "story"
+- edits: { ... from step 4 }
+- slots: { "<slot_key>": "<base64 PNG>" }   # e.g. { "s4_visual": slot_b64 }
+- upload_targets: [ ... from step 3 ]
+- options: {
+    "direction":    post.direction,          # story only (A/B/C)
+    "coverVariant": cover_v,                 # carousel only
+    "bodyVariant":  body_v                   # carousel only
+  }
 ```
 
-If the offscreen export DOM IDs are not present (older or non-standard template), fall back to `browser_take_screenshot` of each visible slide artboard; consult the template's `slides.jsx` / `app.jsx` for the actual selectors.
+Gateway renders server-side, PUTs each slide PNG to its `upload_url`, returns:
+```json
+{ "images": [{ "slide_index": 1, "public_url": "https://..." }, ...] }
+```
 
-#### 6. Cleanup
+The skill never downloads or re-uploads the rendered PNGs — they live on Zernio S3 from the moment they're rendered.
 
-Delete `tmp/{brand}/{slug}/` after final PNGs are saved.
+**On success:** collect `public_url` values in slide order → pass as `media_items` in `late_create_post` (Step 5). **Skip Steps 4d, 4e, and 4g** — no Pillow overlays, no tmp cleanup (no tmp folder was created on this path). Day-of-week `text_align` and `logo_position` rotations apply only to Step 4c-image, not here.
 
-#### 7. Skip Steps 4d and 4e for the template-path
-
-Template-path PNGs are already final — they include text, logo, kicker numerals, CTA buttons, all chrome. Do **not** apply `add_text_overlay` or `add_logo` on this path. Day-of-week `text_align` and `logo_position` rotations apply only to the Gemini-only image-path (Step 4c-image).
+**On failure (5xx / 504 timeout):**
+- Log a Slack warning for this post: `"⚠️ [{brand}] template_render failed for '{topic}' — falling back to Gemini-only path. Post marked Draft Ready."`
+- Fall back to **Step 4c-image** (Gemini background → Pillow text overlay → Pillow logo overlay).
+- Set Notion status to `"Draft Ready"` instead of `"Published"` so the user reviews the fallback before resending.
+- Do NOT retry `template_render` — render once and fall back.
 
 ### Step 4c-argil — Generate Reel video via Argil API (1 per brand per week)
 
@@ -683,11 +776,13 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] `brands/{brand}/design-system/` was read when present (informs Gemini prompt aesthetic); fallback to `brand.md` colors/voice when absent — never block on missing design-system
 - [ ] Image dimensions are correct for platform/format
 - [ ] Template-path used when the matching template folder has an entry HTML with EDITMODE block; image-path used otherwise (no `failed` run for missing templates)
-- [ ] **Template-path:** EDITMODE-BEGIN/END block parsed; post-copy dict matches the template's key contract (carousel: cover_*/s2-5_*/cta_*; story: s1-6_*)
-- [ ] **Template-path:** Direction from Notion calendar applied (`_direction` for story; `coverVariant`/`bodyVariant` for carousel) — defaults used only if calendar Direction is blank
-- [ ] **Template-path:** modified HTML written to `tmp/{brand}/{slug}/`, original template under `brands/` left untouched
-- [ ] **Template-path:** Playwright renders, waits for React, screenshots each slide via stable export DOM IDs (`#export-cover`/`#export-s2`...`#export-cta` for carousel; `#export-{A|B|C}-0`...`-5` for story)
-- [ ] **Template-path:** Pillow text overlay AND logo overlay BOTH skipped — template renders include all chrome
+- [ ] **Template-path:** `template_list(verbose=true)` called at run start; `edit_keys` and `image_slots` cached for the run (not called per-post)
+- [ ] **Template-path:** Gemini visual(s) generated per `image_slots` entry, held in memory as base64 — not uploaded to Zernio or anywhere else
+- [ ] **Template-path:** Zernio presigned slots created immediately before `template_render` (one per output slide)
+- [ ] **Template-path:** `edits` payload maps post copy to EDITMODE key contract; Direction applied (`_direction` for story; `coverVariant`/`bodyVariant` for carousel) — template defaults preserved for missing keys
+- [ ] **Template-path:** `template_render` called once; `publicUrls` from response used as `media_items` in `late_create_post`
+- [ ] **Template-path:** Pillow text overlay AND logo overlay BOTH skipped — gateway render includes all chrome; Steps 4d, 4e, 4g all skipped
+- [ ] **Template-path (failure):** 5xx/504 falls back to Step 4c-image; Notion status set to `"Draft Ready"` (not `"Published"`); Slack warning logged
 - [ ] **Image-path (Gemini-only):** Pillow text overlay (Step 4d) AND logo overlay (Step 4e) BOTH applied — Gemini background has no logo
 - [ ] **Image-path:** text overlay applied with correct day-of-week `text_position` (bottom Mon/Wed/Fri, top Tue/Thu/Sat), text always centered horizontally
 - [ ] **Image-path:** Logo at 0.18 scale with correct day-of-week `logo_position`

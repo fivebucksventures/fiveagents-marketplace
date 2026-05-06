@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.2.15';
-const DEFAULT_DATE = 'May 05, 2026';
+const DEFAULT_VERSION = 'v2.3.0';
+const DEFAULT_DATE = 'May 06, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,21 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.3.0',
+    date: 'May 06, 2026',
+    changes: [
+      'link.md: External APIs section — added template_upload / template_list / template_render gateway tools for server-side carousel/story rendering',
+      'brand-setup: Step 9a — version stamp extracted from link.md Maintenance table; embedded into CLAUDE.md as <!-- link.md version: ... | Last Changed: ... | Embedded: ... --> comment inside BEGIN/END markers on every brand-setup and plugin-update run',
+      'brand-setup: Steps 4c-i/ii — template upload sub-flow added: zip templates (excluding __MACOSX, .DS_Store, node_modules), call template_upload gateway, persist ## Social Templates section to brand.md with template IDs, verify via template_list',
+      'brand-setup: Step 9c Visual System block updated — gateway template_render path documented; no local Playwright required for rendering',
+      'content-generator: Step 4c-template — migrated from local Playwright render to gateway template_render MCP tool; shell_path resolved via template_list as template_id; no local browser required',
+      'creative-designer: Step 4a template-path — gateway renders templates server-side via template_render MCP; Playwright removed; stale intro text corrected',
+      'plugin-update: new skill — comprehensive brand audit with version gap detection (Step 0: reads version.ts + brand.md Plugin Version + all 14 maintenance sections to build delta table); Step 1j skill/agent version audit; Step 3g unconditional version stamp refresh; Step 3j changelog-driven brand action mapping; Step 5 writes plugin version to brand.md after completion',
+      'all 14 files: ## Maintenance sections added to every SKILL.md and link.md — Version, Last Changed, Description, last 5 changelog entries per file',
+      'commit-to-git workflow: overhauled — Step 3 audits maintenance section freshness, Step 4 syncs all 14 rows to Notion "Five Agents - Agents Library" DB, Step 6 scoped to plugins/link-skills/ only, Step 7 push + tag + ls-remote confirmation',
+    ],
+  },
   {
     version: 'v2.2.15',
     date: 'May 05, 2026',
@@ -198,26 +213,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'fiveagents-gateway: removed image_add_text_overlay, image_add_logo tools (media.ts stubbed)',
       'fiveagents-gateway: removed late_upload_media tool from late.ts',
       'fiveagents-gateway: removed registerMediaTools from route.ts',
-    ],
-  },
-  {
-    version: 'v2.2.1',
-    date: 'April 10, 2026',
-    changes: [
-      'brand-setup: Step 1b — added Cowork Project folder setup (user creates/selects project before brand files are created)',
-      'brand-setup: Step 7b — full Zernio onboarding flow (account signup, profile creation, OAuth social platform connection)',
-      'brand-setup: Step 7b — auto-discover Zernio profile ID and account IDs via late_list_profiles + late_list_accounts',
-      'brand-setup: Step 7b — save per-platform account IDs as {BRAND}_LATE_FB/IG/LI env vars + Social Publishing section in brand.md',
-      'brand-setup: Step 8 — removed redundant Playwright validation (already confirmed in Step 4)',
-      'brand-setup: Step 8 — fixed email test param (html → html_body), DataforSEO location_code now dynamic from brand locale',
-      'brand-setup: Step 8 — removed duplicate text report block (summary table is sufficient)',
-      'brand-setup: Step 9 — completion email via brand-setup.ts server-side template (JSON payload, styled tables, status badges, action items)',
-      'brand-setup: Step 1a — removed premature MCP connectors confirmation (moved to Step 7)',
-      'fiveagents.io: new lib/email/templates/brand-setup.ts — styled email renderer for setup completion report',
-      'fiveagents.io: registered brand-setup tag in email template index',
-      'fiveagents-gateway: new late_list_profiles tool (GET /v1/profiles)',
-      'fiveagents-gateway: new late_list_accounts tool (GET /v1/accounts with profileId filter)',
-      'fiveagents-gateway: updated docs — 22 tools total',
     ],
   },
 ];

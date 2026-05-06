@@ -2,6 +2,49 @@
 description: Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 ---
 
+## Maintenance
+
+| Agent | Version | Last Changed |
+|---|---|---|
+| Link | v2.3.0 | May 06, 2026 |
+
+**Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
+
+### Change Log
+
+**v2.3.0** — May 06, 2026
+- Step 9a — version stamp extracted from link.md Maintenance table; embedded into CLAUDE.md as `<!-- link.md version: ... | Last Changed: ... | Embedded: ... -->` comment inside BEGIN/END markers
+- Step 9b — placeholder list extended: `{link_version}`, `{link_version_date}`, `{embed_date}` added for version stamp substitution
+- Steps 4c-i/ii (D/E/F) — template upload sub-flow added: zip with noise exclusion, `template_upload` gateway call, `## Social Templates` persisted to brand.md, `template_list` verification
+- Step 9c — Visual System block updated: gateway template_render path documented; no local Playwright required for rendering
+
+**v2.2.15** — May 05, 2026
+- Step 9 ↔ Step 10 swap — CLAUDE.md initialization now runs before completion email
+- Step 4b (Claude Design System) MANDATORY → OPTIONAL — fallback to brand.md colors/voice
+- Step 4b/4c install flow rewritten — user provides unzipped folder path, agent copies + renames
+- Step 4c rewrite — social templates are React + Babel apps with EDITMODE-BEGIN/END contracts
+- Step 9c — detects design-system/, carousel/story templates for CLAUDE.md Visual System block
+
+**v2.2.13** — May 05, 2026
+- Meta Ads framing reversed — Windsor.ai is now MANDATORY; Meta Ads MCP is optional enhancement
+- Step 7c — META_ADS_SOURCE env var contract documented
+- Step 8 #14 — Windsor.ai test verifies all three connectors (Google Ads, GA4, Facebook)
+
+**v2.2.12** — May 04, 2026
+- Step 7b — save DEFAULT_BRAND and {BRAND}_NOTION_DB to settings.local.json
+- Step 8d — mandatory validation checks for DEFAULT_BRAND and {BRAND}_NOTION_DB
+- Step 10b CLAUDE.md template — "Workspace Defaults" section with hardcoded brand slug
+
+**v2.2.11** — May 04, 2026
+- Step 10 — CLAUDE.md now embeds full agents/link.md (idempotent BEGIN/END markers)
+- Added Meta Ads MCP custom connector (https://mcp.facebook.com/ads)
+- Windsor.ai narrowed to Google Ads + GA4 only
+
+**v2.2.10** — May 04, 2026
+- Step 4b — Claude Design system installed at brands/{brand}/design-system/
+- Step 4c — Social Carousel (4:5) and Social Story (9:16) templates installed
+- Step 10a hardened — ABSOLUTE path enforced for agents/link.md
+
 # Brand Setup — New Client Onboarding
 
 ## Before Executing
@@ -304,7 +347,7 @@ If colors/fonts in the Claude Design system differ from `brands/{brand}/brand.md
 
 ### Step 4c — Social Templates (OPTIONAL — recommended)
 
-Two Claude Design templates can be installed — one for IG/FB Carousel posts (4:5, 6 slides: Cover + 4 sign slides + CTA), one for IG/FB Stories and Reels (9:16, 6 slides: Hook → Problem → Solution → Proof → Offer → CTA, with three direction styles A/B/C). Each template is a **self-contained React + Babel app** (entry HTML + JSX + CSS + assets + fonts) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block inside the entry HTML that exposes every editable copy field. At runtime, content-generator parses the JSON, substitutes post-specific copy, writes the modified HTML to a temp folder, renders it in Playwright, and screenshots each slide via stable offscreen DOM IDs — so brand consistency comes from the template's full React render (logo, layout chrome, slide-number kickers, CTA buttons, eyebrow chips, themes), not from any post-render Pillow overlay.
+Two Claude Design templates can be installed — one for IG/FB Carousel posts (4:5, 6 slides: Cover + 4 sign slides + CTA), one for IG/FB Stories and Reels (9:16, 6 slides: Hook → Problem → Solution → Proof → Offer → CTA, with three direction styles A/B/C). Each template is a **self-contained React + Babel app** (entry HTML + JSX + CSS + assets + fonts) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block inside the entry HTML that exposes every editable copy field. At runtime, content-generator generates Gemini visuals for each image slot (held in memory as base64), then calls the gateway `template_render` tool which renders the template server-side (Vercel + Playwright on the gateway) and delivers rendered slide PNGs directly to presigned Zernio upload URLs — so brand consistency comes from the template's full React render (logo, layout chrome, slide-number kickers, CTA buttons, eyebrow chips, themes), not from any post-render Pillow overlay. **No local Playwright required.**
 
 **Both are optional.** If skipped, content-generator and creative-designer fall back to a Gemini-generated background + Pillow text overlay + Pillow logo overlay (no brand-specific layout chrome, but still produces working assets).
 
@@ -384,7 +427,7 @@ The agent gives the user a fully-composed, copy-pasteable prompt to drop into Cl
 
 **Step B — Export the template from Claude Design:**
 
-Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts) — no PNG rendering at this stage. content-generator does the per-post render at runtime via Playwright.
+Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts). The skill copies it locally and uploads it to the gateway — the gateway renders per-post server-side via `template_render`, so no local Playwright is needed.
 
 > Great — let's export it. In Claude Design's main toolbar, click **Share → Download Project as .zip** (the standard project export — gives you the full HTML/JSX/CSS source). Unzip the file somewhere inside your Cowork project mount so I can read it, then let me know the path.
 
@@ -450,6 +493,94 @@ assert not missing_keys, (
 Confirm to the user:
 > ✅ Copied to `brands/{brand}/social-carousel-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required keys. Original folder untouched.
 
+**Step D — Zip and upload to gateway:**
+
+Compute the canonical `version_hash` and create the upload zip using Python:
+
+```python
+import hashlib, io, base64, zipfile
+from pathlib import Path
+
+folder = Path("brands") / brand / "social-carousel-template"
+IGNORE = {".DS_Store", "Thumbs.db"}
+IGNORE_DIRS = {".git", "node_modules"}
+
+def compute_version_hash(folder: Path) -> str:
+    h = hashlib.sha256()
+    files = sorted(
+        (p for p in folder.rglob("*") if p.is_file()),
+        key=lambda p: p.relative_to(folder).as_posix()
+    )
+    for p in files:
+        if p.name in IGNORE: continue
+        if any(part in IGNORE_DIRS for part in p.relative_to(folder).parts): continue
+        rel = p.relative_to(folder).as_posix()
+        h.update(hashlib.sha256(rel.encode()).hexdigest().encode())
+        h.update(b":")
+        h.update(hashlib.sha256(p.read_bytes()).hexdigest().encode())
+        h.update(b"\n")
+    return h.hexdigest()
+
+local_hash = compute_version_hash(folder)
+
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+    for path in folder.rglob("*"):
+        if not path.is_file(): continue
+        if path.name in IGNORE: continue
+        if any(part in IGNORE_DIRS for part in path.relative_to(folder).parts): continue
+        zf.write(path, arcname=path.relative_to(folder).as_posix())
+zip_b64 = base64.b64encode(buf.getvalue()).decode()
+zip_mb = len(buf.getvalue()) / 1_048_576
+assert zip_mb < 10, f"Zip is {zip_mb:.1f} MB — remove large assets and retry."
+```
+
+Upload to gateway:
+```
+Use gateway MCP tool template_upload:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- brand: "{brand}"
+- template_type: "carousel"
+- zip_base64: <zip_b64>
+```
+
+On success, capture: `version_hash`, `edit_keys`, `image_slots`, `uploaded_at` from the response.
+On 5xx → retry once after 5 seconds, then fail with "gateway error — try again later".
+On 4xx (zip/schema invalid) → show the error and ask the user to re-export from Claude Design. Do not write to brand.md.
+
+| Failure | Action |
+|---|---|
+| `template_upload` 4xx | Show error + ask user to re-export from Claude Design, do not retry |
+| `template_upload` 5xx | Retry once after 5s, then fail with "gateway error — try again later" |
+| Zip > 10 MB | Abort with instructions to remove large assets |
+
+**Step E — Persist to `brands/{brand}/brand.md`:**
+
+After a successful `template_upload` response, append (or update if already present) the `## Social Templates` section in `brand.md`:
+
+```markdown
+## Social Templates
+
+- Carousel — version `{version_hash}` uploaded {uploaded_at}
+  - Edit keys: {len(edit_keys)}
+  - Image slots: {len(image_slots)}
+```
+
+If a `## Social Templates` section already exists (re-run scenario), replace its Carousel entry while preserving any Story entry. Only write this after a confirmed successful upload response.
+
+**Step F — Verification gate:**
+
+```
+Use gateway MCP tool template_list:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- brand: "{brand}"
+- verbose: false
+```
+
+Confirm the response includes `template_type: "carousel"` with `version_hash` matching the value returned by `template_upload`. If absent or hash mismatch, fail and instruct the user to re-run Step D. Do not mark the step complete until this check passes.
+
+> ✅ Carousel template uploaded to gateway — version `{version_hash[:8]}...`, {len(edit_keys)} edit keys, {len(image_slots)} image slot(s). Verified with `template_list`.
+
 If the path is invalid, re-ask. If the EDITMODE block is missing or the required keys are absent, tell the user what was wrong and ask them to re-iterate with Claude Design (referencing the prompt in Step A). If the user skips this template entirely, leave the folder absent — Step 9c records `missing` and skills fall back to Gemini + Pillow.
 
 #### 4c-ii. Social Story Template (Instagram + Facebook, 9:16)
@@ -505,7 +636,7 @@ Same pattern as Step 4c-i: the agent composes a copy-pasteable prompt and gives 
 
 **Step B — Export the template from Claude Design:**
 
-Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts) — no PNG rendering at this stage. content-generator does the per-post render at runtime via Playwright.
+Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts). The skill copies it locally and uploads it to the gateway — the gateway renders per-post server-side via `template_render`, so no local Playwright is needed.
 
 > Great — let's export it. In Claude Design's main toolbar, click **Share → Download Project as .zip** (the standard project export — gives you the full HTML/JSX/CSS source). Unzip the file somewhere inside your Cowork project mount so I can read it, then let me know the path.
 
@@ -568,6 +699,61 @@ assert not missing_keys, (
 
 Confirm to the user:
 > ✅ Copied to `brands/{brand}/social-story-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required H/P/S/P/O/CTA keys. Original folder untouched.
+
+**Step D — Zip and upload to gateway:**
+
+Compute the canonical `version_hash` and create the upload zip using Python (same algorithm as Step 4c-i Step D — `compute_version_hash`, `IGNORE`, `IGNORE_DIRS`):
+
+```python
+folder = Path("brands") / brand / "social-story-template"
+local_hash = compute_version_hash(folder)
+
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+    for path in folder.rglob("*"):
+        if not path.is_file(): continue
+        if path.name in IGNORE: continue
+        if any(part in IGNORE_DIRS for part in path.relative_to(folder).parts): continue
+        zf.write(path, arcname=path.relative_to(folder).as_posix())
+zip_b64 = base64.b64encode(buf.getvalue()).decode()
+zip_mb = len(buf.getvalue()) / 1_048_576
+assert zip_mb < 10, f"Zip is {zip_mb:.1f} MB — remove large assets and retry."
+```
+
+Upload to gateway:
+```
+Use gateway MCP tool template_upload:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- brand: "{brand}"
+- template_type: "story"
+- zip_base64: <zip_b64>
+```
+
+On success, capture: `version_hash`, `edit_keys`, `image_slots`, `uploaded_at` from the response.
+On 5xx → retry once after 5 seconds. On 4xx → show error, ask user to re-export. Same failure table as Step 4c-i Step D.
+
+**Step E — Persist to `brands/{brand}/brand.md`:**
+
+Update the `## Social Templates` section in `brand.md` (append Story entry, preserve any Carousel entry already written by Step 4c-i):
+
+```markdown
+- Story — version `{version_hash}` uploaded {uploaded_at}
+  - Edit keys: {len(edit_keys)}
+  - Image slots: {len(image_slots)}
+```
+
+**Step F — Verification gate:**
+
+```
+Use gateway MCP tool template_list:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- brand: "{brand}"
+- verbose: false
+```
+
+Confirm the response includes `template_type: "story"` with `version_hash` matching the value returned by `template_upload`. If absent or hash mismatch, fail and instruct re-upload.
+
+> ✅ Story template uploaded to gateway — version `{version_hash[:8]}...`, {len(edit_keys)} edit keys, {len(image_slots)} image slot(s). Verified with `template_list`.
 
 If the path is invalid, re-ask. If the EDITMODE block is missing or required keys are absent, tell the user what was wrong and ask them to re-iterate with Claude Design (referencing the prompt in Step A). If the user skips this template entirely, leave the folder absent — Step 9c records `missing` and skills fall back to Gemini + Pillow.
 
@@ -1146,6 +1332,16 @@ import re
 link_md_body = re.sub(r'^---\s*\n.*?\n---\s*\n', '', link_md_content, count=1, flags=re.DOTALL).lstrip()
 ```
 
+**Extract the version from the Maintenance table** so it can be stamped into `CLAUDE.md`:
+
+```python
+import datetime
+version_match = re.search(r'\|\s*Link\s*\|\s*(v[\S]+)\s*\|\s*([^|\n]+)\s*\|', link_md_content)
+link_version = version_match.group(1).strip() if version_match else "unknown"
+link_version_date = version_match.group(2).strip() if version_match else "unknown"
+embed_date = datetime.date.today().isoformat()   # e.g. 2026-05-06
+```
+
 `link_md_body` is what gets embedded in 9b.
 
 #### 9b. Read or create CLAUDE.md
@@ -1157,6 +1353,9 @@ Build the **workspace block** to inject. Substitute these placeholders verbatim:
 - `{brand}` — the brand slug from Step 3 (same value saved as `DEFAULT_BRAND`, e.g. `five-agents`)
 - `{BRAND}` — the brand slug uppercased with hyphens removed, used as the env var prefix (e.g. `FIVEAGENTS`, `NPCOFFICE`)
 - `{notion_db_id}` — the 32-character Notion Social Calendar DB page ID collected in Step 7b
+- `{link_version}` — the version string extracted from link.md's Maintenance table (e.g. `v2.3.0`)
+- `{link_version_date}` — the Last Changed date from link.md's Maintenance table (e.g. `May 06, 2026`)
+- `{embed_date}` — today's date in ISO format (e.g. `2026-05-06`), set by `datetime.date.today().isoformat()`
 
 ```markdown
 # {Brand Name} — Workspace Instructions
@@ -1166,6 +1365,7 @@ Build the **workspace block** to inject. Substitute these placeholders verbatim:
 The full content of `agents/link.md` is embedded below. It defines your identity (Link), active brand logic, available skills, tools, integrations, output conventions, and quality checklist. All skill runs depend on it.
 
 <!-- BEGIN agents/link.md (embedded by brand-setup) -->
+<!-- link.md version: {link_version} | Last Changed: {link_version_date} | Embedded: {embed_date} -->
 
 {LINK_MD_BODY}
 
@@ -1235,7 +1435,7 @@ Read from env vars after credential loading:
 ```
 
 **If `CLAUDE.md` already exists:**
-- If it contains the markers `<!-- BEGIN agents/link.md (embedded by brand-setup) -->` and `<!-- END agents/link.md -->`, replace everything between (and including) those markers with the freshly read `{LINK_MD_BODY}` wrapped in the same markers. Leave the rest of the file untouched.
+- If it contains the markers `<!-- BEGIN agents/link.md (embedded by brand-setup) -->` and `<!-- END agents/link.md -->`, replace everything between (and including) those markers with the freshly read `{LINK_MD_BODY}` wrapped in the same markers **and a refreshed version stamp comment** (`<!-- link.md version: {link_version} | Last Changed: {link_version_date} | Embedded: {embed_date} -->`). Leave the rest of the file untouched.
 - If it contains an older `## Agent Identity` section that points to an absolute path (the previous format), replace the entire block from `## Agent Identity` down through the `---` separator with the new workspace block above.
 - Otherwise, prepend the new workspace block above all existing content.
 - Refresh the `## Workspace Defaults` section: rewrite **Active brand**, **Brand files**, and **Notion Social Calendar DB** to point at the brand from this run. For multi-brand workspaces, do NOT overwrite — append a new sub-block under `## Workspace Defaults` titled `### Brand: {brand}` with the same three bullets, leaving prior brands' sub-blocks intact. The `DEFAULT_BRAND` env var still selects which brand is active per session.
@@ -1287,7 +1487,7 @@ Detected at brand-setup time. Re-run Step 9c (or the full brand-setup) after ins
 - **Carousel template (4:5, IG/FB feed):** `brands/{brand}/social-carousel-template/` — **{carousel_template_status}**
 - **Story template (9:16, Stories/Reels):** `brands/{brand}/social-story-template/` — **{story_template_status}**
 
-**How skills use this:** when a template folder shows `installed`, `creative-designer` and `content-generator` render via Playwright against the template's React + Babel app — substituting copy into the EDITMODE-BEGIN/END JSON block, then screenshotting each slide via stable offscreen DOM IDs. `content-creation` reads the same EDITMODE key contract to size per-slide copy correctly (it does not render). When `not installed`, all skills fall back to Gemini image generation + Pillow text overlay + Pillow logo overlay. The fallback path is fully functional — visuals are still produced, just without brand-specific layout chrome. Skills should still filesystem-probe at runtime as a safety check; this section is a hint, not a contract.
+**How skills use this:** when a template folder shows `installed`, `creative-designer` and `content-generator` render via the gateway `template_render` tool — the skill generates Gemini visuals for each image slot (base64 in memory), presigns Zernio upload slots, then calls `template_render` which renders the template server-side and PUTs rendered slide PNGs directly to the presigned Zernio URLs. `content-creation` reads the EDITMODE key contract to size per-slide copy correctly (it does not render). When `not installed`, all skills fall back to Gemini image generation + Pillow text overlay + Pillow logo overlay. The fallback path is fully functional — visuals are still produced, just without brand-specific layout chrome. Skills should still filesystem-probe at runtime as a safety check; this section is a hint, not a contract.
 
 <!-- END visual-system (managed by brand-setup Step 9c) -->
 ```
