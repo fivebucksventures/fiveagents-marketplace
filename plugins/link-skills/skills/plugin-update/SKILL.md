@@ -6,11 +6,14 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.1 | May 06, 2026 |
+| Link | v2.3.2 | May 06, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.3.2** — May 06, 2026
+- Step 3c upload sub-flow — added step 0 size check (3 MB) before zip/upload; if local template exceeds limit, blocks upload and surfaces ready-to-paste claude.ai/design re-export prompt; Case 3 reference updated to Steps 0–5
 
 **v2.3.1** — May 06, 2026
 - Step 1h `compute_version_hash` — fixed: added `__MACOSX` to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched directory check to `rel.split("/")` (matches canonical gateway algorithm — without this fix hash drift detection always mismatches macOS-extracted templates)
@@ -388,6 +391,27 @@ If yes, walk through `brand-setup` Steps 4c-i and 4c-ii (includes the gateway up
 
 Run the upload sub-flow automatically (no prompt needed — the folder is already installed locally; the upload is the missing piece):
 
+0. **Size check** — compute total folder size before attempting upload:
+   ```python
+   total_bytes = sum(p.stat().st_size for p in folder.rglob("*") if p.is_file())
+   ```
+   If `total_bytes > 3 * 1024 * 1024`, do not proceed. Show the user:
+
+   > ⚠️ The local `{template_type}` template is **{X} MB** — over the 3 MB gateway limit. Embedded images are the most common cause.
+   >
+   > Go back to [claude.ai/design](https://claude.ai/design), open the `{template_type}` project, and paste this prompt:
+   >
+   > ```
+   > This template is used by an automated agent that uploads and renders it server-side. It must be under 3 MB. Please:
+   > 1. Remove all embedded images (base64 data URIs, <img> tags with data: src, or any bundled photo assets) — replace with a solid colour placeholder or CSS gradient
+   > 2. Remove any unused fonts, icon sets, or external CDN resources that aren't actually referenced in the layout
+   > 3. Remove sample/demo background photos — the agent supplies images at render time via named files in the uploads/ folder
+   > 4. Keep only the HTML, CSS, and JavaScript needed for the layout structure
+   > Re-export, re-download, and re-install the template (run `/link-skills:brand-setup` Step 4c), then re-run plugin-update.
+   > ```
+
+   Skip this template and continue with the rest of the gap report.
+
 1. Compute `version_hash` from local folder (canonical algorithm from Step 1h).
 2. Zip the folder with noise-file exclusion (same code as brand-setup Step 4c-i Step D).
 3. Call `template_upload` via gateway MCP tool.
@@ -401,7 +425,7 @@ Report to user: `"Carousel template not yet uploaded to gateway — uploading no
 Ask the user:
 > "The local `{template_type}` template has changed since it was last uploaded (hash drifted). Re-upload to the gateway now? [Y/n]"
 
-If yes → run the upload sub-flow above (Steps 1–5).
+If yes → run the upload sub-flow above (Steps 0–5).
 If no → note the drift in the gap report. Content-generator will use the older gateway version until re-uploaded.
 
 **Case 4 — Remote entry exists but no local folder:**

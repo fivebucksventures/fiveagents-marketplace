@@ -6,11 +6,17 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.1 | May 06, 2026 |
+| Link | v2.3.2 | May 06, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.3.2** — May 06, 2026
+- Step 1 — Added `## Arguments` section + project-session redirect at end of Step 1a: after creating the project, user is instructed to open the project and run `/brand-setup -- project created`; all subsequent steps run inside the project session
+- Steps 4c-i/ii Step A (carousel + story prompts) — added IMAGE SLOTS AND SIZE LIMIT paragraph: bans embedded images/base64/bundled photos, mandates `uploads/<slot>.png` naming, enforces 3 MB export limit
+- Step 4c-i Step C — added 3 MB size check before `shutil.copytree`; if exceeded, blocks copy and surfaces ready-to-paste claude.ai/design re-export prompt
+- Step 4c-ii Step C — same 3 MB size check added before copy with tailored re-export prompt
 
 **v2.3.1** — May 06, 2026
 - Steps 4c-i/ii Step D — `compute_version_hash` fixed: added `__MACOSX` to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched directory check from `p.relative_to().parts` to `rel.split("/")` (matches canonical gateway algorithm — without this fix, macOS-extracted templates produce a different hash than the gateway, breaking drift detection permanently)
@@ -66,6 +72,12 @@ You are the onboarding agent for the Link marketing plugin. Walk the user throug
 - Adding a new brand
 - User says "set up", "onboard", "add brand", "configure"
 
+## Arguments
+
+| Argument | Meaning |
+|---|---|
+| `-- project created` | User is already inside the project session. **Skip step 1a** and begin at step 1b. |
+
 ## Flow
 
 Run these steps in order. **Do not skip or rush any step.** At the end of each step, explicitly ask the user to confirm before proceeding to the next. Never assume a step is already done — always ask. The only exception is if the user explicitly says "skip" or "already done" for a specific step.
@@ -87,7 +99,15 @@ All brand assets, outputs, and temp files live inside a Cowork project on your m
 > 4. Name your project (e.g. your brand name)
 > 5. Set Claude Permission as **"Act without asking"** — this ensures your scheduled jobs will run without needing your approval (after successfully tested). ⚠️ *By enabling this, you agree to accept the risks raised by Claude when it acts autonomously. Review Claude's warnings carefully before confirming.*
 
-**Do not proceed until the user confirms they have a project open and are working inside it.** All subsequent steps create files relative to this project.
+Once the project is created, ask the user to:
+
+1. Click the project name to **open its session**
+2. Inside that project session, run:
+   ```
+   /brand-setup -- project created
+   ```
+
+Brand setup will resume from step 1b inside the correct project context. **Do not continue in this session.**
 
 #### 1b. Configure settings
 
@@ -423,7 +443,9 @@ The agent gives the user a fully-composed, copy-pasteable prompt to drop into Cl
 >
 > Use these EXACT key names — the agent substitutes copy by parsing the JSON between the markers and writing back. Optional supporting keys per sign slide are welcome (e.g. s2_pullquote, s3_stat_value/s3_stat_label, s5_before/s5_after) — the agent can populate them when the post copy provides matching fields, otherwise leave defaults.
 >
-> Each slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so the gateway can screenshot each `.slide` element in DOM order for server-side rendering. Also place any placeholder images in an `uploads/` folder at the template root — filename without extension becomes the slot name (e.g. `uploads/s4_visual.png` → slot `s4_visual`). Do NOT use Playwright-specific offscreen DOM IDs — the gateway renders entirely server-side via Vercel.
+> Each slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so the gateway can screenshot each `.slide` element in DOM order for server-side rendering. Do NOT use Playwright-specific offscreen DOM IDs — the gateway renders entirely server-side via Vercel.
+>
+> IMAGE SLOTS AND SIZE LIMIT — the exported ZIP must be under 3 MB. Do NOT embed images as base64 data URIs or bundle any photo or background assets. Use solid colour rectangles or CSS gradients as visual placeholders instead. If a slide needs a swappable image (e.g. a product photo or background), place a plain CSS placeholder and add a corresponding file at `uploads/<slot_name>.png` in the template root — the filename without extension is the slot name the agent fills at render time (e.g. `uploads/s4_visual.png` → slot `s4_visual`). No demo images, no bundled icon sprites, no unused fonts.
 >
 > Use the brand colors and fonts above. The template's sample copy will be replaced at runtime — don't worry about it being final."
 > ```
@@ -461,6 +483,12 @@ contents = list(src.iterdir())
 if len(contents) == 1 and contents[0].is_dir():
     src = contents[0]
 
+# Size check — must be ≤ 3 MB before copying
+total_bytes = sum(p.stat().st_size for p in src.rglob("*") if p.is_file())
+if total_bytes > 3 * 1024 * 1024:
+    total_mb = total_bytes / (1024 * 1024)
+    raise ValueError(f"SIZE_EXCEEDED:{total_mb:.1f}")
+
 dst = Path("brands") / brand / "social-carousel-template"
 if dst.exists():
     shutil.rmtree(dst)
@@ -496,6 +524,23 @@ assert not missing_keys, (
     "Re-iterate with Claude Design to ensure all Cover, s2-s5, and CTA keys are present."
 )
 ```
+
+**If `ValueError: SIZE_EXCEEDED:{X}` is raised**, do not copy. Show the user:
+
+> ⚠️ Your carousel template is **{X} MB** — over the 3 MB limit. Embedded images are the most common cause.
+>
+> Go back to [claude.ai/design](https://claude.ai/design), open your carousel project, and paste this prompt:
+>
+> ```
+> This template is used by an automated agent that uploads and renders it server-side. It must be under 3 MB. Please:
+> 1. Remove all embedded images (base64 data URIs, <img> tags with data: src, or any bundled photo assets) — replace with a solid colour placeholder or CSS gradient
+> 2. Remove any unused fonts, icon sets, or external CDN resources that aren't actually referenced in the layout
+> 3. Remove sample/demo background photos — the agent supplies images at render time via named files in the uploads/ folder
+> 4. Keep only the HTML, CSS, and JavaScript needed for the layout structure
+> Re-export, re-download, and unzip the new version. Then tell me the new folder path.
+> ```
+
+Ask the user to let you know the new folder path once re-exported. Then re-run Step C from the top.
 
 Confirm to the user:
 > ✅ Copied to `brands/{brand}/social-carousel-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required keys. Original folder untouched.
@@ -634,6 +679,8 @@ Same pattern as Step 4c-i: the agent composes a copy-pasteable prompt and gives 
 >
 > Each slide (across all directions) must carry the CSS class `slide` (e.g. `<div class="slide">`) so the gateway can screenshot each `.slide` element in DOM order for server-side rendering. Do NOT use Playwright-specific offscreen DOM IDs — the gateway renders entirely server-side via Vercel.
 >
+> IMAGE SLOTS AND SIZE LIMIT — the exported ZIP must be under 3 MB. Do NOT embed images as base64 data URIs or bundle any photo or background assets. Use solid colour rectangles or CSS gradients as visual placeholders instead. If a slide needs a swappable image (e.g. a background photo or visual), place a plain CSS placeholder and add a corresponding file at `uploads/<slot_name>.png` in the template root — the filename without extension is the slot name the agent fills at render time (e.g. `uploads/hero.png` → slot `hero`). No demo images, no bundled icon sprites, no unused fonts.
+>
 > Use brand colors and fonts. Sample copy will be replaced at runtime."
 > ```
 >
@@ -669,6 +716,12 @@ contents = list(src.iterdir())
 if len(contents) == 1 and contents[0].is_dir():
     src = contents[0]
 
+# Size check — must be ≤ 3 MB before copying
+total_bytes = sum(p.stat().st_size for p in src.rglob("*") if p.is_file())
+if total_bytes > 3 * 1024 * 1024:
+    total_mb = total_bytes / (1024 * 1024)
+    raise ValueError(f"SIZE_EXCEEDED:{total_mb:.1f}")
+
 dst = Path("brands") / brand / "social-story-template"
 if dst.exists():
     shutil.rmtree(dst)
@@ -703,6 +756,23 @@ assert not missing_keys, (
     "Re-iterate with Claude Design to ensure all H/P/S/P/O/CTA slide keys (s1_* through s6_*) are present."
 )
 ```
+
+**If `ValueError: SIZE_EXCEEDED:{X}` is raised**, do not copy. Show the user:
+
+> ⚠️ Your story template is **{X} MB** — over the 3 MB limit. Embedded images are the most common cause.
+>
+> Go back to [claude.ai/design](https://claude.ai/design), open your story project, and paste this prompt:
+>
+> ```
+> This template is used by an automated agent that uploads and renders it server-side. It must be under 3 MB. Please:
+> 1. Remove all embedded images (base64 data URIs, <img> tags with data: src, or any bundled photo assets) — replace with a solid colour placeholder or CSS gradient
+> 2. Remove any unused fonts, icon sets, or external CDN resources that aren't actually referenced in the layout
+> 3. Remove sample/demo background photos — the agent supplies images at render time via named files in the uploads/ folder
+> 4. Keep only the HTML, CSS, and JavaScript needed for the layout structure
+> Re-export, re-download, and unzip the new version. Then tell me the new folder path.
+> ```
+
+Ask the user to let you know the new folder path once re-exported. Then re-run Step C from the top.
 
 Confirm to the user:
 > ✅ Copied to `brands/{brand}/social-story-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required H/P/S/P/O/CTA keys. Original folder untouched.

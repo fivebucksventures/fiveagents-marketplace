@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.3.1';
+const DEFAULT_VERSION = 'v2.3.2';
 const DEFAULT_DATE = 'May 06, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,18 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.3.2',
+    date: 'May 06, 2026',
+    changes: [
+      'brand-setup: Arguments section added — /brand-setup -- project created skips Step 1a and starts at 1b, ensuring all setup steps run inside the project session',
+      'brand-setup: Step 1a — after project creation, user is redirected into the project session to continue; session does not proceed in-place',
+      'brand-setup: carousel + story design prompts (Step A) — added IMAGE SLOTS AND SIZE LIMIT paragraph banning embedded images/base64/bundled photos, mandating uploads/<slot>.png placeholder naming, enforcing 3 MB export limit',
+      'brand-setup: Step 4c-i Step C — 3 MB size check added before shutil.copytree; if exceeded, blocks copy and surfaces claude.ai/design re-export prompt',
+      'brand-setup: Step 4c-ii Step C — same 3 MB size check before copy with story-specific re-export prompt',
+      'plugin-update: Step 3c upload sub-flow — step 0 size check (3 MB) added before zip/upload; blocks upload and surfaces re-export prompt if limit exceeded; Case 3 reference updated to Steps 0–5',
+    ],
+  },
   {
     version: 'v2.3.1',
     date: 'May 06, 2026',
@@ -190,25 +202,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
     date: 'April 23, 2026',
     changes: [
       'brand-setup: Step 1b — added Domain Allowlist setting (Settings → Capabilities → Domain Allowlist → All Domains → ON)',
-    ],
-  },
-  {
-    version: 'v2.2.3',
-    date: 'April 11, 2026',
-    changes: [
-      'brand-setup: enforced explicit confirmation gates at every step — "Do not proceed until..." added to Steps 1-9',
-      'brand-setup: Step 1 reordered — 1a is now "Work in a Project" (project-first), 1b is settings configuration',
-      'brand-setup: Step 1a rewrote project setup instructions (Projects area below chat input, clearer flow)',
-      'brand-setup: Step 2 prerequisites — removed Playwright from MCP connectors table (not an OAuth connector)',
-      'brand-setup: Step 6 logo — changed from paste-in-chat to file path input; uses file copy instead of save from chat',
-      'brand-setup: Step 7c MCP table — removed Playwright row, renumbered remaining connectors',
-      'brand-setup: Step 8 validation — removed Playwright test #10 (already confirmed in Step 4), renumbered tests 10-16',
-      'brand-setup: Step 8 summary table — removed Playwright row',
-      'brand-setup: Step 9 completion email JSON — removed Playwright integration entry',
-      'brand-setup: Step 9 marked mandatory — always send completion email regardless of integrations configured',
-      'brand-setup: Step 2 logo field updated — now shows file path example instead of "paste logo"',
-      'agents/link.md: added brand-setup row to Skills table (was missing)',
-      'agents/link.md: added Canva MCP to MCP Connectors section',
     ],
   },
 ];
