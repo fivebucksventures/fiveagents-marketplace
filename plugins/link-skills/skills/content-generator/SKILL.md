@@ -8,11 +8,15 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 06, 2026 |
+| Link | v2.3.1 | May 06, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.3.1** — May 06, 2026
+- Step 4c-template Step 1 — `template_list` brand parameter documented as OPTIONAL; verbose response now includes `entry_html` field (root HTML filename, e.g. `"index.html"`)
+- Step 4c-template Step 5 — `template_render` call updated: `version_hash` optional pinning field added; `slots` type now accepts PNG or JPEG (was PNG-only, which bloated file sizes for Gemini photo output)
 
 **v2.3.0** — May 06, 2026
 - Step 4c-template — migrated from Playwright to gateway template_render MCP tool; no local browser required
@@ -271,11 +275,11 @@ Use this path when the applicable template folder contains an entry HTML with an
 ```
 Use gateway MCP tool template_list:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"
+- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
 - verbose: true
 ```
 
-Returns `edit_keys: string[]` and `image_slots: string[]` for each template type. Cache the result for the entire daily run — don't call per post.
+Returns per-template entry with: `edit_keys: string[]`, `image_slots: string[]`, and `entry_html: string` (root HTML filename inside the version directory, e.g. `"index.html"`). Cache the result for the entire daily run — don't call per post.
 
 Derive slide count from `edit_keys`:
 - **Carousel**: count distinct slide-section prefixes (cover + s2…s5 + cta = 6 slides by default; let the template's structure be the truth).
@@ -366,8 +370,9 @@ Use gateway MCP tool template_render:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - brand: "{brand}"
 - template_type: "carousel"    # or "story"
+- version_hash: "<hash>"       # OPTIONAL — pin to a specific version for reproducibility; omit to render from latest
 - edits: { ... from step 4 }
-- slots: { "<slot_key>": "<base64 PNG>" }   # e.g. { "s4_visual": slot_b64 }
+- slots: { "<slot_key>": "<base64 PNG or JPEG>" }   # e.g. { "s4_visual": slot_b64 }; each slot ≤ 4 MB, total ≤ 32 MB
 - upload_targets: [ ... from step 3 ]
 - options: {
     "direction":    post.direction,          # story only (A/B/C)

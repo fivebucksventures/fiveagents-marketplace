@@ -6,11 +6,18 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 06, 2026 |
+| Link | v2.3.1 | May 06, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.3.1** — May 06, 2026
+- Steps 4c-i/ii Step D — `compute_version_hash` fixed: added `__MACOSX` to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched directory check from `p.relative_to().parts` to `rel.split("/")` (matches canonical gateway algorithm — without this fix, macOS-extracted templates produce a different hash than the gateway, breaking drift detection permanently)
+- Steps 4c-i/ii Step D — zip creation loops updated to use same unified IGNORE set (was using separate IGNORE_DIRS variable)
+- Step 4c-i Step A (carousel prompt) — removed stale Playwright offscreen DOM ID requirements; replaced with `.slide` CSS class convention and `uploads/` slot-naming rule (per template authoring requirements)
+- Step 4c-ii Step A (story prompt) — same Playwright DOM ID removal; `.slide` CSS class and server-side rendering convention added
+- Steps 4c-i/ii Step F — `template_list` brand parameter documented as OPTIONAL
 
 **v2.3.0** — May 06, 2026
 - Step 9a — version stamp extracted from link.md Maintenance table; embedded into CLAUDE.md as `<!-- link.md version: ... | Last Changed: ... | Embedded: ... -->` comment inside BEGIN/END markers
@@ -416,7 +423,7 @@ The agent gives the user a fully-composed, copy-pasteable prompt to drop into Cl
 >
 > Use these EXACT key names — the agent substitutes copy by parsing the JSON between the markers and writing back. Optional supporting keys per sign slide are welcome (e.g. s2_pullquote, s3_stat_value/s3_stat_label, s5_before/s5_after) — the agent can populate them when the post copy provides matching fields, otherwise leave defaults.
 >
-> Each slide must also be available at full 1080×1350 via a stable DOM ID (e.g. id=\"export-cover\", id=\"export-s2\"...\"export-s5\", id=\"export-cta\") — render these hidden offscreen via 'position: absolute; left: -99999px' so the agent can use Playwright `page.locator('#export-...').screenshot(...)` to grab each slide as a PNG. Include an Export button that downloads them as well, but the offscreen IDs are what the automation will use.
+> Each slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so the gateway can screenshot each `.slide` element in DOM order for server-side rendering. Also place any placeholder images in an `uploads/` folder at the template root — filename without extension becomes the slot name (e.g. `uploads/s4_visual.png` → slot `s4_visual`). Do NOT use Playwright-specific offscreen DOM IDs — the gateway renders entirely server-side via Vercel.
 >
 > Use the brand colors and fonts above. The template's sample copy will be replaced at runtime — don't worry about it being final."
 > ```
@@ -502,8 +509,7 @@ import hashlib, io, base64, zipfile
 from pathlib import Path
 
 folder = Path("brands") / brand / "social-carousel-template"
-IGNORE = {".DS_Store", "Thumbs.db"}
-IGNORE_DIRS = {".git", "node_modules"}
+IGNORE = {".DS_Store", "Thumbs.db", ".git", "node_modules", "__MACOSX"}
 
 def compute_version_hash(folder: Path) -> str:
     h = hashlib.sha256()
@@ -512,9 +518,9 @@ def compute_version_hash(folder: Path) -> str:
         key=lambda p: p.relative_to(folder).as_posix()
     )
     for p in files:
-        if p.name in IGNORE: continue
-        if any(part in IGNORE_DIRS for part in p.relative_to(folder).parts): continue
         rel = p.relative_to(folder).as_posix()
+        if any(part in IGNORE for part in rel.split("/")):
+            continue
         h.update(hashlib.sha256(rel.encode()).hexdigest().encode())
         h.update(b":")
         h.update(hashlib.sha256(p.read_bytes()).hexdigest().encode())
@@ -527,9 +533,10 @@ buf = io.BytesIO()
 with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
     for path in folder.rglob("*"):
         if not path.is_file(): continue
-        if path.name in IGNORE: continue
-        if any(part in IGNORE_DIRS for part in path.relative_to(folder).parts): continue
-        zf.write(path, arcname=path.relative_to(folder).as_posix())
+        rel = path.relative_to(folder).as_posix()
+        if any(part in IGNORE for part in rel.split("/")):
+            continue
+        zf.write(path, arcname=rel)
 zip_b64 = base64.b64encode(buf.getvalue()).decode()
 zip_mb = len(buf.getvalue()) / 1_048_576
 assert zip_mb < 10, f"Zip is {zip_mb:.1f} MB — remove large assets and retry."
@@ -573,7 +580,7 @@ If a `## Social Templates` section already exists (re-run scenario), replace its
 ```
 Use gateway MCP tool template_list:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"
+- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
 - verbose: false
 ```
 
@@ -625,7 +632,7 @@ Same pattern as Step 4c-i: the agent composes a copy-pasteable prompt and gives 
 > }/*EDITMODE-END*/;
 > ```
 >
-> Each slide × direction must also be available at full 1080×1920 via stable DOM IDs (`export-A-0` through `export-A-5`, `export-B-0`...`export-B-5`, `export-C-0`...`export-C-5`) rendered hidden offscreen so Playwright can screenshot them via `page.locator('#export-A-0').screenshot(...)`. Include an Export button as well, but the agent uses the offscreen IDs for automation.
+> Each slide (across all directions) must carry the CSS class `slide` (e.g. `<div class="slide">`) so the gateway can screenshot each `.slide` element in DOM order for server-side rendering. Do NOT use Playwright-specific offscreen DOM IDs — the gateway renders entirely server-side via Vercel.
 >
 > Use brand colors and fonts. Sample copy will be replaced at runtime."
 > ```
@@ -702,7 +709,7 @@ Confirm to the user:
 
 **Step D — Zip and upload to gateway:**
 
-Compute the canonical `version_hash` and create the upload zip using Python (same algorithm as Step 4c-i Step D — `compute_version_hash`, `IGNORE`, `IGNORE_DIRS`):
+Compute the canonical `version_hash` and create the upload zip using Python (same algorithm as Step 4c-i Step D — `compute_version_hash`, `IGNORE`):
 
 ```python
 folder = Path("brands") / brand / "social-story-template"
@@ -712,9 +719,10 @@ buf = io.BytesIO()
 with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
     for path in folder.rglob("*"):
         if not path.is_file(): continue
-        if path.name in IGNORE: continue
-        if any(part in IGNORE_DIRS for part in path.relative_to(folder).parts): continue
-        zf.write(path, arcname=path.relative_to(folder).as_posix())
+        rel = path.relative_to(folder).as_posix()
+        if any(part in IGNORE for part in rel.split("/")):
+            continue
+        zf.write(path, arcname=rel)
 zip_b64 = base64.b64encode(buf.getvalue()).decode()
 zip_mb = len(buf.getvalue()) / 1_048_576
 assert zip_mb < 10, f"Zip is {zip_mb:.1f} MB — remove large assets and retry."
@@ -747,7 +755,7 @@ Update the `## Social Templates` section in `brand.md` (append Story entry, pres
 ```
 Use gateway MCP tool template_list:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"
+- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
 - verbose: false
 ```
 

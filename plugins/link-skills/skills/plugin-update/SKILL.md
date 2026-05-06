@@ -6,11 +6,15 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 06, 2026 |
+| Link | v2.3.1 | May 06, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.3.1** — May 06, 2026
+- Step 1h `compute_version_hash` — fixed: added `__MACOSX` to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched directory check to `rel.split("/")` (matches canonical gateway algorithm — without this fix hash drift detection always mismatches macOS-extracted templates)
+- Step 1h `template_list` call — brand parameter documented as OPTIONAL
 
 **v2.3.0** — May 06, 2026
 - New skill introduced — audits brand folder, env vars, MCP connectors, Claude Code settings, Notion DB
@@ -207,7 +211,7 @@ For each social template folder that exists locally, check whether it is uploade
 ```
 Use gateway MCP tool template_list:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"
+- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
 - verbose: false
 ```
 
@@ -226,8 +230,7 @@ Compute the local `version_hash` for each present local folder using the canonic
 import hashlib
 from pathlib import Path
 
-IGNORE = {".DS_Store", "Thumbs.db"}
-IGNORE_DIRS = {".git", "node_modules"}
+IGNORE = {".DS_Store", "Thumbs.db", ".git", "node_modules", "__MACOSX"}
 
 def compute_version_hash(folder: Path) -> str:
     h = hashlib.sha256()
@@ -236,9 +239,9 @@ def compute_version_hash(folder: Path) -> str:
         key=lambda p: p.relative_to(folder).as_posix()
     )
     for p in files:
-        if p.name in IGNORE: continue
-        if any(part in IGNORE_DIRS for part in p.relative_to(folder).parts): continue
         rel = p.relative_to(folder).as_posix()
+        if any(part in IGNORE for part in rel.split("/")):
+            continue
         h.update(hashlib.sha256(rel.encode()).hexdigest().encode())
         h.update(b":")
         h.update(hashlib.sha256(p.read_bytes()).hexdigest().encode())

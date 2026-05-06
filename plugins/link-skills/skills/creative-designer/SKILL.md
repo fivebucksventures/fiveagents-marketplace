@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 06, 2026 |
+| Link | v2.3.1 | May 06, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.3.1** — May 06, 2026
+- Step 4a bullet 2 — `template_list` verbose response now includes `entry_html` field
+- Step 4a bullet 6 — `template_render` call updated: `version_hash` optional pinning field added; `slots` accepts PNG or JPEG with per-slot and total size limits documented
+- Quality checklist — `template_list` checklist item updated to include `entry_html`
 
 **v2.3.0** — May 06, 2026
 - Step 4a template-path — gateway renders the template server-side via template_render MCP; Playwright removed
@@ -201,11 +206,11 @@ all other cases (LinkedIn posts, banners, ads, mockups, etc.)
 The template is a Claude Design React + Babel app installed via brand-setup Step 4c and uploaded to the gateway. The gateway renders it server-side (Vercel + Playwright) and PUTs slide PNGs directly to presigned Zernio URLs. **For the canonical implementation see `content-generator/SKILL.md` Step 4c-template** — both skills follow the same procedure:
 
 1. Confirm the template folder has an entry HTML with `EDITMODE-BEGIN`/`EDITMODE-END`. If absent, fall through to Step 4b.
-2. Call `template_list(verbose=true)` to get `edit_keys` and `image_slots` from the gateway.
+2. Call `template_list(verbose=true)` to get `edit_keys`, `image_slots`, and `entry_html` (root HTML filename) from the gateway.
 3. Generate Gemini visual(s) — one per `image_slots` entry, kept in memory as base64. Do not upload anywhere.
 4. Presign one Zernio upload slot per output slide via `late_presign_upload` (run immediately before the render call).
 5. Build `edits` payload from the post copy dict; apply Direction (`_direction` for story, `coverVariant`/`bodyVariant` for carousel — leave template defaults if Direction blank).
-6. Call `template_render` with `edits`, `slots` (base64 visuals), and `upload_targets` (presigned Zernio slots). Gateway renders and PUTs slide PNGs; returns `images[n].public_url`.
+6. Call `template_render` with `edits`, `slots` (base64 PNG or JPEG visuals — each slot ≤ 4 MB, total ≤ 32 MB), `upload_targets` (presigned Zernio slots), and optionally `version_hash` (pin to a specific version for reproducibility; omit for latest). Gateway renders and PUTs slide PNGs; returns `images[n].public_url`.
 7. On success: use `public_url` values for upload. Skip Steps 4d and 4e (Pillow overlays — template render includes all chrome).
 8. On failure (5xx/504): fall through to Step 4b (Gemini + Pillow fallback).
 
@@ -640,7 +645,7 @@ Before finalizing any design output:
 - [ ] Typography follows the design-system font stack OR brand.md Google Fonts (whichever applied)
 - [ ] For IG/FB Carousel: if `social-carousel-template/` has entry HTML with EDITMODE block, template-path used (template_list → Gemini base64 → presign slots → template_render → publicUrls); else Gemini-only fallback (Step 4b) documented
 - [ ] For IG/FB Story/Reel (static): if `social-story-template/` has entry HTML with EDITMODE block, template-path used; else Gemini-only fallback (Step 4b) documented
-- [ ] Template-path: `template_list(verbose=true)` called to get `edit_keys` and `image_slots`; Gemini visuals held in memory as base64 (not uploaded)
+- [ ] Template-path: `template_list(verbose=true)` called to get `edit_keys`, `image_slots`, and `entry_html`; Gemini visuals held in memory as base64 (not uploaded)
 - [ ] Template-path: `edits` payload matches the template's key contract; Direction applied (`_direction` for story, `coverVariant`/`bodyVariant` for carousel)
 - [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome
 - [ ] Gemini-only fallback path (Step 4b): Pillow text overlay (Step 4d) AND Pillow logo overlay (Step 4e) BOTH applied — Gemini background has no copy and no logo

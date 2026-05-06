@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.3.0';
+const DEFAULT_VERSION = 'v2.3.1';
 const DEFAULT_DATE = 'May 06, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,20 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.3.1',
+    date: 'May 06, 2026',
+    changes: [
+      'brand-setup: compute_version_hash fixed — added __MACOSX to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched path-part check to rel.split("/"); without this fix macOS-extracted templates produce a different hash than the gateway, causing drift detection to permanently report mismatch',
+      'brand-setup: carousel + story zip creation loops use same unified IGNORE set as compute_version_hash (was using separate IGNORE_DIRS variable)',
+      'brand-setup: carousel template prompt (Step 4c-i Step A) — replaced stale Playwright offscreen DOM ID requirements with .slide CSS class convention and uploads/ slot-naming rule',
+      'brand-setup: story template prompt (Step 4c-ii Step A) — same Playwright DOM ID removal; .slide CSS class and server-side rendering convention added',
+      'brand-setup: template_list Step F calls — brand parameter documented as OPTIONAL in both carousel and story verification gates',
+      'plugin-update: compute_version_hash in Step 1h — same __MACOSX fix as brand-setup; template_list brand parameter documented as OPTIONAL',
+      'content-generator: template_list verbose response now documents entry_html field; brand parameter marked OPTIONAL; template_render updated with optional version_hash field and PNG/JPEG slots type',
+      'creative-designer: template_list entry_html added to bullet 2 and quality checklist; template_render bullet 6 updated with version_hash optional and PNG/JPEG slots',
+    ],
+  },
   {
     version: 'v2.3.0',
     date: 'May 06, 2026',
@@ -195,24 +209,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Step 2 logo field updated — now shows file path example instead of "paste logo"',
       'agents/link.md: added brand-setup row to Skills table (was missing)',
       'agents/link.md: added Canva MCP to MCP Connectors section',
-    ],
-  },
-  {
-    version: 'v2.2.2',
-    date: 'April 10, 2026',
-    changes: [
-      'creative-designer: gemini_generate_image result auto-saved to temp file — Python decodes to PNG on disk',
-      'creative-designer: replaced image_add_text_overlay and image_add_logo gateway MCP tools with Python Pillow',
-      'creative-designer: replaced late_upload_media MCP with Python requests.put to presigned S3 URL',
-      'content-generator: same — gemini_generate_image result decoded via Python, Pillow for overlays, requests.put for upload',
-      'background-generator: gemini_generate_image result decoded via Python to brands/{brand}/backgrounds/',
-      'social-publisher: removed late_upload_media from tools list, added requests.put note',
-      'brand-setup: updated logo step — references Python Pillow instead of image_add_logo gateway tool',
-      'brand-setup: validation tests 5 & 6 now test Python Pillow instead of gateway MCP tools',
-      'agents/link.md: updated tool list — removed image_add_text_overlay, image_add_logo, late_upload_media; added late_list_profiles, late_list_accounts',
-      'fiveagents-gateway: removed image_add_text_overlay, image_add_logo tools (media.ts stubbed)',
-      'fiveagents-gateway: removed late_upload_media tool from late.ts',
-      'fiveagents-gateway: removed registerMediaTools from route.ts',
     ],
   },
 ];
