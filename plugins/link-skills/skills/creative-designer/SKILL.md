@@ -1,6 +1,6 @@
 ---
 name: creative-designer
-description: Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation with Nano Banana Pro, text overlays and branding for any active brand
+description: Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 ---
 
@@ -8,11 +8,34 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.1 | May 06, 2026 |
+| Link | v2.3.7 | May 07, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.3.7** — May 07, 2026
+- Frontmatter description — removed stale "with Nano Banana Pro" (removed in v2.2.2)
+- Line note after `add_text_overlay` — clarified that 18% offset is 9:16 only; feed canvases use flat 60 px buffer instead
+- `add_logo` positions dict — added `# NEVER USE` comments on `bottom-right` and `bottom-left` entries (text occupies bottom zone)
+
+**v2.3.6** — May 07, 2026
+- Visual verification (Step 3b) — full rewrite: added safe zone checks per canvas type (9:16 vs feed), text alignment check, logo-always-top check, logo/text separate-zone check, adaptive color scheme check; fix table updated to match all implemented rules
+
+**v2.3.5** — May 07, 2026
+- `add_text_overlay` + `add_logo` — feed post safe zones: `safe_bottom_px = 60`, `safe_side_px = max(pad, 60)`, `feed_margin = max(margin, 60)` for all non-9:16 canvases (IG feed, FB, LinkedIn, X); was 0/pad/margin (content touching edge)
+- Layout rules — documented per-platform safe zone rationale: feed posts have no UI overlay, 60 px is a rendering buffer; 9:16 values unchanged
+- Step 4a (content-generator) — added safe zone reference table for all 6 canvas types
+
+**v2.3.4** — May 07, 2026
+- `add_text_overlay` — adaptive text color: samples image brightness in the text zone before scrim is applied; dark backgrounds → white + pink `#ec4899`; light backgrounds → near-black + dark-pink `#be185d`; `ImageStat` added to PIL import
+- Visual verification checklist — added text color contrast check
+
+**v2.3.3** — May 07, 2026
+- `add_text_overlay` — restored left/center/right `text_align` rotation (was center-only since v2.2.14); text position is always bottom; safe zones enforced: bottom 18% (~346 px), sides 13% (~140 px) for 9:16 canvas
+- `add_logo` — logo positions now respect 9:16 safe zone margins: top 14%, bottom 18%, sides 13%; non-9:16 canvases unchanged
+- Rotation table restored to left/center/right `text_align` with `text_position` always bottom
+- Layout rules — added explicit 9:16 safe zone note (Stories top/bottom 13%; Reels bottom 16.7%, right rail 13%)
 
 **v2.3.1** — May 06, 2026
 - Step 4a bullet 2 — `template_list` verbose response now includes `entry_html` field
@@ -143,6 +166,8 @@ Each folder is a self-contained React + Babel app (entry HTML + JSX + CSS + asse
 - Border radius: 8-12px for cards, 6px for buttons
 - Use subtle box shadows: `0 1px 3px rgba(0,0,0,0.1)`
 - White space is a feature — never overcrowd sections
+- **9:16 (Story/Reel) safe zones:** Top 14% (~269 px) covered by IG/FB Stories profile header; bottom 18% (~346 px) covered by IG Reels UI stack; sides 13% (~140 px) clear of Reels right-rail action buttons. All text and logos must stay within the middle 68% vertically.
+- **Feed post safe zones (IG, FB, LinkedIn, X):** Platform UI (like/comment/share bar) sits *below* the image — no UI overlays the image itself. A **60 px rendering buffer** on all four edges guards against device/viewport edge clipping and Instagram's profile grid thumbnail crop (~34 px side trim on the new 3:4 grid). X/Twitter additionally applies a 16:9 center-crop in the timeline — keep critical content out of the outermost 60 px and use 16:9 (1200×675 or 1600×900) to avoid cropping.
 
 ---
 
@@ -318,10 +343,10 @@ See instructions above for the Python decode snippet. Save the PNG to `outputs/{
 **Step 2 — Text overlay (gradient scrim + headline + subline) — USE PILLOW:**
 
 ```python
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat
 import textwrap
 
-def add_text_overlay(input_path, output_path, headline, subline, target_w, target_h, text_position='bottom'):
+def add_text_overlay(input_path, output_path, headline, subline, target_w, target_h, text_align='center'):
     img = Image.open(input_path).convert('RGBA')
     # Scale and center-crop to exact canvas
     r = img.width / img.height; tr = target_w / target_h
@@ -331,6 +356,13 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     img = img.crop(((nw-target_w)//2, (nh-target_h)//2, (nw-target_w)//2+target_w, (nh-target_h)//2+target_h))
 
     pad = int(target_w * 0.06)
+    # Safe zones by canvas type:
+    # 9:16 vertical (Stories/Reels): bottom 18% clears IG/FB Reels UI stack; sides 13% clears right-rail action buttons.
+    # Feed posts (landscape/square): no UI overlays the image — like/comment bar is below the image.
+    #   Use a 60 px rendering buffer on all edges to guard against device/viewport edge clipping.
+    is_vertical = target_h > target_w
+    safe_bottom_px = int(target_h * 0.18) if is_vertical else 60
+    safe_side_px   = int(target_w * 0.13) if is_vertical else max(pad, 60)
     hs = max(36, int(target_w * 0.048))
     ss2 = max(22, int(target_w * 0.026))
     try:
@@ -339,8 +371,8 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     except:
         fh = fs = ImageFont.load_default()
 
-    # Word-wrap both lines to fit within canvas width minus padding
-    max_chars = max(10, int((target_w - 2 * pad) / (hs * 0.55)))
+    # Word-wrap within horizontal safe zone (clears IG Reels right-rail action buttons)
+    max_chars = max(10, int((target_w - 2 * safe_side_px) / (hs * 0.55)))
     h_lines = textwrap.wrap(headline, width=max_chars)
     s_lines = textwrap.wrap(subline, width=max_chars + 10)
 
@@ -348,53 +380,67 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     line_gap = int(hs * 0.3)
     block_h = len(h_lines) * (hs + line_gap) + int(hs * 0.5) + len(s_lines) * (ss2 + line_gap)
 
-    # Position scrim and text block
+    # Scrim always at bottom, lifted above platform UI by safe_bottom_px
     scrim_h = block_h + pad * 2
+    scrim_bottom = target_h - safe_bottom_px
+    scrim_top = scrim_bottom - scrim_h
+
+    # Sample the underlying image in the text zone BEFORE the scrim is applied.
+    # Use the upper half of the scrim region — that's where text starts and contrast matters most.
+    sample = img.convert('RGB').crop((
+        safe_side_px, max(0, scrim_top),
+        target_w - safe_side_px, min(target_h, scrim_top + scrim_h // 2)
+    ))
+    bg_brightness = ImageStat.Stat(sample.convert('L')).mean[0]
+    # The gradient scrim darkens this zone to ~45% of the original brightness on average.
+    # Choose text colors based on the estimated post-scrim brightness.
+    if bg_brightness * 0.45 < 85:   # dark result → light text
+        headline_color = (255, 255, 255, 255)   # white
+        subline_color  = (236, 72, 153, 255)    # pink #ec4899
+    else:                            # light result → dark text
+        headline_color = (15, 15, 15, 255)      # near-black
+        subline_color  = (185, 28, 96, 255)     # dark pink #be185d
+
     scrim = Image.new('RGBA', (target_w, target_h), (0, 0, 0, 0))
     ds = ImageDraw.Draw(scrim)
-
-    if text_position == 'bottom':
-        scrim_top = target_h - scrim_h
-        text_y = scrim_top + pad
-        # Gradient: transparent at top, dark at bottom
-        for y in range(scrim_top, target_h):
-            alpha = int(200 * (y - scrim_top) / (target_h - scrim_top))
-            ds.line([(0, y), (target_w, y)], fill=(0, 0, 0, alpha))
-    else:  # top
-        scrim_top = 0
-        text_y = pad
-        # Gradient: dark at top, transparent at bottom
-        for y in range(0, scrim_h):
-            alpha = int(200 * (1 - y / scrim_h))
-            ds.line([(0, y), (target_w, y)], fill=(0, 0, 0, alpha))
+    for y in range(scrim_top, scrim_bottom):
+        alpha = int(200 * (y - scrim_top) / (scrim_bottom - scrim_top))
+        ds.line([(0, y), (target_w, y)], fill=(0, 0, 0, alpha))
 
     img = Image.alpha_composite(img, scrim)
     draw = ImageDraw.Draw(img)
+    text_y = scrim_top + pad
 
-    # Draw headline lines (white, centered)
+    def get_x(lw):
+        if text_align == 'left':  return safe_side_px
+        if text_align == 'right': return target_w - lw - safe_side_px
+        return (target_w - lw) // 2  # center
+
+    # Draw headline lines
     for line in h_lines:
         bbox = draw.textbbox((0, 0), line, font=fh)
         lw = bbox[2] - bbox[0]
-        x = (target_w - lw) // 2
-        draw.text((x, text_y), line, font=fh, fill=(255, 255, 255, 255))
+        draw.text((get_x(lw), text_y), line, font=fh, fill=headline_color)
         text_y += hs + line_gap
 
     text_y += int(hs * 0.3)  # gap between headline and subline
 
-    # Draw subline lines (pink, centered)
+    # Draw subline lines
     for line in s_lines:
         bbox = draw.textbbox((0, 0), line, font=fs)
         lw = bbox[2] - bbox[0]
-        x = (target_w - lw) // 2
-        draw.text((x, text_y), line, font=fs, fill=(236, 72, 153, 255))
+        draw.text((get_x(lw), text_y), line, font=fs, fill=subline_color)
         text_y += ss2 + line_gap
 
     img.convert('RGB').save(output_path, 'PNG', optimize=True)
 ```
 
-Font: DejaVuSans-Bold for headline (white), DejaVuSans for subline (pink `#ec4899`).
-Text is always **centered horizontally** and word-wrapped to stay within canvas bounds.
-`text_position` controls whether the scrim + text block appears at top or bottom.
+Font: DejaVuSans-Bold for headline, DejaVuSans for subline.
+Text colors are chosen adaptively by sampling the image brightness in the text zone before the scrim is applied:
+- **Dark background** (estimated post-scrim brightness < 85): white headline `#ffffff` + pink subline `#ec4899`
+- **Light background** (estimated post-scrim brightness ≥ 85): near-black headline `#0f0f0f` + dark-pink subline `#be185d`
+
+`text_align` controls justification (left / center / right) from the day-of-week rotation. Text position is always bottom — on 9:16 canvases the 18% safe-zone offset lifts the scrim above IG/FB platform UI; on feed canvases a flat 60 px rendering buffer applies instead.
 
 | Format | target_w | target_h |
 |--------|----------|----------|
@@ -405,15 +451,15 @@ Text is always **centered horizontally** and word-wrapped to stay within canvas 
 | Instagram / Facebook Reel | 1080 | 1920 |
 | Instagram / Facebook Story | 1080 | 1920 |
 
-**Day-of-week layout rotation** (text always centered — text_position alternates top/bottom):
+**Day-of-week layout rotation** (text_align: left/center/right — text_position: always bottom):
 | Day | text_align | text_position | logo_position |
 |-----|------------|---------------|---------------|
-| Mon | center | bottom | top-right |
-| Tue | center | top | top-left |
-| Wed | center | bottom | top-right |
-| Thu | center | top | top-left |
+| Mon | left | bottom | top-right |
+| Tue | center | bottom | top-left |
+| Wed | right | bottom | top-right |
+| Thu | left | bottom | top-left |
 | Fri | center | bottom | top-right |
-| Sat | center | top | top-left |
+| Sat | right | bottom | top-left |
 
 **Step 3 — Logo overlay (brand mark) — USE PILLOW:**
 
@@ -428,54 +474,83 @@ def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.1
     logo_h = int(logo.height * logo_w / logo.width)
     logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
     margin = int(w * 0.03)
+    # 9:16 safe zones: top 14% (Stories header), bottom 18% (Reels UI), sides 13% (Reels right rail).
+    # Feed posts: no UI overlays the image — use a 60 px minimum rendering buffer on all edges.
+    is_vertical = h > w
+    feed_margin = max(margin, 60)
+    top_y       = int(h * 0.14) if is_vertical else feed_margin
+    bottom_y    = h - logo_h - (int(h * 0.18) if is_vertical else feed_margin)
+    side_margin = int(w * 0.13) if is_vertical else feed_margin
     positions = {
-        'top-right':    (w - logo_w - margin, margin),
-        'top-left':     (margin, margin),
-        'bottom-right': (w - logo_w - margin, h - logo_h - margin),
-        'bottom-left':  (margin, h - logo_h - margin),
+        'top-right':    (w - logo_w - side_margin, top_y),
+        'top-left':     (side_margin, top_y),
+        'bottom-right': (w - logo_w - side_margin, bottom_y),  # NEVER USE — text occupies the bottom zone
+        'bottom-left':  (side_margin, bottom_y),               # NEVER USE — text occupies the bottom zone
     }
     x, y = positions[position]
     img.paste(logo, (x, y), logo)
     img.convert('RGB').save(output_path, 'PNG', optimize=True)
 ```
 
-Logo path: `brands/{brand}/logo.png`. Scale: 0.18. Position: from day-of-week rotation.
+Logo path: `brands/{brand}/logo.png`. Scale: 0.18. Position: always `top-right` or `top-left` (from day-of-week rotation) — **never bottom**, as text occupies the bottom zone.
 This is the standard final step for ALL social images.
 
 **Step 3b — Visual verification (MANDATORY before uploading to Zernio):**
 
-Read the final image and visually inspect it. Check all of the following:
+Read the final image and visually inspect it. Check every item below. Determine canvas type first: **9:16** = 1080×1920 (Story/Reel); **Feed** = all other formats.
 
-**Text overlay:**
-- [ ] Headline is fully visible — no characters clipped at the left, right, or bottom edge
+**Text — position and safe zone:**
+- [ ] Text block is at the **bottom** of the image — never at the top
+- [ ] Text alignment matches the day-of-week rotation: left (Mon/Thu), center (Tue/Fri), right (Wed/Sat)
+- [ ] **9:16:** bottom of text block is at least ~346 px (18%) from the canvas bottom edge — clear of IG/FB Reels UI stack
+- [ ] **9:16:** text stays within the ~140 px (13%) side margins — clear of Reels right-rail action buttons
+- [ ] **Feed:** text block is at least 60 px from every edge — no content touching the canvas border
+
+**Text — legibility and color:**
+- [ ] Headline is fully visible — no characters clipped at left, right, or bottom
 - [ ] Subline is fully visible — not cut off
-- [ ] Text has sufficient contrast against the background (gradient scrim is dark enough)
-- [ ] Text does not overlap the logo
+- [ ] Text color scheme is correct for the background: **dark zone** → white headline + pink `#ec4899` subline; **light zone** → near-black headline + dark-pink `#be185d` subline
+- [ ] Scrim gradient provides enough contrast — text is clearly readable against the background
 
-**Logo:**
+**Logo — position and safe zone:**
+- [ ] Logo is at the **top** of the image (top-right or top-left) — **never at the bottom**
+- [ ] Logo corner matches the day-of-week rotation: top-right (Mon/Wed/Fri), top-left (Tue/Thu/Sat)
+- [ ] Logo and text occupy **separate vertical zones** — logo at top, text at bottom, no overlap between them
+- [ ] **9:16:** logo top edge is at least ~269 px (14%) from canvas top — below IG Stories profile header
+- [ ] **9:16:** logo stays within the ~140 px (13%) side margin — clear of Reels right-rail
+- [ ] **Feed:** logo is at least 60 px from every edge
 - [ ] Logo is fully visible — not clipped by any edge
-- [ ] Logo has sufficient contrast/visibility against the background behind it
-- [ ] Logo visual margin from the top edge and right (or left) edge looks approximately equal — the logo should not appear to "float" lower or higher than its corner margin
+- [ ] Logo has sufficient contrast against the background behind it
+- [ ] Logo corner margin looks visually balanced — top gap ≈ side gap (logo not floating)
 
 **Overall composition:**
-- [ ] Text and logo do not overlap each other
+- [ ] Text (bottom) and logo (top) occupy separate vertical zones — they do not overlap
 - [ ] The image looks intentional and on-brand — not accidental or broken
 
 **If any check fails, fix before uploading:**
 
 | Issue | Fix |
 |---|---|
-| Text clipped at left/right edge | Increase `pad` to `int(target_w * 0.08)` and re-render |
-| Text clipped at top/bottom edge | Reduce `hs` by 10% and re-render |
+| **Text too close to bottom edge (9:16)** | Verify `safe_bottom_px = int(target_h * 0.18)` is applied; re-render |
+| **Text too close to sides (9:16)** | Verify `safe_side_px = int(target_w * 0.13)` is applied; re-render |
+| **Text/logo too close to edge (feed)** | Verify `safe_bottom_px = 60` and `feed_margin = max(margin, 60)` are applied; re-render |
+| Wrong text alignment for the day | Check day-of-week and pass correct `text_align` (`'left'`/`'center'`/`'right'`) to `add_text_overlay`; re-render |
+| Wrong text color scheme | Adjust the brightness multiplier in `add_text_overlay` (change `0.45` up/down to shift the threshold); re-render |
+| Headline clipped at sides | Increase `safe_side_px` by 20 px and re-render |
+| Headline cut off at bottom of scrim | Reduce `hs` by 10% and re-render |
 | Subline cut off | Reduce `ss2` by 10% and re-render |
-| Low text contrast | Increase scrim opacity — change `200` to `230` in the gradient alpha and re-render |
-| Text overlaps logo | If `text_position == 'bottom'` and logo is `bottom-*`: switch logo to `top-*` position. If text is `top` and logo is `top-*`: switch logo to `bottom-*`. Re-render. |
+| Low text contrast (scrim too light) | Increase scrim opacity — change `200` to `230` in the gradient alpha and re-render |
+| Text overlaps logo | Text is always bottom; logo is always `top-*`. If still overlapping (very long text on short canvas), reduce `hs` by 10% to shorten the text block. Never move logo to `bottom-*`. Re-render. |
+| Logo at wrong position (not `top-*`) | Correct `position` to `top-right` or `top-left` per day-of-week rotation; re-render |
+| Logo in same zone as text | Logo must be `top-*`; if it was placed `bottom-*`, move to `top-right` or `top-left`; re-render |
+| Logo too close to top/side edge (9:16) | Verify `top_y = int(h * 0.14)` and `side_margin = int(w * 0.13)` are applied; re-render |
+| Logo too close to edge (feed) | Verify `feed_margin = max(margin, 60)` is applied; re-render |
 | Logo clipped at edge | Reduce `scale` by 0.02 and re-render |
-| Logo visually offset (top margin ≠ side margin) | Crop transparent padding: `logo = logo.crop(logo.getbbox())` before resizing, then re-render |
+| Logo visually offset (unequal margins) | Crop transparent padding: `logo = logo.crop(logo.getbbox())` before resizing; re-render |
 | Logo too small to read | Increase `scale` to 0.22 and re-render |
 | Logo too large / dominates image | Reduce `scale` to 0.14 and re-render |
-| Logo blends into background (low contrast) | Add a subtle white semi-transparent circle/rect behind the logo: `bg = Image.new('RGBA', (logo_w + pad, logo_h + pad), (255,255,255,160))`, paste at `(x - pad//2, y - pad//2)` before pasting logo |
-| Logo placed over busy image area | Switch to the opposite corner (e.g. `top-right` → `top-left`) where the background is calmer, then re-render |
+| Logo blends into background | Add white semi-transparent backing: `bg = Image.new('RGBA', (logo_w + pad, logo_h + pad), (255,255,255,160))`, paste at `(x - pad//2, y - pad//2)` before pasting logo |
+| Logo over busy image area | Switch to opposite corner (e.g. `top-right` → `top-left`) where background is calmer; re-render |
 
 Re-render until all checks pass. Only then proceed to upload.
 

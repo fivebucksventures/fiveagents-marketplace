@@ -7,11 +7,14 @@ description: Multi-brand marketing agent — research, create, design, analyze, 
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 06, 2026 |
+| Link | v2.3.1 | May 07, 2026 |
 
 **Description:** Multi-brand marketing agent — research, create, design, analyze, publish content
 
 ### Change Log
+
+**v2.3.1** — May 07, 2026
+- Skills table — removed stale "with Nano Banana Pro" from `creative-designer` description (Nano Banana replaced by Gemini in v2.2.2)
 
 **v2.3.0** — May 06, 2026
 - External APIs section — added template_upload / template_list / template_render gateway tools
@@ -85,7 +88,7 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 | `plugin-update` | Bring an existing brand's setup up to date with the latest plugin version — detects gaps since last brand-setup run and fills only what's missing (idempotent) |
 | `research-strategy` | Market research, ICP definition, positioning, competitive analysis, campaign briefs |
 | `content-creation` | Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy |
-| `creative-designer` | Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation with Nano Banana Pro, text overlays and branding |
+| `creative-designer` | Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding |
 | `social-publisher` | Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio |
 | `data-analysis` | Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis |
 | `campaign-presenter` | Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks |

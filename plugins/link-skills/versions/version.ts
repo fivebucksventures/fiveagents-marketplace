@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.3.2';
-const DEFAULT_DATE = 'May 06, 2026';
+const DEFAULT_VERSION = 'v2.3.7';
+const DEFAULT_DATE = 'May 07, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,19 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.3.7',
+    date: 'May 07, 2026',
+    changes: [
+      'content-generator: Step 4a safe zone table — added note clarifying Top 14% column applies to logo placement only, not text (add_text_overlay has no top constraint)',
+      'content-generator + creative-designer: add_logo positions dict — added # NEVER USE comments on bottom-right and bottom-left entries; text always occupies the bottom zone so these positions are forbidden',
+      'creative-designer: frontmatter description — removed stale "with Nano Banana Pro" (Nano Banana replaced by Gemini in v2.2.2)',
+      'creative-designer: add_text_overlay prose note — clarified 18% safe-zone offset applies to 9:16 only; feed canvases use flat 60 px buffer instead',
+      'creative-designer/style-guide.md — replaced "Nano Banana" brand name with "Claude\'s continue_editing" in two Don\'t rules (more durable phrasing)',
+      'link.md: skills table — removed stale "with Nano Banana Pro" from creative-designer description row',
+      'commit-to-git workflow — Step 3b: added "already bumped this session" rule (do not re-increment if maintenance sections were updated in the current session); Step 5a: added branch to use highest existing version instead of incrementing again',
+    ],
+  },
   {
     version: 'v2.3.2',
     date: 'May 06, 2026',
@@ -195,13 +208,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Step 1a — added "Act without asking" permission setting with risk disclaimer',
       'agents/link.md: updated skill table descriptions to match actual SKILL.md frontmatter',
       '.gitignore: added .DS_Store',
-    ],
-  },
-  {
-    version: 'v2.2.4',
-    date: 'April 23, 2026',
-    changes: [
-      'brand-setup: Step 1b — added Domain Allowlist setting (Settings → Capabilities → Domain Allowlist → All Domains → ON)',
     ],
   },
 ];

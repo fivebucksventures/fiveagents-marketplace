@@ -56,6 +56,8 @@ For each modified file, read its `## Maintenance` block and confirm:
 
 If any check fails, **stop and update the maintenance section first** before proceeding. Do not commit with a stale maintenance block.
 
+> **Already bumped this session?** If the skill's maintenance section was already updated during the current work session (version incremented, changelog written, date set to today), treat it as passing — **do not re-increment the version**. Use the version already in the maintenance section as the target version for `version.ts`.
+
 ### 3c. Check for new skills or agents
 
 Compare the list of SKILL.md files on disk against the existing entries in `version.ts` VERSION_HISTORY:
@@ -156,8 +158,9 @@ Open `plugins/link-skills/versions/version.ts` and update:
 
 ### 5a. Determine the new version number
 
-- Look at `DEFAULT_VERSION` (current version, e.g. `v2.2.15`)
-- Determine the increment:
+**If maintenance sections were already bumped this session:** the target version is the highest version number found across all updated maintenance sections. Use that — do not increment further.
+
+**If maintenance sections are still at the old version:** determine the increment from the diff:
   - **Patch** (`v2.2.x`) — bug fixes, copy corrections, minor skill tweaks
   - **Minor** (`v2.x.0`) — new skill added, significant workflow change, new integration
   - **Major** (`vx.0.0`) — breaking change to the plugin architecture
