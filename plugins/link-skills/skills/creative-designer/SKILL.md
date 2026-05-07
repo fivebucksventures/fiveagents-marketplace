@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.7 | May 07, 2026 |
+| Link | v2.4.0 | May 07, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.4.0** — May 07, 2026
+- `add_text_overlay` + `add_logo` — replaced `is_vertical = target_h > target_w` with `is_story_reel = (target_h / target_w) >= 1.7`; fixes IG portrait 4:5 (1080×1350) incorrectly receiving 9:16 safe zones instead of flat 60px feed buffer
 
 **v2.3.7** — May 07, 2026
 - Frontmatter description — removed stale "with Nano Banana Pro" (removed in v2.2.2)
@@ -357,12 +360,11 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
 
     pad = int(target_w * 0.06)
     # Safe zones by canvas type:
-    # 9:16 vertical (Stories/Reels): bottom 18% clears IG/FB Reels UI stack; sides 13% clears right-rail action buttons.
-    # Feed posts (landscape/square): no UI overlays the image — like/comment bar is below the image.
-    #   Use a 60 px rendering buffer on all edges to guard against device/viewport edge clipping.
-    is_vertical = target_h > target_w
-    safe_bottom_px = int(target_h * 0.18) if is_vertical else 60
-    safe_side_px   = int(target_w * 0.13) if is_vertical else max(pad, 60)
+    # is_story_reel: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 — feed safe zones apply there.
+    # target_h > target_w is NOT sufficient: IG portrait (1080×1350) would wrongly get 9:16 safe zones.
+    is_story_reel = (target_h / target_w) >= 1.7
+    safe_bottom_px = int(target_h * 0.18) if is_story_reel else 60
+    safe_side_px   = int(target_w * 0.13) if is_story_reel else max(pad, 60)
     hs = max(36, int(target_w * 0.048))
     ss2 = max(22, int(target_w * 0.026))
     try:
@@ -474,13 +476,12 @@ def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.1
     logo_h = int(logo.height * logo_w / logo.width)
     logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
     margin = int(w * 0.03)
-    # 9:16 safe zones: top 14% (Stories header), bottom 18% (Reels UI), sides 13% (Reels right rail).
-    # Feed posts: no UI overlays the image — use a 60 px minimum rendering buffer on all edges.
-    is_vertical = h > w
+    # is_story_reel: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 — feed safe zones apply there.
+    is_story_reel = (h / w) >= 1.7
     feed_margin = max(margin, 60)
-    top_y       = int(h * 0.14) if is_vertical else feed_margin
-    bottom_y    = h - logo_h - (int(h * 0.18) if is_vertical else feed_margin)
-    side_margin = int(w * 0.13) if is_vertical else feed_margin
+    top_y       = int(h * 0.14) if is_story_reel else feed_margin
+    bottom_y    = h - logo_h - (int(h * 0.18) if is_story_reel else feed_margin)
+    side_margin = int(w * 0.13) if is_story_reel else feed_margin
     positions = {
         'top-right':    (w - logo_w - side_margin, top_y),
         'top-left':     (side_margin, top_y),

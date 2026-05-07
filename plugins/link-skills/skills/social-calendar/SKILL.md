@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.15 | May 05, 2026 |
+| Link | v2.4.0 | May 07, 2026 |
 
 **Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
 
 ### Change Log
+
+**v2.4.0** — May 07, 2026
+- Notion MCP tool prefix normalized — `mcp__notion__notion-*` → `mcp__claude_ai_Notion__notion-*` (matches the actual registered tool names; old shorter form was working via undocumented fuzzy matching)
 
 **v2.2.15** — May 05, 2026
 - Direction column added to planning table — picker rules per format (Carousel/Story/LinkedIn)
@@ -197,7 +200,7 @@ IF env var is NOT set:
 ```
 
 ```
-Use mcp__notion__notion-fetch:
+Use mcp__claude_ai_Notion__notion-fetch:
 - id: "${BRAND}_NOTION_DB"
 ```
 
@@ -205,7 +208,7 @@ Use mcp__notion__notion-fetch:
 
 **Create only when env var is unset (or fetch returns not_found):**
 ```
-Use mcp__notion__notion-create-database:
+Use mcp__claude_ai_Notion__notion-create-database:
 - parent: { "type": "page_id", "page_id": "<brand_parent_page_or_workspace_root>" }
 - title: "{Brand Name} Social Media Calendar"
 - properties: {
@@ -236,14 +239,14 @@ Save local backup first: `outputs/{brand}/strategy/SocialCalendar_[DDMon]-[DDMon
 
 1. **Resolve the DB to a `data_source_url`** (needed for scoped search):
    ```
-   Use mcp__notion__notion-fetch:
+   Use mcp__claude_ai_Notion__notion-fetch:
    - id: "${BRAND}_NOTION_DB"
    ```
    Extract the `collection://` URL from the response — typically `data_sources[0].url`. Save as `data_source_url`.
 
 2. **Check if the week's page already exists, scoped to the brand DB only:**
    ```
-   Use mcp__notion__notion-search:
+   Use mcp__claude_ai_Notion__notion-search:
    - query: "SocialCalendar_[DDMon]-[DDMonYYYY]"
    - data_source_url: <data_source_url from step 1>
    - query_type: "internal"
@@ -252,7 +255,7 @@ Save local backup first: `outputs/{brand}/strategy/SocialCalendar_[DDMon]-[DDMon
 
 3. **If no matching page → create it:**
    ```
-   Use mcp__notion__notion-create-pages:
+   Use mcp__claude_ai_Notion__notion-create-pages:
    - parent: { "database_id": "${BRAND}_NOTION_DB" }
    - pages: [{
        "properties": { "Name": "SocialCalendar_[DDMon]-[DDMonYYYY]", "Status": "Planned", "Posts": 14 },
@@ -263,7 +266,7 @@ Save local backup first: `outputs/{brand}/strategy/SocialCalendar_[DDMon]-[DDMon
 
 4. **If the page already exists → update it in place:**
    ```
-   Use mcp__notion__notion-update-page:
+   Use mcp__claude_ai_Notion__notion-update-page:
    - page_id: <existing page id>
    - properties: { "Status": "Planned", "Posts": 14 }
    - replace_content: true

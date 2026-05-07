@@ -8,11 +8,19 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.7 | May 07, 2026 |
+| Link | v2.4.0 | May 07, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.4.0** — May 07, 2026
+- Notion MCP tool prefix normalized — `mcp__notion__notion-*` → `mcp__claude_ai_Notion__notion-*` (matches the actual registered tool names)
+- Step 6 (status update) — replaced obsolete `mcp__notion__API-update-a-block` call (block-level update not exposed by current Notion connector) with `notion-update-page` using `command: "update_content"` for targeted search-and-replace on the calendar page's markdown table
+
+**v2.3.8** — May 07, 2026
+- `add_text_overlay` + `add_logo` — replaced `is_vertical = target_h > target_w` with `is_story_reel = (target_h / target_w) >= 1.7`; fixes IG portrait 4:5 (1080×1350) incorrectly receiving 9:16 safe zones instead of flat 60px feed buffer
+- Step 4a safe zone note — updated to reference the ratio threshold (9:16 = 1.78, IG portrait 4:5 = 1.25)
 
 **v2.3.7** — May 07, 2026
 - Step 4a safe zone table — added clarifying note: the "Top" column for 9:16 applies to logo placement only; `add_text_overlay` has no top constraint (text is always bottom)
@@ -99,18 +107,18 @@ Use **Notion MCP** to read the calendar. Follow these steps:
 
 **1a. Resolve the brand's database to a `collection://` URL, then search inside it:**
 
-The available Notion MCP tools are `notion-fetch` and `notion-search` (the schemaful `mcp__notion__API-query-data-source` is not exposed by the Notion connector). Use this two-step pattern:
+The available Notion MCP tools are `notion-fetch` and `notion-search`. Use this two-step pattern:
 
 1. **Fetch the brand's DB to discover its collection URL:**
 ```
-Use mcp__notion__notion-fetch:
+Use mcp__claude_ai_Notion__notion-fetch:
 - id: "${BRAND}_NOTION_DB"   # the brand's DB ID from env var, e.g. FIVEBUCKS_NOTION_DB
 ```
 Inspect the response and extract the `collection://` URL — typically returned as `data_sources[0].url` or under a `collection` field. Save it as `data_source_url`.
 
 2. **Search inside that collection:**
 ```
-Use mcp__notion__notion-search:
+Use mcp__claude_ai_Notion__notion-search:
 - query: "SocialCalendar_"
 - data_source_url: <data_source_url from step 1>
 - query_type: "internal"
@@ -125,7 +133,7 @@ This restricts results to pages inside the brand's social calendar DB. From the 
 If `notion-fetch` on the DB ID does not yield a usable `data_source_url`, fall back to a workspace-wide `notion-search` AND apply the brand-header validation strictly:
 
 ```
-Use mcp__notion__notion-search:
+Use mcp__claude_ai_Notion__notion-search:
 - query: "SocialCalendar_ ${BRAND}"   # include brand name to disambiguate
 ```
 
@@ -133,7 +141,7 @@ Filter every result by checking the page's parent database title contains the br
 
 **1b. Read the table from the chosen page:**
 
-Use `mcp__notion__notion-fetch` with the page ID to retrieve the page content. Locate the table block (or the page's child database, depending on how the calendar was structured) and extract its `table_row` children. If the table is nested as a child page rather than inline, fetch the child page first.
+Use `mcp__claude_ai_Notion__notion-fetch` with the page ID to retrieve the page content. Locate the table block (or the page's child database, depending on how the calendar was structured) and extract its `table_row` children. If the table is nested as a child page rather than inline, fetch the child page first.
 
 **1c. Parse rows into post objects:**
 
@@ -255,7 +263,7 @@ If the post brief is too thin to fill all required keys, leave the template's de
 | LinkedIn feed post (1200×628) | 60 px | 60 px | 60 px | No UI overlay — rendering buffer; notification card crops can clip edges |
 | X/Twitter post (1200×675 or 1600×900) | 60 px | 60 px | 60 px | No UI overlay — 60 px guards against 16:9 center-crop algorithm |
 
-For all feed formats, `is_vertical = target_h > target_w` is `False`, so `safe_bottom_px = 60` and `safe_side_px = max(pad, 60)` apply automatically — no extra logic needed.
+For all feed formats, `(target_h / target_w) >= 1.7` is `False` (9:16 = 1.78 is the only format above the threshold; IG portrait 4:5 = 1.25 is below it), so `safe_bottom_px = 60` and `safe_side_px = max(pad, 60)` apply automatically — no extra logic needed.
 
 > **Note:** The "Top" column in the 9:16 row (14% / ~269 px) governs **logo placement only**. Text has no top constraint — `add_text_overlay` always positions the scrim from the bottom. The top safe zone is irrelevant to text rendering.
 
@@ -523,12 +531,11 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
 
     pad = int(target_w * 0.06)
     # Safe zones by canvas type:
-    # 9:16 vertical (Stories/Reels): bottom 18% clears IG/FB Reels UI stack; sides 13% clears right-rail action buttons.
-    # Feed posts (landscape/square): no UI overlays the image — like/comment bar is below the image.
-    #   Use a 60 px rendering buffer on all edges to guard against device/viewport edge clipping.
-    is_vertical = target_h > target_w
-    safe_bottom_px = int(target_h * 0.18) if is_vertical else 60
-    safe_side_px   = int(target_w * 0.13) if is_vertical else max(pad, 60)
+    # is_story_reel: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 — feed safe zones apply there.
+    # target_h > target_w is NOT sufficient: IG portrait (1080×1350) would wrongly get 9:16 safe zones.
+    is_story_reel = (target_h / target_w) >= 1.7
+    safe_bottom_px = int(target_h * 0.18) if is_story_reel else 60
+    safe_side_px   = int(target_w * 0.13) if is_story_reel else max(pad, 60)
     hs = max(36, int(target_w * 0.048))
     ss2 = max(22, int(target_w * 0.026))
     try:
@@ -623,13 +630,12 @@ def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.1
     logo_h = int(logo.height * logo_w / logo.width)
     logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
     margin = int(w * 0.03)
-    # 9:16 safe zones: top 14% (Stories header), bottom 18% (Reels UI), sides 13% (Reels right rail).
-    # Feed posts: no UI overlays the image — use a 60 px minimum rendering buffer on all edges.
-    is_vertical = h > w
+    # is_story_reel: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 — feed safe zones apply there.
+    is_story_reel = (h / w) >= 1.7
     feed_margin = max(margin, 60)
-    top_y       = int(h * 0.14) if is_vertical else feed_margin
-    bottom_y    = h - logo_h - (int(h * 0.18) if is_vertical else feed_margin)
-    side_margin = int(w * 0.13) if is_vertical else feed_margin
+    top_y       = int(h * 0.14) if is_story_reel else feed_margin
+    bottom_y    = h - logo_h - (int(h * 0.18) if is_story_reel else feed_margin)
+    side_margin = int(w * 0.13) if is_story_reel else feed_margin
     positions = {
         'top-right':    (w - logo_w - side_margin, top_y),
         'top-left':     (side_margin, top_y),
@@ -803,19 +809,24 @@ Set Status (cell index 10) based on what was actually done in Step 5:
 
 Use **Notion MCP** to update the row's Status cell.
 
-For each published post, use `mcp__notion__API-update-a-block` with the row's `_row_id` (saved from Step 1). Rebuild the full cells array with the Status cell (index 10 — Direction was inserted at index 9) set to the new value:
+The current Notion connector does not expose block-level updates, so individual `table_row` cells cannot be patched directly. Use `notion-update-page` with the `update_content` command to do a targeted search-and-replace on the calendar page's markdown table — find the row's previous status text and replace with the new one.
 
 ```
-block_id: <_row_id>
-type: { "table_row": { "cells": [ [{"type":"text","text":{"content":"<cell_0>"}}], ..., [{"type":"text","text":{"content":"Published"}}] ] } }
+Use mcp__claude_ai_Notion__notion-update-page:
+- page_id: <calendar_page_id from Step 1>
+- command: "update_content"
+- content_updates: [
+    {
+      "old_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | Planned |",
+      "new_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | Published |"
+    }
+  ]
 ```
 
-- If published live → Status = `"Published"`
-- If saved as draft → Status = `"Draft Ready"`
+- If published live → new status = `"Published"`
+- If saved as draft → new status = `"Draft Ready"`
 
-You must include ALL 11 cells in the update (not just the Status cell) — the Notion API replaces the entire row. The 11 columns are: `[0] Date, [1] Platform, [2] Format, [3] Topic, [4] Persona, [5] ContentAngle, [6] CTA, [7] Hashtags, [8] ImageBrief, [9] Direction, [10] Status`.
-
-Run once per post published.
+The 11 columns in the table are: `[0] Date, [1] Platform, [2] Format, [3] Topic, [4] Persona, [5] ContentAngle, [6] CTA, [7] Hashtags, [8] ImageBrief, [9] Direction, [10] Status`. The `old_str` MUST match the row exactly as it appears in the page (whitespace and pipe characters preserved); reconstruct it from the values you parsed in Step 1c. Run one `update_content` operation per published post — or batch all updates into a single call by passing multiple entries in `content_updates`.
 
 ---
 

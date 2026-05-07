@@ -6,11 +6,19 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.2 | May 06, 2026 |
+| Link | v2.4.0 | May 07, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.4.0** — May 07, 2026
+- UX intro audit — added top-level "What this skill does" overview + per-step intro paragraphs across all 10 steps; conversational tone, smart-default callouts, time estimates per step
+- Step 5 (Research & Context Generation) — added 5 new sub-steps that generate `sales.md`, `customer-success.md`, `finance.md`, `investors.md`, `operations.md` for the 10 new business-operations skills (apollo-lead-prospector, outreach-sequencer, proposal-generator, customer-onboarder, churn-predictor, invoice-collector, financial-reporter, investor-update-writer, meeting-analyzer; competitor-monitor reads extended competitors.md fields)
+- Step 5 — extended `competitors.md` template with per-competitor `monitor_urls`, `track_pages`, `exec_team` fields (used by competitor-monitor)
+- Step 7 (API Keys & Connections) — documented the new auto-bootstrapped Notion DB env vars: `${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB` (no user action at setup; created on first run of the relevant skill)
+- Step 8 (Validate Connections) — added probes for Apollo.io, Calendly, Stripe, Xero MCPs (PostHog and Gamma already validated via data-analysis / campaign-presenter probes)
+- Step 10 (Completion email) — `files[]` block expanded to include the 5 new context files
 
 **v2.3.2** — May 06, 2026
 - Step 1 — Added `## Arguments` section + project-session redirect at end of Step 1a: after creating the project, user is instructed to open the project and run `/brand-setup -- project created`; all subsequent steps run inside the project session
@@ -82,11 +90,38 @@ You are the onboarding agent for the Link marketing plugin. Walk the user throug
 
 Run these steps in order. **Do not skip or rush any step.** At the end of each step, explicitly ask the user to confirm before proceeding to the next. Never assume a step is already done — always ask. The only exception is if the user explicitly says "skip" or "already done" for a specific step.
 
+## What this skill does
+
+Brand setup creates the entire context library that the Link plugin's 23 skills read at runtime — the brand voice, target personas, product/pricing facts, competitive landscape, sales playbook, finance ops, and more. Once setup is complete, every other skill (`/link-skills:research-strategy`, `/link-skills:content-creation`, `/link-skills:apollo-lead-prospector`, etc.) can be run for this brand without re-asking the same questions.
+
+**Estimated time:** 60–90 minutes for a typical SaaS brand. Can extend to 2 hours if you opt into all optional sub-steps (Claude Design system, social templates, fundraised-investor context). Most steps have smart defaults — you can usually answer "use the default" and keep moving.
+
+**The 10 steps:**
+
+| # | Step | Purpose | Time |
+|---|---|---|---|
+| 1 | Cowork Setup | Verify your Cowork project + permissions are configured correctly | 2–3 min |
+| 2 | What You'll Need | Quick inventory of API keys and integrations you'll connect later | 1 min (review only) |
+| 3 | Brand Name & Folder | Pick the brand slug, create `brands/{brand}/` directory | 1 min |
+| 4 | Website Analysis | Auto-extract tagline, voice, colors, personas from your website (Playwright + AI) | 5–10 min |
+| 4b | Claude Design System (optional) | Install your Claude Design visual system for tighter brand consistency | 10 min if installed |
+| 4c | Social Templates (optional) | Install Carousel (4:5) + Story (9:16) templates for IG/FB content | 15 min if installed |
+| 5 | Research & Context Generation | Build out product.md, competitors.md, funnel.md, avatars.md + new v2.4.0 sales/CS/finance/investors/operations files | 30–60 min |
+| 6 | Logo | Copy your logo file into the brand folder | 1 min |
+| 7 | API Keys & Connections | Connect each integration (FiveAgents gateway, Notion, Slack, Apollo, Stripe, Xero, etc.) | 15–30 min |
+| 8 | Validate Connections | Test every connector with a low-cost call to confirm setup is good | 5 min |
+| 9 | Initialize Workspace CLAUDE.md | Embed the Link agent into your workspace so all sessions auto-load it | 2 min |
+| 10 | Summary & Completion Email | Final summary email + Slack DM with what was set up and what was skipped | 1 min |
+
+You'll be asked to confirm at the end of each step before moving to the next — that's by design, so you can pause anywhere and resume later. The only exceptions are explicit "skip" responses.
+
 ---
 
 ### Step 1 — Cowork Setup
 
 Before anything else, ensure your Cowork environment is configured. **Both 1a and 1b are mandatory — do not proceed until both are confirmed.**
+
+This step is purely about your Cowork environment — it doesn't create any brand files yet. Once you've confirmed your project + permissions, you'll be inside the project session for the rest of brand-setup.
 
 #### 1a. Work in a Project
 
@@ -123,6 +158,8 @@ Brand setup will resume from step 1b inside the correct project context. **Do no
 ---
 
 ### Step 2 — What You'll Need (Prerequisites Overview)
+
+This step is just a heads-up — no questions yet, no setup actions. I'll walk you through everything you'll need to have ready before we get to Step 7 (API Keys). Skim it now so you know what to grab; we'll come back and ask for each item one at a time later. If you're missing anything, that's fine — most integrations are skippable, and you can always re-run brand-setup later to add them.
 
 Before we begin, here's everything you'll want to have ready. You don't need all of these right now — we'll walk through each one — but having them handy will make setup faster.
 
@@ -176,6 +213,8 @@ Present this overview to the user, then ask:
 
 ### Step 3 — Brand Name & Folder
 
+Now we pick the **slug** that identifies this brand across the file system, env vars, and Notion DB names. The slug becomes part of paths like `brands/{slug}/brand.md` and env vars like `${SLUG_UPPER}_NOTION_DB`, so keep it short and lowercase. Once chosen, the slug is permanent for this brand — changing it later means renaming a lot of files and re-pointing env vars.
+
 Ask the user:
 > What is your brand name? This will become the folder name for all your brand assets (e.g. "acme" → `brands/acme/`).
 
@@ -205,6 +244,10 @@ outputs/{brand}/strategy/
 **Do not proceed to Step 4 until the brand name is confirmed and all directories are created.**
 
 ### Step 4 — Website Analysis
+
+This is where the heavy lifting starts. The agent uses Playwright MCP to navigate your website and extract everything we can automatically — tagline, voice samples, brand colors, fonts, value propositions, CTAs, and even a first-pass at your target personas. The output of this step seeds `brand.md` and `audience.md`, which then feed every downstream skill (research-strategy, content-creation, creative-designer, etc.).
+
+**Expect ~5–10 minutes** of mostly-watching while the agent crawls the site, plus 1–2 minutes of you reviewing the extracted personas and confirming they look right. The agent will ask one question (your website URL) and then drive the rest until it's ready for review.
 
 Ask the user:
 > What is your website URL? (e.g. https://acme.com)
@@ -303,6 +346,10 @@ Show the user each draft and let them review/edit before saving.
 
 ### Step 4b — Claude Design System (OPTIONAL — recommended)
 
+Optional but recommended. A Claude Design system is a structured visual identity (colors, fonts, components, spacing) that lives at `brands/{brand}/design-system/`. When present, every visual output across the plugin (social images, decks, mockups, email templates, ad creatives) reads from it as the authoritative source — guaranteeing consistency. When absent, all those outputs fall back to the colors and fonts captured in `brand.md` from Step 4, which works fine but tends to drift visually over time.
+
+**Expect ~10 minutes** if you decide to install one (you'll create it at claude.ai/design first, then copy it into the brand folder). **Skip it** if you're early-stage and brand consistency isn't a top priority — you can always re-run brand-setup later to add it.
+
 Anthropic ships **Claude Design** — a visual brand-system builder at https://claude.ai/design. When installed, it becomes the source of truth for visual identity (fonts, colors, components, spacing) and is preferred by every downstream skill that produces visuals. **It is recommended for the strongest brand consistency, but it is not required** — Step 9c will detect whether the design system was installed and skills will fall back to the colors/fonts/voice in `brands/{brand}/brand.md` (plus Gemini + Pillow rendering) when it isn't there.
 
 Ask the user:
@@ -373,6 +420,10 @@ If colors/fonts in the Claude Design system differ from `brands/{brand}/brand.md
 ---
 
 ### Step 4c — Social Templates (OPTIONAL — recommended)
+
+Also optional but recommended for IG/FB-heavy brands. Templates are React + Babel apps that render polished, branded carousel posts (4:5) and story/reel posts (9:16) — way better visual quality than the Pillow text overlay fallback. The content-generator skill picks them up automatically when present.
+
+**Expect ~15 minutes** if you opt in (create the templates at claude.ai/design, install both, upload to gateway). **Skip it** for now if you're not running daily IG/FB posts — content-generator's Gemini + Pillow fallback works fine for occasional posts.
 
 Two Claude Design templates can be installed — one for IG/FB Carousel posts (4:5, 6 slides: Cover + 4 sign slides + CTA), one for IG/FB Stories and Reels (9:16, 6 slides: Hook → Problem → Solution → Proof → Offer → CTA, with three direction styles A/B/C). Each template is a **self-contained React + Babel app** (entry HTML + JSX + CSS + assets + fonts) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block inside the entry HTML that exposes every editable copy field. At runtime, content-generator generates Gemini visuals for each image slot (held in memory as base64), then calls the gateway `template_render` tool which renders the template server-side (Vercel + Playwright on the gateway) and delivers rendered slide PNGs directly to presigned Zernio upload URLs — so brand consistency comes from the template's full React render (logo, layout chrome, slide-number kickers, CTA buttons, eyebrow chips, themes), not from any post-render Pillow overlay. **No local Playwright required.**
 
@@ -839,6 +890,10 @@ If the path is invalid, re-ask. If the EDITMODE block is missing or required key
 
 ### Step 5 — Research & Context Generation
 
+This is the big one. Step 5 generates 9 separate context files in `brands/{brand}/` — `product.md`, `competitors.md`, `funnel.md`, `avatars.md`, plus the v2.4.0 additions: `sales.md`, `customer-success.md`, `finance.md`, `investors.md`, `operations.md`. Each file feeds different downstream skills. The first 4 are extracted from your website automatically by `/link-skills:research-strategy`; the new v2.4.0 files are operational config you provide directly (only you know your ICP filters, payment terms, investor list).
+
+**Expect 30–60 minutes total** depending on how many optional sub-steps apply. Each sub-step is independently skippable — for example, `investors.md` only matters if you've raised outside funding. Smart defaults are offered everywhere; you can usually just confirm and move on.
+
 Now that `brand.md` and `audience.md` exist, run `/link-skills:research-strategy` to fill in the remaining context files. The research skill will:
 - Read brand.md + audience.md for context
 - Research competitors automatically (no need to ask the user)
@@ -866,7 +921,7 @@ Read the research output from `outputs/{brand}/strategy/` and use it to generate
 
 **`brands/{brand}/competitors.md`**
 
-Generated from research-strategy output. No need to ask the user — competitors are discovered automatically:
+Generated from research-strategy output. No need to ask the user — competitors are discovered automatically. The `monitor_urls`, `track_pages`, and `exec_team` fields below are added per-competitor to support the `competitor-monitor` skill (weekly diff of pricing pages, blog index, exec hires, etc.):
 ```markdown
 # {Brand Name} — Competitive Landscape
 
@@ -876,10 +931,27 @@ Generated from research-strategy output. No need to ask the user — competitors
 - **Strengths:** {what they do well}
 - **Weaknesses:** {where they fall short}
 - **Counter-messaging:** {how to position against them}
+- **monitor_urls:**
+  - homepage: {https://competitor.com/}
+  - pricing: {https://competitor.com/pricing}
+  - blog: {https://competitor.com/blog}
+  - careers: {https://competitor.com/careers}
+  - changelog: {https://competitor.com/changelog or release-notes URL — omit if absent}
+- **track_pages:**
+  - pricing: price changes, new tier introductions, removed tiers
+  - homepage: hero copy / positioning shifts, new product mentions
+  - blog: new launches, thought-leadership themes
+  - careers: new exec hires (esp. C-level / VP roles), team-size growth signals
+  - changelog: new feature releases, deprecations
+- **exec_team:**
+  - {Name, Title} — {LinkedIn URL}
+  - {Name, Title} — {LinkedIn URL}
 
 ## {Competitor 2}
 ...
 ```
+
+Populate `monitor_urls` automatically from research-strategy output where possible (homepage and pricing are usually known; blog / careers / changelog can be inferred from the homepage navbar). Populate `exec_team` from the competitor's About / Team / Leadership page if research-strategy surfaced it; otherwise leave with a `TBD — fill manually from LinkedIn` placeholder. The `competitor-monitor` skill reads these fields directly — no user prompt at this stage.
 
 **`brands/{brand}/funnel.md`**
 
@@ -958,7 +1030,468 @@ Pick avatars that match the brand's target market demographics.
 
 **Do not proceed until `product.md`, `competitors.md`, `funnel.md`, and `avatars.md` are generated and the user has confirmed the funnel mapping.**
 
+#### Step 5g — Sales context
+
+> The first new v2.4.0 file. `sales.md` powers your outbound sales engine — `apollo-lead-prospector` reads ICP filters from it to query Apollo, `outreach-sequencer` uses the sender persona and sequence templates to drive cold email loops, and `proposal-generator` uses the proposal defaults when packaging deals. Without this file, those 3 skills can't run on this brand at all.
+>
+> **Expect ~7 questions over 5–10 minutes.** Step B (ICP filters) repeats once per persona, so it scales with how many personas you defined in Step 4. Most prompts have smart defaults — Apollo people-search filters can be derived from `audience.md`, daily quota defaults to 20/persona, sequence shape defaults to 5-touch over 14 days unless you specify otherwise.
+
+Generate `brands/{brand}/sales.md`. Unlike `product.md` / `competitors.md` (which are extracted from website research), this file is **operational config** — prompt the user for the values directly. The file is read by `apollo-lead-prospector`, `outreach-sequencer`, and `proposal-generator`.
+
+**Step A — Sender Persona:**
+> Who is the human sender that outbound emails should appear to come from? I need:
+> - Name
+> - Title
+> - Email signature block (paste the exact block you'd want appended to outbound emails)
+> - Photo URL (LinkedIn or website headshot — used in proposals and on the email signature)
+
+**Step B — ICP Filters (per persona):**
+
+Re-read `brands/{brand}/audience.md` to enumerate the personas defined in Step 4. For **each persona**, ask the user to confirm Apollo people-search filters that will return matching leads:
+- **Titles** — list of job titles to match (e.g. `["VP of Marketing", "Head of Growth", "Marketing Director"]`)
+- **Industries** — list of industries (e.g. `["SaaS", "B2B Software"]`)
+- **Company size band** — employee-count range (e.g. `11-50`, `51-200`, `201-1000`)
+- **Geography** — countries / regions (e.g. `["United States", "Singapore"]`)
+- **Tech stack (optional)** — required tech the company must use (e.g. `["HubSpot", "Salesforce"]`)
+
+**Step C — Disqualification Rules:**
+> What leads should we automatically skip? Common entries:
+> - Blocklist domains (existing customers, partners, your own domain)
+> - "Skip if already a customer" (toggle yes/no)
+> - "Skip if competitor employee" (toggle yes/no — uses `competitors.md` URLs to derive domains)
+> - Any other exclusion rules
+
+**Step D — Daily Quota:**
+> How many new prospects should be added per day per persona? (Default: 20 per persona unless you state otherwise.)
+
+**Step E — Sequence Templates:**
+
+For each persona, capture the touch shape. If the user doesn't specify, infer a default from the persona's pain points in `audience.md` (e.g. for a senior buyer: "5-touch over 14 days: Day 0 email / Day 3 email / Day 7 email / Day 10 LinkedIn DM / Day 14 final email").
+
+**Step F — Reply Routing:**
+
+Default rules — confirm with the user, but only ask if they want to deviate:
+- "interested" → book a meeting (Calendly link)
+- "not now" → 90-day nurture loop
+- "wrong person" → ask for referral, then add original contact to disqualified list
+- "unsubscribe" → permanent skip, never contact again
+
+**Step G — Proposal Defaults:**
+> When `proposal-generator` writes a proposal, what defaults should it use?
+> - Payment terms (e.g. `Net 30`, `50% upfront / 50% on delivery`)
+> - Validity period (default: 30 days)
+> - Default tier per persona (read tier names from `brands/{brand}/product.md` Pricing section)
+> - Upsell rules (e.g. "always offer annual billing with 15% discount", "include onboarding add-on for Enterprise")
+
+Save as `brands/{brand}/sales.md` with the following sections:
+
+```markdown
+# {Brand Name} — Sales Operations
+
+## Sender Persona
+- Name: {...}
+- Title: {...}
+- Signature:
+  ```
+  {paste signature block}
+  ```
+- Photo URL: {...}
+
+## ICP Filters
+
+### {persona-slug-1}
+- Titles: [...]
+- Industries: [...]
+- Company size: {band}
+- Geography: [...]
+- Tech stack: [...]   # optional
+
+### {persona-slug-2}
+...
+
+## Disqualification Rules
+- Blocklist domains: [...]
+- Skip if already customer: yes/no
+- Skip if competitor employee: yes/no
+- Other: ...
+
+## Daily Quota
+- {persona-slug-1}: {N} prospects/day
+- {persona-slug-2}: {N} prospects/day
+
+## Sequence Templates
+
+### {persona-slug-1}
+{e.g. 5-touch over 14 days: Day 0 email / Day 3 email / Day 7 email / Day 10 LinkedIn / Day 14 final email}
+
+### {persona-slug-2}
+...
+
+## Reply Routing
+- interested → book meeting (Calendly: {link})
+- not now → 90-day nurture
+- wrong person → ask for referral, disqualify original
+- unsubscribe → permanent skip
+
+## Proposal Defaults
+- Payment terms: {Net 30 / etc.}
+- Validity period: {30 days}
+- Default tier per persona:
+  - {persona-slug-1}: {tier name from product.md}
+  - {persona-slug-2}: {tier name}
+- Upsell rules: ...
+```
+
+#### Step 5h — Customer Success context
+
+> `customer-success.md` powers two retention skills — `customer-onboarder` walks new customers through your milestone playbook (welcome email, kickoff, milestone tracking), and `churn-predictor` scores active customers daily against the health-score formula you define here, alerting on at-risk transitions. If you skip this file, those 2 skills can't run.
+>
+> **Expect ~6 questions over 8–12 minutes.** The biggest input is Step B (Onboarding Milestones) — you'll define 5–7 milestones per plan tier, so 3 tiers means 15–21 milestones total. The health-score weights (Step D) and intervention playbook (Step E) come with strong defaults; many founders just confirm those.
+
+Generate `brands/{brand}/customer-success.md`. Read by `customer-onboarder` and `churn-predictor`. Operational config — prompt the user.
+
+**Step A — Plan Tiers:**
+
+Re-read `brands/{brand}/product.md` Pricing section to enumerate tiers (e.g. Free / Pro / Enterprise). Confirm the tier list with the user.
+
+**Step B — Onboarding Milestones per tier:**
+
+For each tier, prompt the user for 5-7 milestones. Each milestone has: name, trigger event (the system event that fires it), expected days from signup.
+> For your **{tier}** plan, what are the onboarding milestones a healthy customer hits? Example for a Pro tier: signup (Day 0) → setup wizard complete (Day 0-1) → first asset created (Day 1-3) → first-week active (Day 7) → 30-day retention check (Day 30).
+
+**Step C — Kickoff Agenda (Enterprise / high-touch tiers only):**
+
+For tiers that include a kickoff call, prompt for agenda. Default: intro / use-case discovery / product walkthrough / next steps. Skip for tiers without a kickoff (e.g. Free, Pro self-serve).
+
+**Step D — Health Score Weights:**
+
+Default formula (confirm with user, override only if they want to deviate):
+- 40% feature adoption (count of key features used in last 30 days vs total)
+- 30% login frequency (sessions per week)
+- 20% support volume (inverse — fewer tickets = healthier)
+- 10% subscription state (active / past-due / cancelled)
+
+Capture thresholds for each component (e.g. "feature adoption ≥ 60% = healthy, 30-60% = watch, <30% = at-risk").
+
+**Step E — At-Risk Intervention Playbook:**
+
+Define what triggers each band and what to do at each:
+- **Healthy (score ≥80):** no action; quarterly check-in
+- **Watch (60-79):** automated re-engagement email with usage tip
+- **At-Risk (40-59):** CSM personal outreach within 48h
+- **Critical (<40):** founder/CSM escalation, win-back call within 24h
+
+**Step F — Day-X Check-in Cadence:**
+
+When to send NPS / satisfaction surveys. Default: Day 7, Day 30, Day 90, then quarterly. Confirm with user.
+
+Save as `brands/{brand}/customer-success.md` with sections:
+
+```markdown
+# {Brand Name} — Customer Success Operations
+
+## Plan Tiers
+- {Tier 1}: {short description}
+- {Tier 2}: ...
+
+## Onboarding Milestones
+
+### {Tier 1}
+1. {Milestone name} — trigger: {event}, expected: Day {N}
+2. ...
+
+### {Tier 2}
+...
+
+## Kickoff Agenda
+({tiers that include kickoff})
+1. {agenda item}
+2. ...
+
+## Health Score Weights
+- Feature adoption: 40% (threshold: ≥60% healthy)
+- Login frequency: 30% (threshold: ≥3 sessions/week healthy)
+- Support volume: 20% (threshold: ≤2 tickets/month healthy)
+- Subscription state: 10%
+
+## At-Risk Intervention Playbook
+- Healthy (≥80): quarterly check-in
+- Watch (60-79): automated re-engagement email
+- At-Risk (40-59): CSM personal outreach within 48h
+- Critical (<40): founder escalation, win-back call within 24h
+
+## Day-X Check-in Cadence
+- Day 7: NPS pulse
+- Day 30: NPS + product-fit survey
+- Day 90: NPS + renewal-intent
+- Quarterly thereafter
+```
+
+#### Step 5i — Finance context
+
+> `finance.md` is the brain behind your back-office automation. `invoice-collector` reads the escalation tone ladder to chase overdue invoices day by day; `financial-reporter` reads the KPIs and alert thresholds to publish your monthly P&L summary and Slack-alert if runway dips below your floor. Without this file, those 2 skills can't run.
+>
+> **Expect ~8 questions over 10–15 minutes.** This sub-step has the most jargon — terms like "revenue recognition method", "runway calc window", "alert thresholds". Don't sweat it; defaults are SaaS-standard (Net 30 / 6-month runway floor / 3-month avg burn / cash-basis reporting). The most important input is Step B (Escalation Tone Ladder) — the agent drafts your D+1 / D+7 / D+14 / D+30 reminder copy in your brand voice and asks you to review each. Budget extra time there.
+
+Generate `brands/{brand}/finance.md`. Read by `invoice-collector` and `financial-reporter`. Operational config — prompt the user; pull voice from `brand.md` for the escalation ladder so reminders sound on-brand.
+
+**Step A — Payment Terms:**
+> What's your default invoice payment term? (Default: Net 30. Common alternatives: Net 7, Net 14, Net 60, "due on receipt", "50% upfront / 50% on completion".)
+
+**Step B — Escalation Tone Ladder:**
+
+Compose exact wording for D+1, D+7, D+14, D+30 reminders using the voice in `brand.md`. Sample structure:
+- **D+1 — friendly nudge:** "Hi {first_name}, hope this finds you well. Just a quick reminder that invoice {#} for {amount} is due. Here's the payment link: {link}. Let me know if you have any questions!"
+- **D+7 — direct follow-up:** "Following up on invoice {#} — it was due {N} days ago. Could you let me know when we can expect payment, or flag any issues?"
+- **D+14 — firm with payment link:** "Invoice {#} is now 14 days overdue. To avoid service disruption, please pay at {link} or reach out to discuss."
+- **D+30 — final notice:** "Final notice on invoice {#}. If unpaid by {date}, we'll need to {pause service / refer to collections / escalate to founder}. Please reply today to resolve."
+
+Adjust each tier to brand voice (e.g. a casual SMB brand softens D+30; a B2B enterprise brand stays formal throughout).
+
+**Step C — Retry Intervals:**
+> How often should the agent retry between rungs? (Default: every 7 days — D+1 → D+7 → D+14 → D+30.)
+
+**Step D — Dispute Handling:**
+
+When a customer flags a dispute, the agent must pause chasing. Default: "If the customer replies with words like 'dispute', 'incorrect', 'wrong amount', or 'cancel' → mark `dispute=true` in Xero metadata (or Notion if Xero unavailable) and skip that invoice from all future sweeps. Notify the founder via Slack."
+
+**Step E — KPIs to Highlight:**
+
+Default list (confirm with user; SaaS brands keep MRR/ARR, services brands swap for project margin):
+- MRR (monthly recurring revenue)
+- ARR (annual recurring revenue)
+- Gross margin
+- Runway (cash / monthly burn)
+- Top revenue movers (week-over-week)
+- Top expense movers (week-over-week)
+
+**Step F — Alert Thresholds:**
+
+When `financial-reporter` should wake the founder up (Slack DM):
+- Runway < N months (default: 6)
+- MRR drop > X% MoM (default: 5%)
+- Single expense category up > Y% MoM (default: 25%)
+- AR > Z days outstanding total (default: $50k or 30 days, whichever first)
+
+**Step G — Runway Calc Method:**
+> How should the agent compute runway? (Default: cash on hand / monthly burn averaged over the **last 3 months**. Alternatives: trailing 6 months, single most-recent month.)
+
+**Step H — Revenue Recognition Rules:**
+> Cash basis or accrual? (Default: cash for SMB / bootstrapped brands; accrual for VC-backed brands required to report investor-grade financials.)
+
+Save as `brands/{brand}/finance.md` with sections matching each block:
+
+```markdown
+# {Brand Name} — Finance Operations
+
+## Payment Terms
+{Net 30 / etc.}
+
+## Escalation Tone Ladder
+
+### D+1 (friendly nudge)
+{wording}
+
+### D+7 (direct follow-up)
+{wording}
+
+### D+14 (firm with payment link)
+{wording}
+
+### D+30 (final notice)
+{wording}
+
+## Retry Intervals
+Every {N} days between rungs.
+
+## Dispute Handling
+{rules — keyword triggers, pause logic, who to notify}
+
+## KPIs to Highlight
+- MRR / ARR / gross margin / runway / top movers / ...
+
+## Alert Thresholds
+- Runway < {N} months → Slack alert
+- MRR drop > {X}% MoM → Slack alert
+- Expense category up > {Y}% MoM → Slack alert
+- AR > {Z} days outstanding → Slack alert
+
+## Runway Calc Method
+{cash / N-month-avg burn}
+
+## Revenue Recognition Rules
+{cash / accrual}
+```
+
+#### Step 5j — Investors context (fundraised brands only)
+
+> `investors.md` powers `investor-update-writer` — a monthly cron skill that combines your Xero financials, PostHog product KPIs, and CRM wins into a draft email that lands in your Gmail Drafts folder for review and send. It mirrors your past update style by reading prior monthly updates you paste in.
+>
+> **Skip this entirely if you haven't raised outside funding** — the consent gate below makes that explicit. If you have raised, expect ~5 questions over 15–20 minutes; the heaviest input is Step E (Prior Updates Archive), where you'll paste your last 3-6 monthly updates. That's a one-time copy-paste from your email or wherever you store them. Without those samples, the drafted updates will sound generic.
+
+**Step 0 — consent gate**
+
+Ask the user:
+> Have you raised outside funding (angels, VCs, seed/Series A+) and want Claude to draft your monthly investor updates?
+
+If **no**, skip this sub-step entirely — `investor-update-writer` won't be used. If **yes**, generate `brands/{brand}/investors.md`:
+
+**Step A — Investor List:**
+
+Accept CSV paste. Each row has: name, firm, email, role (`lead` / `follow` / `angel` / `advisor`), preferred update frequency (`monthly` / `quarterly`).
+> Paste your investor list as CSV (one row per investor). Columns: name, firm, email, role, frequency. Example:
+> ```
+> Jane Smith,Acme Ventures,jane@acme.vc,lead,monthly
+> John Doe,Angel,john@example.com,angel,quarterly
+> ```
+
+**Step B — Founder Voice:**
+> Paste 2 prior monthly investor updates verbatim (or 1 if only one exists). The skill uses these as voice samples — your asks, your wins framing, your phrasing patterns. Without this, drafts will sound generic.
+
+**Step C — Sections to Include:**
+
+Default: TL;DR / KPIs / Wins / Lowlights / Asks / Hires. Confirm with user; allow override (e.g. some founders skip Lowlights for early-stage updates).
+
+**Step D — Sections to OMIT:**
+
+Default: never share specific customer names without consent, internal team conflicts, unconfirmed M&A discussions, churned-customer details. Capture any brand-specific additions.
+
+**Step E — Prior Updates Archive:**
+> Paste your last 3-6 monthly updates (most recent first). The skill reads these to avoid repeating asks/wins and to maintain narrative continuity.
+
+Save as `brands/{brand}/investors.md` with sections:
+
+```markdown
+# {Brand Name} — Investor Communications
+
+## Investor List
+| Name | Firm | Email | Role | Frequency |
+|---|---|---|---|---|
+| {...} | {...} | {...} | {lead/follow/angel/advisor} | {monthly/quarterly} |
+
+## Founder Voice (samples)
+
+### Sample 1 — {month} {year}
+{paste verbatim}
+
+### Sample 2 — {month} {year}
+{paste verbatim}
+
+## Sections to Include
+- TL;DR
+- KPIs (MRR, ARR, runway, key funnel metrics from finance.md)
+- Wins
+- Lowlights
+- Asks (intros, hires, advice)
+- Hires (new joiners)
+
+## Sections to OMIT
+- Specific customer names without consent
+- Internal team conflicts
+- Unconfirmed M&A discussions
+- Churned customer details
+
+## Prior Updates Archive
+
+### {Month Year}
+{paste full update}
+
+### {Month Year}
+{paste full update}
+...
+```
+
+#### Step 5k — Operations context (optional)
+
+> `operations.md` powers `meeting-analyzer` — a skill that processes meeting transcripts (1:1s, standups, client calls, board meetings) into structured action items + decisions, routes each owner to the right Slack handle, and drafts follow-up emails for client meetings. The routing rules in this file are how the skill knows that "engineering tasks → Tech Lead", "marketing tasks → CMO", and so on.
+>
+> **This file is fully optional.** `meeting-analyzer` works without it — action items get marked "Unassigned" and you reassign manually in Notion. Skip if you're a solo founder or don't run formal meetings with multiple owners. If you do opt in, expect ~3 questions over 5 minutes.
+
+Ask the user:
+> Do you run regular meetings (1:1s, standups, client calls, board meetings) and want Claude to process transcripts — extract action items, route them to owners, and archive notes?
+
+If **no**, skip this sub-step entirely. `meeting-analyzer` works without it (degrades to "unassigned" owners on action items). If **yes**, generate `brands/{brand}/operations.md`:
+
+**Step A — Action Item Routing:**
+
+For each meeting type, capture who owns each action category. Example mapping:
+- **Engineering tasks** → Tech Lead (Slack handle: `@alice`)
+- **Marketing tasks** → CMO (Slack handle: `@bob`)
+- **Sales tasks** → Sales Lead (Slack handle: `@carol`)
+- **Finance tasks** → Founder/CFO (Slack handle: `@dave`)
+- **Customer issues** → CS Lead (Slack handle: `@eve`)
+
+**Step B — Meeting Types:**
+
+Each meeting type can have a different output template. Default types:
+- **1:1** — agenda items, blockers, career-development notes
+- **standup** — yesterday/today/blockers per attendee
+- **client** — agenda, decisions, action items, customer sentiment
+- **sales** — qualification answers, objections, next-step commitments
+- **board** — KPI review, strategic decisions, asks
+
+**Step C — Default Owners:**
+
+Fallback when an action item has no clear owner (e.g. transcript is ambiguous). Default: route to the meeting organizer's Slack handle, with a 24h "claim or reassign" window.
+
+Save as `brands/{brand}/operations.md`:
+
+```markdown
+# {Brand Name} — Operations
+
+## Action Item Routing
+| Category | Owner | Slack Handle |
+|---|---|---|
+| Engineering | {Tech Lead name} | @{handle} |
+| Marketing | {CMO name} | @{handle} |
+| Sales | {Sales Lead name} | @{handle} |
+| Finance | {CFO/Founder} | @{handle} |
+| Customer | {CS Lead name} | @{handle} |
+
+## Meeting Types
+- 1:1 — template: agenda / blockers / career
+- standup — template: yesterday/today/blockers
+- client — template: agenda / decisions / action items / sentiment
+- sales — template: qualification / objections / next steps
+- board — template: KPI review / strategic decisions / asks
+
+## Default Owners
+- Fallback: meeting organizer
+- Reassignment window: 24h
+```
+
+#### Step 5l — competitors.md extension verification
+
+> Quick housekeeping step — no new questions for you. The agent re-opens the `competitors.md` file generated earlier and verifies each competitor entry includes the new v2.4.0 fields (`monitor_urls`, `track_pages`, `exec_team`) that `competitor-monitor` reads to do its weekly diff. If any competitor entry is missing these fields, the agent appends `TBD` placeholders. The `competitor-monitor` skill will surface unfilled placeholders on its first run for you to complete then.
+>
+> **Expect ~30 seconds.** Just an automated verification.
+
+Re-open the `brands/{brand}/competitors.md` file generated earlier in Step 5 and verify each competitor entry includes the `monitor_urls`, `track_pages`, and `exec_team` fields documented in the competitors.md template above. If any competitor entry is missing these fields (e.g. research-strategy output predated v2.4.0), append placeholders now:
+
+```markdown
+- **monitor_urls:**
+  - homepage: {URL from existing entry}
+  - pricing: TBD
+  - blog: TBD
+  - careers: TBD
+  - changelog: TBD
+- **track_pages:**
+  - pricing: price changes, new tier introductions
+  - homepage: hero copy / positioning shifts
+  - blog: new launches, thought-leadership themes
+  - careers: new exec hires
+  - changelog: new feature releases
+- **exec_team:**
+  - TBD — fill manually from LinkedIn
+```
+
+The `competitor-monitor` skill will surface unfilled `TBD` placeholders on its first run so the user can complete them then; brand-setup does not block on this.
+
 ### Step 6 — Logo
+
+Quick step. The agent copies your logo file into `brands/{brand}/logo.png` so the visual skills (creative-designer, content-generator) can composite it onto generated images via Pillow. PNG with transparent background works best, but any image format the file system can read will do.
+
+**Expect 1 minute.** Have your logo file ready at a known path. If you don't have a logo yet, you can skip this and add it later — text-only outputs work fine without a logo, and re-running brand-setup later to add the logo is non-destructive.
 
 Make sure the logo file is somewhere I can read it. **In Cowork that means inside your project folder** (anywhere — root, a subfolder, doesn't matter, as long as it's inside the project mount). On local Claude Code, any path under your `$HOME` works.
 
@@ -989,6 +1522,10 @@ Note: Google Font and brand colors were already discovered and saved to `brands/
 **Do not proceed to Step 7 until the logo file is confirmed copied (or the user explicitly skips it).**
 
 ### Step 7 — API Keys & Connections
+
+Now we connect the integrations. This is where you'll spend most of the wall-clock time of brand-setup, because each integration takes a minute or two to authorize in Claude's Connectors UI or paste an API key. Most are click-through OAuth (Notion, Slack, Gmail, Google Calendar, Apollo, Stripe, Xero, Calendly, etc.); a few require pasting an API key (FiveAgents gateway, Gemini, Late/Zernio for social publishing).
+
+**Expect 15–30 minutes** depending on how many integrations you connect. Some are required (FiveAgents gateway, Notion, Slack), most are optional. The agent will tell you which is which as we walk through them, and you can say "skip" to any optional one — it'll just mark that skill as unconfigurable for this brand. You can always re-run brand-setup later to add a missing integration.
 
 Walk through each integration one by one. For each one, explain what it does and whether it's required or optional. Ask: "Do you have your {integration} ready?" If the user says "not now" or "skip", acknowledge and move on — note it as unconfigured for the summary.
 
@@ -1109,10 +1646,26 @@ For every key the user provides in Step 7b (including `FIVEAGENTS_API_KEY`, `GEM
 
 ```
 DEFAULT_BRAND   → the brand slug (e.g. "five-agents", "npc-office") — used by all skills to determine the active brand without user input
-{BRAND}_NOTION_DB → the Notion Social Calendar DB page ID (e.g. "320c93e588f880b69cf6f52bd50444b5") — required by social-calendar and content-generator
+{BRAND}_NOTION_DB → the Notion Social Calendar DB page ID (a 32-character hex string from the DB's share URL) — required by social-calendar and content-generator
 ```
 
 To get the Notion DB ID: open the Social Calendar database in Notion → click Share → Copy link → the 32-character hex string in the URL is the page ID. Save it as `{BRAND}_NOTION_DB` where `{BRAND}` is the brand slug uppercased with hyphens removed (e.g. `FIVEAGENTS_NOTION_DB`, `NPCOFFICE_NOTION_DB`).
+
+**Auto-bootstrapped Notion DB env vars (no user action at setup time):**
+
+The 10 new business-operations skills shipping in v2.4.0 each maintain their own Notion database for state (CRM, customer health, invoice tracker, financial reports, competitor monitor, meeting transcripts, action items). These DB env vars are **auto-bootstrapped on first run of the relevant skill** — the skill creates the database in the user's Notion workspace, captures the resulting page ID, and writes it to `.claude/settings.local.json`. **No user action is required at setup time.** Just acknowledge they exist; skills handle creation:
+
+| Env Var | Bootstrapped By |
+|---|---|
+| `${BRAND}_CRM_DB` | `apollo-lead-prospector` / `outreach-sequencer` / `proposal-generator` (whichever runs first) |
+| `${BRAND}_CUSTOMER_DB` | `customer-onboarder` / `churn-predictor` (whichever runs first) |
+| `${BRAND}_INVOICE_TRACKER_DB` | `invoice-collector` |
+| `${BRAND}_REPORTS_DB` | `financial-reporter` / `investor-update-writer` (whichever runs first) |
+| `${BRAND}_COMPETITOR_DB` | `competitor-monitor` |
+| `${BRAND}_MEETINGS_DB` | `meeting-analyzer` |
+| `${BRAND}_ACTIONS_DB` | `meeting-analyzer` |
+
+If the user later wants to point a skill at a pre-existing Notion DB instead of letting it auto-create one, they can paste the DB page ID into `.claude/settings.local.json` under the matching env var name before the skill's first run — the skill will detect the existing var and skip the bootstrap step.
 
 **Also store API keys in the credential vault (for Cowork use):**
 
@@ -1190,6 +1743,10 @@ If yes to all, proceed. If "not now", acknowledge and move on.
 **Do not proceed to Step 8 until the user has responded to every integration in Step 7 — either configured or explicitly skipped.**
 
 ### Step 8 — Validate Connections
+
+Now we test every integration we just configured. The agent makes one cheap call per connector (e.g., `whoami` for Xero, `list_labels` for Gmail) and reports pass/fail. Anything that fails gets surfaced so you can fix it before relying on it in production — much better to find a bad credential now than discover it during a 6am cron run.
+
+**Expect ~5 minutes.** No questions for you (mostly) — the agent runs the probes and shows a summary table. If any required integration fails, you'll be asked to re-authorize and the agent re-tests.
 
 **This step is mandatory and must not be skipped.** Run validation for every integration the user configured in Step 7. For each test, show ✅ or ❌ with a clear error message if it fails. Only skip a specific test if the user explicitly chose not to set up that integration in Step 7.
 
@@ -1316,11 +1873,27 @@ Show the user the events found:
 
 After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `TBD` event names with the confirmed GA4 event names.
 
+**8c-bis. Business-operations MCPs (only if connected in Step 7 — used by the v2.4.0 skills):**
+
+These probes validate the MCPs the 10 new business-operations skills depend on. Run each only if the user added the connector in Step 7. Mark `⏭ skipped` if the user explicitly declined a given MCP (e.g. no Apollo account, no Stripe).
+
+18. **Apollo.io** (used by `apollo-lead-prospector`, `outreach-sequencer`) — Try `apollo_users_api_profile` (cheapest call, just verifies OAuth is alive). If it returns the authenticated user, Apollo.io is connected. If it 401s, ask the user to re-authorize the Apollo connector in Settings → Connected Apps.
+
+19. **Calendly** (used by `outreach-sequencer` for meeting links, `proposal-generator` for booking CTAs) — Calendly's MCP exposes an `authenticate` flow; once OAuth completes, call the basic profile / current-user lookup the connector exposes (e.g. `users-get_current_user` if available, otherwise rely on the OAuth-complete signal). If the user can't OAuth, they can paste a static Calendly link into `brands/{brand}/sales.md` Reply Routing section instead — mark probe `⏭ skipped` and note in the email.
+
+20. **Stripe** (used by `invoice-collector`, `financial-reporter`) — Stripe's MCP commonly only exposes `authenticate` / `complete_authentication` until OAuth completes. Check that `complete_authentication` succeeded (or that an env-var-based Stripe key exists if the user opted into key auth). If neither, mark `❌` and ask the user to complete the OAuth flow before running invoice-collector.
+
+21. **Xero** (used by `invoice-collector` to sync invoice status, `financial-reporter` to pull P&L) — Try Xero MCP `whoami` (or `get_connected_user_organisation`). If it returns the user's organisation, Xero is connected. If it 401s, ask the user to re-authorize.
+
+22. **PostHog** (used by `churn-predictor` for product-usage signals; data-analysis already validates PostHog if connected — reuse that result) — If not already validated, try `user-get`. If it returns the authenticated user, PostHog is connected. Mark `⏭ skipped` if the user has no PostHog account (churn-predictor will then fall back to support-ticket and login-frequency signals only).
+
+23. **Gamma** (used by `investor-update-writer` for investor decks; campaign-presenter already validates Gamma if connected — reuse that result) — If not already validated, try `get_themes`. If it returns the user's themes, Gamma is connected.
+
 **8d. Workspace env vars (mandatory — required by automated skills):**
 
-18. **`DEFAULT_BRAND`** — Confirm `.claude/settings.local.json` `env` block contains `DEFAULT_BRAND` set to the brand slug (e.g. `"five-agents"`, `"npc-office"`). If missing, ask the user for the brand slug and save it now. Required by every skill to determine the active brand without user input on scheduled runs.
+24. **`DEFAULT_BRAND`** — Confirm `.claude/settings.local.json` `env` block contains `DEFAULT_BRAND` set to the brand slug (e.g. `"five-agents"`, `"npc-office"`). If missing, ask the user for the brand slug and save it now. Required by every skill to determine the active brand without user input on scheduled runs.
 
-19. **`{BRAND}_NOTION_DB`** — Confirm `.claude/settings.local.json` `env` block contains `{BRAND}_NOTION_DB` (e.g. `FIVEAGENTS_NOTION_DB`, `NPCOFFICE_NOTION_DB` — `{BRAND}` is the slug uppercased, hyphens removed) set to the 32-character hex page ID of the brand's Notion Social Calendar database. If missing, walk the user through it: Notion → open the Social Calendar database → click Share → Copy link → extract the 32-hex-char ID from the URL → save it now. Required by social-calendar and content-generator.
+25. **`{BRAND}_NOTION_DB`** — Confirm `.claude/settings.local.json` `env` block contains `{BRAND}_NOTION_DB` (e.g. `FIVEAGENTS_NOTION_DB`, `NPCOFFICE_NOTION_DB` — `{BRAND}` is the slug uppercased, hyphens removed) set to the 32-character hex page ID of the brand's Notion Social Calendar database. If missing, walk the user through it: Notion → open the Social Calendar database → click Share → Copy link → extract the 32-hex-char ID from the URL → save it now. Required by social-calendar and content-generator.
 
 Both env var checks are mandatory — they are NOT skippable. If either is missing, do not show ⏭ in the summary table; show ❌ and stop until the user provides the value.
 
@@ -1344,6 +1917,12 @@ Both env var checks are mandatory — they are NOT skippable. If either is missi
 | Windsor.ai (Google Ads + GA4 + Meta Ads — all required) | ✅ / ❌ |
 | Meta Ads MCP (optional enhancement) | ✅ / ❌ / ⏭ skipped |
 | Canva | ✅ / ❌ / ⏭ skipped |
+| Apollo.io (apollo-lead-prospector / outreach-sequencer) | ✅ / ❌ / ⏭ skipped |
+| Calendly (outreach-sequencer / proposal-generator) | ✅ / ❌ / ⏭ skipped |
+| Stripe (invoice-collector / financial-reporter) | ✅ / ❌ / ⏭ skipped |
+| Xero (invoice-collector / financial-reporter) | ✅ / ❌ / ⏭ skipped |
+| PostHog (churn-predictor) | ✅ / ❌ / ⏭ skipped |
+| Gamma (investor-update-writer) | ✅ / ❌ / ⏭ skipped |
 | `DEFAULT_BRAND` env var | ✅ / ❌ |
 | `{BRAND}_NOTION_DB` env var | ✅ / ❌ |
 
@@ -1352,6 +1931,10 @@ Show the table to the user. If any tests failed, offer to retry or troubleshoot 
 **Do not proceed to Step 9 until every configured integration has been tested and the summary table has been shown to the user.**
 
 ### Step 9 — Initialize Workspace CLAUDE.md
+
+The Link agent only knows it should activate for this brand if your workspace's `CLAUDE.md` file embeds the `agents/link.md` content. This step writes (or updates) `CLAUDE.md` at your workspace root, embedding the full Link agent definition along with credential-loading boilerplate and your brand defaults. Once this is in place, every Claude Code session in this workspace auto-loads Link without you having to invoke anything.
+
+**Expect ~2 minutes.** No questions — the agent locates `agents/link.md`, reads it, and patches your `CLAUDE.md` idempotently between BEGIN/END markers (so re-running brand-setup or upgrading link.md just refreshes the embedded content without breaking anything you've added manually).
 
 **This step is mandatory and must not be skipped.** It ensures every future session in this workspace (including scheduled/automated runs) loads the Link agent identity and credentials automatically. It runs **before** the completion email in Step 10 so that any CLAUDE.md write failure is caught and surfaced in the email rather than silently leaving the workspace half-configured.
 
@@ -1589,6 +2172,10 @@ This step is non-blocking and safe to re-run on its own at any later point — u
 
 ### Step 10 — Summary & Completion Email
 
+Final step. The agent compiles a summary of everything that was done — which files were created, which integrations connected, which were skipped, which validations passed/failed — and ships it to two destinations: an HTML completion email to your `$REPORT_EMAIL` (via the gateway) and a Slack DM to `$SLACK_NOTIFY_USER`. Future-you (or whoever you handed this brand off to) gets a paper trail of what was set up and what's still pending.
+
+**Expect 1 minute.** No questions. After this step finishes, you can run any of the 23 Link skills against this brand. The first scheduled cron run (typically `social-calendar` Sunday or `apollo-lead-prospector` daily) will surface any remaining gaps.
+
 **This step is mandatory and must not be skipped.** It is the final step of brand-setup. Always send the completion email and Slack notification once Steps 8 (validation) and 9 (CLAUDE.md) have completed, regardless of how many integrations were configured.
 
 Send a completion email to `$REPORT_EMAIL` with the full setup report.
@@ -1618,6 +2205,11 @@ Build the JSON payload from Step 8 validation results **and** Step 9 CLAUDE.md /
     { "file": "brands/{brand}/competitors.md", "status": "present | missing | failed" },
     { "file": "brands/{brand}/funnel.md", "status": "present | missing | failed" },
     { "file": "brands/{brand}/avatars.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/sales.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/customer-success.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/finance.md", "status": "present | missing | failed" },
+    { "file": "brands/{brand}/investors.md", "status": "present | skipped | failed", "notes": "skipped if brand has not raised outside funding" },
+    { "file": "brands/{brand}/operations.md", "status": "present | skipped | failed", "notes": "skipped if user does not run meetings through Claude" },
     { "file": "brands/{brand}/logo.png", "status": "present | missing | failed" },
     { "file": "CLAUDE.md", "status": "present | missing | failed" },
     { "file": "brands/{brand}/design-system/", "status": "present | missing | failed" },
@@ -1641,6 +2233,12 @@ Build the JSON payload from Step 8 validation results **and** Step 9 CLAUDE.md /
     { "integration": "Windsor.ai", "status": "pass | fail", "notes": "Required: Google Ads + GA4 + Meta Ads (Facebook + Instagram) all connected — universal source for paid ads + analytics" },
     { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Optional enhancement — Marketing API direct access. When connected (META_ADS_SOURCE=meta_ads_mcp), downstream skills prefer it over Windsor for Meta data. When skipped or unavailable, Windsor.ai already covers Meta Ads fully." },
     { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" },
+    { "integration": "Apollo.io", "status": "pass | fail | skipped", "notes": "Used by apollo-lead-prospector / outreach-sequencer. Skip → those skills can't run." },
+    { "integration": "Calendly", "status": "pass | fail | skipped", "notes": "Used by outreach-sequencer (meeting links) and proposal-generator (booking CTAs). Skip → fall back to a static link in sales.md." },
+    { "integration": "Stripe", "status": "pass | fail | skipped", "notes": "Used by invoice-collector / financial-reporter. Skip → those skills can't run." },
+    { "integration": "Xero", "status": "pass | fail | skipped", "notes": "Used by invoice-collector / financial-reporter. Skip → those skills can't run." },
+    { "integration": "PostHog", "status": "pass | fail | skipped", "notes": "Used by churn-predictor for product-usage signals. Skip → churn scoring falls back to support-ticket + login-frequency only." },
+    { "integration": "Gamma", "status": "pass | fail | skipped", "notes": "Used by investor-update-writer for investor decks. Skip → updates render as plain markdown / email only." },
     { "integration": "DEFAULT_BRAND env var", "status": "pass | fail", "notes": "Active brand slug — required by every skill (mandatory, not skippable)" },
     { "integration": "{BRAND}_NOTION_DB env var", "status": "pass | fail", "notes": "Notion Social Calendar DB page ID — required by social-calendar and content-generator (mandatory, not skippable)" }
   ],
@@ -1650,13 +2248,17 @@ Build the JSON payload from Step 8 validation results **and** Step 9 CLAUDE.md /
 }
 ```
 
-**`files[]` status enum** — every row uses the same three values:
+**`files[]` status enum** — most rows use three values; two rows (`investors.md`, `operations.md`) accept a fourth `skipped` value:
 - `present` — file or folder exists with expected content (the happy path; covers "newly created", "already existed and updated", and "installed by user").
 - `missing` — file/folder absent because the relevant step was skipped or the user didn't supply input (e.g. `logo.png` when the user skipped Step 6, `social-carousel-template/` when the user skipped Step 4c).
+- `skipped` — used **only** for `investors.md` (when the brand hasn't raised outside funding) and `operations.md` (when the user doesn't run meetings through Claude). These are legitimate "not applicable" outcomes — not failures. Do not raise an action item for these.
 - `failed` — the write/copy/folder-probe operation raised an error during this run (e.g. permission denied, disk full, Step 9b couldn't write CLAUDE.md). A `failed` value on `CLAUDE.md` MUST also produce an `action_items` entry pointing the user to retry Step 9.
 
 **Where each `files[]` status comes from:**
 - `.md` rows and `logo.png` — set during the file-generation steps (3, 4, 5, 6). Use `present` if written, `missing` if the user skipped the step, `failed` if the write raised.
+- `sales.md`, `customer-success.md`, `finance.md` — set by Steps 5g / 5h / 5i. These are mandatory for the v2.4.0 sales/CS/finance skills, so `missing` should only appear when the user explicitly declined those workflows; otherwise `present` or `failed`.
+- `investors.md` — set by Step 5j. Use `present` if generated, `skipped` if the brand hasn't raised outside funding (the user said no in 5j Step 0), `failed` if the write raised.
+- `operations.md` — set by Step 5k. Use `present` if generated, `skipped` if the user doesn't run meetings through Claude, `failed` if the write raised.
 - `CLAUDE.md` — set by Step 9b: `present` if the file is on disk with the expected workspace block (whether newly created or refreshed in place), `failed` if the write raised. (`missing` should never appear since Step 9 is mandatory.)
 - The three visual asset folder rows — set by Step 9c's `folder_status()` results: `present` when the folder exists and is non-empty, `missing` when absent or empty.
 
@@ -1666,14 +2268,15 @@ Build the JSON payload from Step 8 validation results **and** Step 9 CLAUDE.md /
 - ✅ **Do** add an action item for `skipped` keys/MCPs whose absence breaks a skill (e.g. `LATE_API_KEY` skipped → social-publisher can't post; `GEMINI_API_KEY` skipped → no image generation).
 - ✅ **Do** add an action item if `CLAUDE.md` came back `failed` from Step 9b — scheduled / automated runs depend on it.
 - ❌ **Do NOT** add an action item for skipped **Meta Ads MCP** — Windsor.ai already covers Meta data fully when the MCP isn't available, so a skip here is a no-op for downstream skills, not a gap.
-- ❌ **Do NOT** add an action item for genuinely optional integrations the user explicitly declined (e.g. `ARGIL_API_KEY` skipped because the brand doesn't want avatar videos).
+- ❌ **Do NOT** add an action item for genuinely optional integrations the user explicitly declined (e.g. `ARGIL_API_KEY` skipped because the brand doesn't want avatar videos, Apollo skipped because the brand doesn't run outbound, Stripe/Xero skipped because the brand doesn't have those accounts yet).
 - ❌ **Do NOT** add an action item for visual asset folders showing `missing` — Step 9c already nudged the user inline; padding the email with these rows isn't useful.
+- ❌ **Do NOT** add an action item for `investors.md` or `operations.md` showing `skipped` — those are legitimate "not applicable" outcomes (no fundraising; no meeting workflow), not gaps. Add an action item only if those files came back `failed`.
 
 Also print the same summary to the chat and send a Slack notification to `$SLACK_NOTIFY_USER`:
 
 ```
 ✅ Brand "{brand}" setup complete
-• {N}/18 integrations connected
+• {N}/24 integrations connected
 • CLAUDE.md: {present | failed}
 • {N} action items (see email for details)
 • Brand files: brands/{brand}/

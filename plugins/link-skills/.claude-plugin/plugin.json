@@ -27,7 +27,7 @@
       "sensitive": false
     },
     "slack_notify_user": {
-      "description": "Your Slack user ID for notifications (e.g. U07QR52R342)",
+      "description": "Your Slack user ID for notifications (e.g. U01234ABCDE)",
       "sensitive": false
     },
     "report_email": {

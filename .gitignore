@@ -28,3 +28,15 @@ Thumbs.db
 
 # Docs (internal PRDs / notes — not shipped with the plugin)
 /docs/
+
+# OSS skill references (downloaded from GitHub for inspiration only — not shipped)
+/skill-reference/
+
+# Warm/draft skills (in development — not shipped until promoted to plugins/link-skills/skills/)
+/skill-warm/
+
+# Admin skills (release/operator tooling — not part of the link-skills marketplace plugin)
+/admin-skills/
+
+# Workflow runbooks (release/operator tooling — not part of the link-skills marketplace plugin)
+/workflow/

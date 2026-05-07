@@ -6,11 +6,21 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.2 | May 06, 2026 |
+| Link | v2.4.0 | May 07, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.4.0** — May 07, 2026
+- Step 1a — added 5 new brand context file rows: sales.md, customer-success.md, finance.md, investors.md, operations.md
+- Step 1d — added 7 new auto-bootstrapped Notion DB env vars (${BRAND}_CRM_DB, ${BRAND}_CUSTOMER_DB, ${BRAND}_INVOICE_TRACKER_DB, ${BRAND}_REPORTS_DB, ${BRAND}_COMPETITOR_DB, ${BRAND}_MEETINGS_DB, ${BRAND}_ACTIONS_DB)
+- Step 1e — added MCP probe rows for Apollo.io, Calendly, Stripe, Xero (used by new business-operations skills)
+- Step 1j — added 10 new skill rows in version-audit table: apollo-lead-prospector, outreach-sequencer, proposal-generator, customer-onboarder, churn-predictor, invoice-collector, financial-reporter, competitor-monitor, investor-update-writer, meeting-analyzer
+- Step 3a — added fill handlers for 5 new context files + competitors.md extension (each delegates to the matching brand-setup Step 5g–5l sub-step)
+- Step 3e — handled new DB env vars (mostly "auto-bootstrapped, no action")
+- Step 3j — added 10 new changelog → brand-action mappings for the new skills
+- UX intro audit — added top-level "What this skill does" overview + per-step intro paragraphs across all 6 steps; conversational tone, time estimates per step
 
 **v2.3.2** — May 06, 2026
 - Step 3c upload sub-flow — added step 0 size check (3 MB) before zip/upload; if local template exceeds limit, blocks upload and surfaces ready-to-paste claude.ai/design re-export prompt; Case 3 reference updated to Steps 0–5
@@ -55,9 +65,32 @@ This skill is **idempotent**. Running it twice in a row should produce a clean "
 
 If `brands/{brand}/` does not exist at all, this skill exits and tells the user to run `/link-skills:brand-setup` first.
 
+## What this skill does
+
+When you upgrade the plugin (e.g. `git pull` in the marketplace folder), some skills will have new requirements — new brand context files, new env vars, new MCP integrations, new sections in `brand.md`. Plugin-update is the **idempotent catch-up runner**: it inspects every brand asset, env var, MCP probe, and `CLAUDE.md` setting against the current plugin's expectations, then walks you through filling **only the gaps**. It never re-asks for data that's already on disk.
+
+**Estimated time:** 5–30 minutes for a typical run. A clean brand (no gaps) finishes in ~5 minutes (mostly automated inspection). A heavily-outdated brand (e.g. last set up 6 months ago, missing the v2.4.0 sales/finance/customer-success files) can take 30–60 minutes if you choose to fill all the new context files in this session.
+
+**The 6 steps:**
+
+| # | Step | Purpose | Time |
+|---|---|---|---|
+| 0 | Determine version gap | Read current plugin version + brand's last-applied version; build the changeset that needs catching up | ~30 sec (auto) |
+| 1 | Detect current state | Inspect every brand file, env var, MCP connector, CLAUDE.md section — no user prompts, just look | 1–2 min (auto) |
+| 2 | Show the gap report | Compact summary of what's present / missing / optional, grouped by category. One question: "want to fill these now?" | 1 min |
+| 3 | Fill the gaps interactively | Walk through each missing item in order. Each fill delegates to the matching brand-setup sub-step | 2–60 min (variable) |
+| 4 | Re-validate | Test only the integrations touched in Step 3 to confirm fixes worked | 1–2 min |
+| 5 | Record version + email + Slack | Write current plugin version to `brand.md`, send completion email, DM Slack | 30 sec |
+
+The skill is **idempotent** by design — running it twice in a row should produce a clean "nothing to do" report on the second pass. You can pause anywhere (e.g. say "skip" to a gap you don't want to fill now) and re-run later to pick up where you left off.
+
 ---
 
 ## Step 0 — Determine version gap
+
+First the agent figures out **what changed** between the version your brand was set up at and the version you have installed now. It reads `version.ts` for the current installed version, looks at `brands/{brand}/brand.md` for the brand's last-applied version stamp, and reads every skill's maintenance section to build a per-skill version delta. The output is a list of what's new since the brand was last configured — the input that drives Step 3's brand-action mapping.
+
+**Expect ~30 seconds.** Fully automated. Only asks you a question if the brand's last-applied version is missing from `brand.md` (in which case it asks you to recall when the brand was last set up).
 
 ### 0a. Read current plugin version
 
@@ -88,7 +121,6 @@ For each of the following files, read the `## Maintenance` block and extract the
 | `plugins/link-skills/skills/research-strategy/SKILL.md` | Version |
 | `plugins/link-skills/skills/campaign-presenter/SKILL.md` | Version |
 | `plugins/link-skills/skills/background-generator/SKILL.md` | Version |
-| `plugins/link-skills/skills/commit-to-git/SKILL.md` | Version |
 | `plugins/link-skills/skills/plugin-update/SKILL.md` | Version |
 
 ### 0d. Build the version delta
@@ -98,6 +130,10 @@ Flag each skill/agent whose maintenance `Version` is **newer than `last_applied`
 ---
 
 ## Step 1 — Detect current state
+
+Now the agent does a **read-only inspection sweep** of everything related to this brand — folder contents, brand.md sections, env vars, MCP connectors, CLAUDE.md, Notion DBs, template uploads, skill versions. No questions yet, no fixes — just look. Each sub-step (1a–1j) checks one category and tags items as present / missing / drift. The output of this step is the gap report you'll see in Step 2.
+
+**Expect 1–2 minutes.** Mostly automated; a few MCP probes will hit external services (e.g. Notion, Apollo, Xero) which can be slow if connections are flaky.
 
 Read everything that exists for the active brand. Do **not** prompt the user yet — just inspect.
 
@@ -118,6 +154,11 @@ Check existence of each path under `brands/{brand}/`. Mark present/missing:
 | `design-system/` | v2.2.10 (optional — brand.md fallback since v2.2.15) | present / missing |
 | `social-carousel-template/` | v2.2.10 (optional) | present / missing |
 | `social-story-template/` | v2.2.10 (optional) | present / missing |
+| `sales.md` | v2.4.0 | present / missing |
+| `customer-success.md` | v2.4.0 | present / missing |
+| `finance.md` | v2.4.0 | present / missing |
+| `investors.md` | v2.4.0 (optional — only required if brand has raised external capital) | present / missing |
+| `operations.md` | v2.4.0 (optional — meeting-analyzer falls back gracefully) | present / missing |
 
 ### 1b. brand.md sections
 
@@ -163,6 +204,19 @@ Read `.claude/settings.local.json` (search up from cwd). Check the `env` block:
 | `ARGIL_API_KEY` | AI avatar Reels |
 | `DEFAULT_BRAND` | Workspace default brand |
 
+**Auto-bootstrapped (no user action required at setup; created on first run of the relevant skill):**
+| Env var | Bootstrapped by | Required since |
+|---|---|---|
+| `${BRAND}_CRM_DB` | apollo-lead-prospector / outreach-sequencer / proposal-generator | v2.4.0 |
+| `${BRAND}_CUSTOMER_DB` | customer-onboarder / churn-predictor | v2.4.0 |
+| `${BRAND}_INVOICE_TRACKER_DB` | invoice-collector | v2.4.0 |
+| `${BRAND}_REPORTS_DB` | financial-reporter / investor-update-writer | v2.4.0 |
+| `${BRAND}_COMPETITOR_DB` | competitor-monitor | v2.4.0 |
+| `${BRAND}_MEETINGS_DB` | meeting-analyzer | v2.4.0 |
+| `${BRAND}_ACTIONS_DB` | meeting-analyzer | v2.4.0 |
+
+For each: if present + the matching DB exists in Notion → ✅ skip. If missing → not flagged as a gap (the skill will create on first run). The audit reports presence informationally only.
+
 For each missing key, mark whether it's required or optional.
 
 ### 1e. MCP connectors
@@ -179,6 +233,10 @@ You cannot directly probe what the user has connected in Claude settings. Instea
 | Windsor.ai | `get_connectors` | v2.1.0 |
 | Canva | `list-brand-kits` | v2.1.0 |
 | Playwright | check `claude mcp list` (Bash) | v2.1.4 (website analysis in brand-setup Step 4 — template rendering now uses gateway) |
+| Apollo.io | `apollo_users_api_profile` | v2.4.0 |
+| Calendly | OAuth status check (Calendly MCP gates real tools behind authenticate) | v2.4.0 |
+| Stripe | OAuth status check (Stripe MCP gates real tools behind authenticate) | v2.4.0 |
+| Xero | `whoami` | v2.4.0 |
 
 ### 1f. Workspace CLAUDE.md
 
@@ -280,14 +338,27 @@ Using the data collected in Step 0, build a version table:
 | social-publisher | v2.2.5 | — no |
 | research-strategy | v2.2.5 | — no |
 | campaign-presenter | v2.2.5 | — no |
-| commit-to-git | v2.2.5 | — no |
 | plugin-update | v2.3.0 | ✅ yes (new) |
+| `apollo-lead-prospector` | v2.4.0 | ✅ yes (new) |
+| `outreach-sequencer` | v2.4.0 | ✅ yes (new) |
+| `proposal-generator` | v2.4.0 | ✅ yes (new) |
+| `customer-onboarder` | v2.4.0 | ✅ yes (new) |
+| `churn-predictor` | v2.4.0 | ✅ yes (new) |
+| `invoice-collector` | v2.4.0 | ✅ yes (new) |
+| `financial-reporter` | v2.4.0 | ✅ yes (new) |
+| `competitor-monitor` | v2.4.0 | ✅ yes (new) |
+| `investor-update-writer` | v2.4.0 | ✅ yes (new) |
+| `meeting-analyzer` | v2.4.0 | ✅ yes (new) |
 
 Flag any skill that is entirely **new** (folder exists on disk but `last_applied` predates its introduction). For each changed/new skill, extract the relevant changelog bullets from its `### Change Log` section — these drive Step 3j.
 
 ---
 
 ## Step 2 — Show the gap report
+
+The agent shows you a **single compact summary** of every category checked in Step 1 — what's present (✅), what's missing required (❌), what's missing optional (⏭). You see the whole picture before any fix work starts, so you can scan it and decide whether to walk through the gaps now or come back later. Optional gaps (e.g. design-system, social templates, investors.md if you haven't raised) are clearly marked so you don't feel pressured to fill them.
+
+**Expect 1 minute.** Single question at the end: "Want me to walk through these gaps now?" If you say no, the skill exits cleanly and the gap report is logged to memory so you can revisit later.
 
 Build a **compact gap table** and show it to the user before doing anything. Group by category. Mark each item as ✅ (present) / ❌ (missing required) / ⏭ (optional missing). Example:
 
@@ -350,6 +421,10 @@ If the user says no / not now, exit cleanly and offer to re-run later. Log the g
 
 ## Step 3 — Fill the gaps interactively
 
+The agent walks through each missing item in order, **only prompting for items that came back ❌ or ⏭ in Step 2** — never re-asking for known-good state. For most fills, the agent delegates to the matching brand-setup sub-step (e.g. missing `sales.md` triggers `brand-setup` Step 5g, missing `LATE_API_KEY` triggers Step 7b's Late onboarding flow). You can say "skip" to any optional gap.
+
+**Expect 2–60 minutes** depending on how many gaps you have. A brand with 3 missing context files + 2 missing env vars + a CLAUDE.md path fix takes ~10 min. A brand with 10+ gaps and lots of optional templates can stretch to an hour. The skill saves progress as it goes, so you can interrupt and resume.
+
 Walk through each missing item in this order. **Skip any that came back ✅ in Step 2** — never re-prompt for known-good state.
 
 ### 3a. Brand context files (only if missing)
@@ -362,6 +437,12 @@ For each missing file in `brands/{brand}/`:
 - `avatars.md` missing → run `brand-setup` Step 5 avatars block.
 - `logo.png` missing → ask the user for the file path, copy into `brands/{brand}/logo.png`.
 - `backgrounds/` missing → just `mkdir`. No content needed (Gemini generates fresh per post since v2.2.9).
+- `sales.md` missing → run `brand-setup` Step 5g (Sales context). Prompts user for sender persona, ICP filters per persona, sequence templates, proposal defaults.
+- `customer-success.md` missing → run `brand-setup` Step 5h. Prompts for plan tiers, onboarding milestones, kickoff agenda, health-score weights, NPS cadence.
+- `finance.md` missing → run `brand-setup` Step 5i. Prompts for payment terms, escalation tone ladder, KPIs to highlight, alert thresholds, runway calc method.
+- `investors.md` missing → ask first: "Have you raised external capital?" If no → skip (not flagged as gap). If yes → run `brand-setup` Step 5j. Prompts for investor list, founder voice samples, prior-updates archive.
+- `operations.md` missing → ask first: "Do you run regular meetings (1:1s, standups, client calls) and want Claude to process transcripts?" If no → skip (not flagged as gap; meeting-analyzer falls back). If yes → run `brand-setup` Step 5k.
+- `competitors.md` extension missing (existing file present but lacks `monitor_urls` / `track_pages` / `exec_team` per competitor) → run `brand-setup` Step 5l. Prompts user to add the new fields per existing competitor entry.
 
 ### 3b. design-system/ (optional — recommended)
 
@@ -431,7 +512,7 @@ If no → note the drift in the gap report. Content-generator will use the older
 **Case 4 — Remote entry exists but no local folder:**
 
 Note in the gap report:
-> "Gateway has a `{template_type}` template (version `{version_hash[:8]}...`) but no local copy. The gateway version is still used for rendering — content-generator will continue to work. A future `template_download` tool will let you pull the template back locally (TODO: v2.4.0)."
+> "Gateway has a `{template_type}` template (version `{version_hash[:8]}...`) but no local copy. The gateway version is still used for rendering — content-generator will continue to work. A future `template_download` tool will let you pull the template back locally — currently no action is required for rendering to continue using the gateway version."
 
 No action required for rendering to continue.
 
@@ -451,6 +532,13 @@ For missing `{BRAND}_LATE_FB/IG/LI`: re-run `late_list_profiles` + `late_list_ac
 For missing `{BRAND}_NOTION_DB`: ask the user if they want to bootstrap now (calls `notion-create-database` per `social-calendar` Step 3a) or defer to first social-calendar run.
 
 After updating `.claude/settings.local.json`, also store any external API keys in the gateway vault via `fiveagents_store_credential` (mapping per `brand-setup` Step 7b vault table).
+
+For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB`):
+
+- If env var is missing → no action. The skill that depends on it will create the Notion DB on first run and persist the ID to `.claude/settings.local.json` (same pattern as `${BRAND}_NOTION_DB` for social-calendar).
+- If env var is present but the Notion DB has been deleted → ask the user: "Re-bootstrap now or defer to first run?" Both paths work; bootstrap-now avoids a confusing error on next skill run.
+
+Surface this informationally in the gap report — do not flag as a required gap.
 
 ### 3f. MCP connectors
 
@@ -547,6 +635,16 @@ For each skill/agent flagged as changed in Step 1j, read its `### Change Log` bu
 | DEFAULT_BRAND + {BRAND}_NOTION_DB env vars (brand-setup v2.2.12) | ✅ Check env block for both; add if missing |
 | CLAUDE.md embeds agents/link.md (brand-setup v2.2.11) | ✅ Check CLAUDE.md for embedded link.md content (BEGIN/END markers); if absent → Step 3g |
 | date_preset → last_30dT (digital-marketing-analyst v2.2.8) | ❌ No action — runtime parameter, no brand config |
+| `apollo-lead-prospector introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/sales.md` exists. If not → run brand-setup Step 5g sales sub-step |
+| `outreach-sequencer introduced (link-skills v2.4.0)` | ✅ Same as apollo-lead-prospector — sales.md must exist |
+| `proposal-generator introduced (link-skills v2.4.0)` | ✅ Same as apollo-lead-prospector — sales.md must exist |
+| `customer-onboarder introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/customer-success.md` exists. If not → run brand-setup Step 5h |
+| `churn-predictor introduced (link-skills v2.4.0)` | ✅ Same as customer-onboarder — customer-success.md must exist |
+| `invoice-collector introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/finance.md` exists. If not → run brand-setup Step 5i |
+| `financial-reporter introduced (link-skills v2.4.0)` | ✅ Same as invoice-collector — finance.md must exist |
+| `investor-update-writer introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/investors.md` exists. If not → ask if brand has raised external capital; if yes → run brand-setup Step 5j |
+| `competitor-monitor introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/competitors.md` has the new `monitor_urls`/`track_pages`/`exec_team` fields per competitor. If not → run brand-setup Step 5l (extension) |
+| `meeting-analyzer introduced (link-skills v2.4.0)` | ⏭ Optional — ask user if they want operations.md set up. If yes → brand-setup Step 5k |
 
 For changelog entries not in this table, apply judgment: if the change touches a per-brand configuration file (`brand.md`, `funnel.md`, `.claude/settings.local.json`, `CLAUDE.md`) → flag for review. If it is a skill-internal logic change → no brand action needed.
 
@@ -562,6 +660,10 @@ Version-specific actions ({N} required)
 ---
 
 ## Step 4 — Re-validate
+
+After you've filled the selected gaps, the agent runs a **focused validation pass** — only re-testing the integrations that were touched in Step 3 (not re-running the full Step 1 inspection). The output is a summary table of what was fixed, what was skipped, and what passed validation. If any fix failed validation (e.g. you re-authorized Windsor.ai but the probe still 401s), the agent flags it for retry.
+
+**Expect 1–2 minutes.** No questions unless a validation fails.
 
 After all selected gaps are filled, run a focused validation pass — only test integrations that were touched in Step 3. Reuse the test calls from `brand-setup` Step 8.
 
@@ -580,6 +682,10 @@ Show a summary table of what was fixed:
 ---
 
 ## Step 5 — Record version + completion email + Slack
+
+Final step — wrap up. The agent writes the **current plugin version** into `brands/{brand}/brand.md` `## Plugin Version` section so future `plugin-update` runs know where to start their delta from. It then sends a completion email and Slack DM summarizing what was fixed, what was skipped, and any gaps that remain. After this step, the brand is fully caught up to the current plugin version.
+
+**Expect 30 seconds.** No questions.
 
 ### 5a. Write plugin version to brand.md
 
@@ -622,10 +728,15 @@ Slack DM:
 - [ ] Step 0 read `version.ts` DEFAULT_VERSION and brand.md `## Plugin Version` before doing anything
 - [ ] Step 0 read every skill/agent maintenance section and built the version delta table
 - [ ] Step 1 ran a full inspection without prompting the user
+- [ ] Step 1a checked all 5 new brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with optional annotations applied to investors.md and operations.md
+- [ ] Step 1d checked the 7 new auto-bootstrapped DB env vars without flagging missing ones as required gaps
+- [ ] Step 1e probed the 4 new MCPs (Apollo.io, Calendly, Stripe, Xero)
 - [ ] Step 1j produced a version table showing which skills/agents changed since `last_applied`
 - [ ] Step 2 gap report opened with the version delta block (updated skills listed with changelog summaries)
 - [ ] Step 3 only walked through items marked ❌ or offered ⏭ — never re-asked for known-good state
+- [ ] Step 3a fill handlers ran the matching brand-setup Step 5g–5l sub-step for any missing brand context file
 - [ ] Step 3j mapped changelog entries to brand actions and only surfaced rows requiring action
+- [ ] Step 3j changelog → brand-action mapping covered all 10 new skills
 - [ ] All file writes were patches (preserve existing content), not full rewrites
 - [ ] Step 3g refreshed the `<!-- link.md version: ... -->` stamp in CLAUDE.md unconditionally
 - [ ] CLAUDE.md `link.md` path is absolute (`os.path.isabs == True`) after the run

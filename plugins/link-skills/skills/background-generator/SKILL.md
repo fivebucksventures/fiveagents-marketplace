@@ -8,11 +8,15 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.15 | May 05, 2026 |
+| Link | v2.4.0 | May 07, 2026 |
 
 **Description:** Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
 
 ### Change Log
+
+**v2.4.0** — May 07, 2026
+- Step 1 — replaced obsolete `mcp__notion__API-query-data-source` and `mcp__notion__API-get-block-children` calls (not exposed by current Notion connector) with the canonical `notion-fetch` + `notion-search` (with `data_source_url` filter) pattern used by social-calendar
+- Notion MCP tool prefix normalized — `mcp__notion__*` → `mcp__claude_ai_Notion__*`
 
 **v2.2.15** — May 05, 2026
 - Role section clarified — produces backgrounds library at brands/{brand}/backgrounds/ for Reel production, distinct from social-{carousel,story}-template/ apps
@@ -55,9 +59,24 @@ Read the next 2 weeks of social calendar entries for the brand to get fresh `Ima
 
 Use **Notion MCP** to query the calendar:
 
-1. Use `mcp__notion__API-query-data-source` with the brand's Notion DB ID (from env var `${BRAND}_NOTION_DB`) to find the latest `SocialCalendar_` pages (sort by name descending, page_size 5).
+1. Resolve the brand's database to a `data_source_url` first, then search inside it for the latest `SocialCalendar_` pages:
 
-2. For each page whose date range covers the next 2 weeks, use `mcp__notion__API-get-block-children` to get the page blocks, find the table block, then get its children (table rows).
+```
+Use mcp__claude_ai_Notion__notion-fetch:
+- id: "${BRAND}_NOTION_DB"
+```
+
+Inspect the response and extract the `collection://` URL (typically `data_sources[0].url`). Save as `data_source_url`.
+
+```
+Use mcp__claude_ai_Notion__notion-search:
+- query: "SocialCalendar_"
+- data_source_url: <data_source_url from above>
+- query_type: "internal"
+- page_size: 5
+```
+
+2. For each page whose date range covers the next 2 weeks, use `mcp__claude_ai_Notion__notion-fetch` with the page ID to retrieve the page content (returns full markdown including the calendar table). Parse the table rows from the returned markdown directly.
 
 3. Parse each row — column order: `Date, Platform, Format, Topic, Persona, ContentAngle, CTA, Hashtags, ImageBrief, Status`. Filter for rows with Status = `"Planned"` and dates within the next 14 days.
 

@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.3.7';
+const DEFAULT_VERSION = 'v2.4.0';
 const DEFAULT_DATE = 'May 07, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,23 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.0',
+    date: 'May 07, 2026',
+    changes: [
+      '10 new business-operations skills shipped: apollo-lead-prospector, outreach-sequencer, proposal-generator (sales pipeline); customer-onboarder, churn-predictor (retention); invoice-collector, financial-reporter (back-office); competitor-monitor, investor-update-writer (strategy); meeting-analyzer (productivity)',
+      'agents/link.md: rewritten from "marketing agent" → "business operations agent"; added 5 new context-file rows (sales.md, customer-success.md, finance.md, investors.md, operations.md); added 4 new skill chains (Sales pipeline, Customer retention, Monthly close, Strategic intelligence); added Apollo.io / Calendly / Stripe / Xero / Gamma MCP rows',
+      'brand-setup: Step 5 expanded with 6 new sub-steps (5g sales, 5h customer-success, 5i finance, 5j investors, 5k operations, 5l competitors.md extension verification); Step 7 documents 7 new auto-bootstrapped Notion DB env vars; Step 8 adds probes for Apollo/Calendly/Stripe/Xero; Step 10 files[] block expanded',
+      'brand-setup: full UX intro audit — added top-level "What this skill does" overview with 10-step time-budget table, plus per-step intro paragraphs across all 10 main steps and the 6 new sub-steps',
+      'plugin-update: Step 1a/1d/1e/1j extended to detect new context files, env vars, MCPs, and skill versions; Step 3a/3e/3j extended with fill handlers and changelog → brand-action mappings for all 10 new skills; conditional consent gates added for investors.md and operations.md',
+      'plugin-update: matching UX intro audit — top-level overview + per-step intros for all 6 steps with time estimates',
+      'commit-to-git workflow: Step 4a hardened with env-var-first DB resolution (`AGENTS_LIBRARY_DB`) + fuzzy name search fallback + auto-persist of resolved ID — survives Notion DB renames and workspace moves',
+      'commit-to-git skill + workflow: moved out of plugins/link-skills/ into the new gitignored /admin-skills/ + /workflow/ folders at repo root — release tooling separated from the marketplace plugin',
+      'creative-designer: fixed is_vertical edge case where IG portrait 4:5 (1080×1350) was incorrectly receiving 9:16 safe zones; replaced with `is_story_reel = (target_h / target_w) >= 1.7`',
+      'social-calendar + content-generator + background-generator: normalized Notion MCP tool prefix from legacy `mcp__notion__notion-*` to canonical `mcp__claude_ai_Notion__notion-*`; replaced obsolete `API-update-a-block` / `API-query-data-source` calls with current connector tools',
+      'docs/metrics-spec.md: sanitized real campaign data, real spend numbers, and real competitive positioning from example payloads (Acme-style placeholders); plugin.json: replaced real Slack user ID example with generic format',
+    ],
+  },
   {
     version: 'v2.3.7',
     date: 'May 07, 2026',
@@ -198,16 +215,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
     changes: [
       'brand-setup: explicit "Save ALL keys to settings.local.json" instruction — FIVEAGENTS_API_KEY and all keys now explicitly listed for env save',
       'brand-setup: vault exclusion note clarified — keys not needing vault still MUST be saved to settings.local.json',
-    ],
-  },
-  {
-    version: 'v2.2.5',
-    date: 'April 26, 2026',
-    changes: [
-      'all skills: added "Before Executing" section — every skill now reads agents/link.md before starting',
-      'brand-setup: Step 1a — added "Act without asking" permission setting with risk disclaimer',
-      'agents/link.md: updated skill table descriptions to match actual SKILL.md frontmatter',
-      '.gitignore: added .DS_Store',
     ],
   },
 ];

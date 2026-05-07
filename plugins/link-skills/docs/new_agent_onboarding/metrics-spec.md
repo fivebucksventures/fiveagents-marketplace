@@ -76,12 +76,12 @@ The dashboard has a page-level Compare toggle (DoD/WoW/MoM) that shows deltas on
   "google_ads": {
     "totals": { "spend": 36.74, "clicks": 23, "impr": 411, "ctr": 5.60, "conv": 0, "cpa": 0 },
     "campaigns": [
-      { "name": "ID – Fivebucks Lead Generation", "status": "Enabled", "spend": 29.74, "clicks": 21, "ctr": 5.60, "conv": 0, "cpa": 0 },
-      { "name": "SG – Fivebucks Lead Generation", "status": "Enabled", "spend": 7.00, "clicks": 2, "ctr": 5.56, "conv": 0, "cpa": 0 }
+      { "name": "ID – Acme Lead Generation", "status": "Enabled", "spend": 30.00, "clicks": 20, "ctr": 5.50, "conv": 0, "cpa": 0 },
+      { "name": "SG – Acme Lead Generation", "status": "Enabled", "spend": 10.00, "clicks": 4, "ctr": 5.50, "conv": 0, "cpa": 0 }
     ],
     "ad_groups": [
-      { "name": "Apollo Alternative", "campaign": "ID – Fivebucks Lead Generation", "status": "Enabled", "clicks": 11, "impr": 262, "ctr": 4.20, "cost": 17.28 },
-      { "name": "Lead Generation Software", "campaign": "ID – Fivebucks Lead Generation", "status": "Enabled", "clicks": 10, "impr": 110, "ctr": 9.09, "cost": 12.46 }
+      { "name": "Generic Keyword 1", "campaign": "ID – Acme Lead Generation", "status": "Enabled", "clicks": 11, "impr": 262, "ctr": 4.20, "cost": 17.00 },
+      { "name": "Generic Keyword 2", "campaign": "ID – Acme Lead Generation", "status": "Enabled", "clicks": 10, "impr": 110, "ctr": 9.00, "cost": 12.00 }
     ],
     "keywords": [
       { "keyword": "lead generation software", "campaign": "ID", "clicks": 7, "ctr": 6.86, "cost": 9.08, "conv": 0 },
@@ -235,7 +235,7 @@ The dashboard has a page-level Compare toggle (DoD/WoW/MoM) that shows deltas on
   "content_status": "Final",
   "word_count": 320,
   "deliverable": "AgencyConsolidates4Tools_31Mar2026_copy.md",
-  "output_path": "outputs/fivebucks/posts/Facebook/"
+  "output_path": "outputs/{brand}/posts/Facebook/"
 }
 ```
 
@@ -270,10 +270,10 @@ The dashboard has a page-level Compare toggle (DoD/WoW/MoM) that shows deltas on
   "campaign": "Q1-2026-launch",
   "content_status": "Final",
   "competitors_analyzed": 3,
-  "core_messages": ["SurferSEO stops at content — no leads, no pipeline", "fivebucks covers SEO + AI search + leads + outreach"],
+  "core_messages": ["{Competitor} stops at content — no leads, no pipeline", "{Brand} covers SEO + AI search + leads + outreach"],
   "keywords_analyzed": 45,
-  "deliverable": "SurferSEO_CompetitiveAnalysis.md",
-  "output_path": "outputs/fivebucks/strategy/"
+  "deliverable": "{Competitor}_CompetitiveAnalysis.md",
+  "output_path": "outputs/{brand}/strategy/"
 }
 ```
 
@@ -301,7 +301,7 @@ The dashboard has a page-level Compare toggle (DoD/WoW/MoM) that shows deltas on
     "Google Ads spend — sheets empty"
   ],
   "deliverable": "PaidAdsBrief_27Mar2026.md",
-  "output_path": "outputs/fivebucks/dashboards/"
+  "output_path": "outputs/{brand}/dashboards/"
 }
 ```
 
@@ -326,7 +326,7 @@ The dashboard has a page-level Compare toggle (DoD/WoW/MoM) that shows deltas on
     {"number": 8, "title": "Next Week Plan", "type": "action"}
   ],
   "deliverable": "WeeklyReview_28Mar2026.pptx",
-  "output_path": "outputs/fivebucks/presentations/"
+  "output_path": "outputs/{brand}/presentations/"
 }
 ```
 
