@@ -6,11 +6,15 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.2 | May 07, 2026 |
+| Link | v2.4.3 | May 07, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.4.3** — May 07, 2026
+- Step 5b email payload — added top-level `brand_name` field. Display name (e.g. `Five Agents`), read from the first `# ` heading in `brands/{brand}/brand.md`. Mirrors the same field added to brand-setup Step 10 so the server-side template renders the brand's actual name in the upgrade email title.
+- `agents/link.md` companion fix — `MCP: Notion` removed from the `social-publisher` Deps row (single source of truth for `connected_tools[]` per brand-setup Step 8d-iv). Social-publisher publishes content passed in by the caller via Zernio; it does not independently read Notion.
 
 **v2.4.2** — May 07, 2026
 - Step 4b — references brand-setup Step 8d-iv derivation rule for `connected_tools[]` (pulled from `agents/link.md` Deps + 8d-i translation) instead of a separate mapping table
@@ -844,6 +848,16 @@ JSON payload mirrors the `brand-setup` Step 10 schema:
 - **`agent_readiness[]` + `readiness_summary`** — primary block; reuse the structured object saved in Step 4b verbatim. Same schema as brand-setup. The server-side template renders this as the headline section.
 - **`files[]` and `connections[]`** — secondary diagnostic blocks; only contain items that were touched in Step 3 (not the full inventory).
 - Add a top-level `mode: "update"` field so the template (or downstream telemetry) can distinguish a fresh setup from an upgrade.
+- Add a top-level `brand_name` field — the properly cased brand display name (e.g. `"Five Agents"`), NOT the slug. Read it from the first `# ` heading in `brands/{brand}/brand.md` before building the payload (same approach as brand-setup Step 10):
+
+  ```python
+  import re
+  brand_md = open(f"brands/{brand}/brand.md", encoding="utf-8").read()
+  m = re.search(r'^#\s+(.+?)\s*$', brand_md, re.MULTILINE)
+  brand_name = m.group(1).strip() if m else brand
+  ```
+
+  The template renders `brand_name` in the email title; `brand` (the slug) stays as a separate field for filesystem references.
 
 Slack DM (lead with readiness, integration deltas as secondary diagnostic):
 ```

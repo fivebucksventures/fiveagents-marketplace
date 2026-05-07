@@ -6,11 +6,15 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.2 | May 07, 2026 |
+| Link | v2.4.3 | May 07, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.4.3** — May 07, 2026
+- Step 10 email payload — added top-level `brand_name` field. Display name (e.g. `Five Agents`), read from the first `# ` heading in `brands/{brand}/brand.md`. Lets the server-side template render the brand's actual name in the email title instead of the slug.
+- Step 8d-iv — clarified that `connected_tools[]` derivation reads `agents/link.md` Deps as the single source of truth (no per-agent table here). Companion fix in `agents/link.md`: removed `MCP: Notion` from the `social-publisher` Deps row — social-publisher takes content passed in from the caller (e.g. content-generator) and publishes via Zernio; it does not independently read from Notion.
 
 **v2.4.2** — May 07, 2026
 - Step 8d `agent_readiness[]` schema — JSON example in 8d-iii and Step 10 email payload brought into sync; added `name` (renamed from `agent`), `category`, `status_label`, `connected_tools[]`. Step 10 was lagging the 8d-iii schema after v2.4.1.
@@ -2061,6 +2065,7 @@ Use these display names everywhere in the matrix and the email — never raw MCP
 | Apollo.io MCP | Apollo (lead database) |
 | Calendly MCP | Calendly (meeting scheduler) |
 | Stripe MCP | Stripe (payments) |
+| PayPal MCP | PayPal (revenue) |
 | Xero MCP | Xero (accounting) |
 | PostHog MCP | PostHog (product analytics) |
 | Gamma MCP | Gamma (presentations) |
@@ -2475,9 +2480,19 @@ Use gateway MCP tool `fiveagents_send_email`:
 
 Build the JSON payload from Step 8d's saved readiness matrix (the **primary** block — the user reads this first), Step 8 validation results, **and** Step 9 CLAUDE.md / visual-asset status. The server-side template (`brand-setup.ts`) renders `agent_readiness[]` as the headline section; `connections[]` and `files[]` are rendered as collapsed "Diagnostic detail" sections for debugging.
 
+**Read the brand display name from `brands/{brand}/brand.md`** before building the payload. The display name is the first `# ` heading in that file (e.g. `# Five Agents` → `"Five Agents"`). Use it for the top-level `brand_name` field — the template renders it in the email title. Do NOT pass the slug (`five-agents`) — that goes in the separate `brand` field.
+
+```python
+import re
+brand_md = open(f"brands/{brand}/brand.md", encoding="utf-8").read()
+m = re.search(r'^#\s+(.+?)\s*$', brand_md, re.MULTILINE)
+brand_name = m.group(1).strip() if m else brand  # fall back to slug only if heading missing
+```
+
 ```json
 {
   "brand": "{brand}",
+  "brand_name": "{brand_name}",
   "agent_readiness": [
     {
       "name": "Apollo Lead Prospector",

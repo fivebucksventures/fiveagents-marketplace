@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.2';
+const DEFAULT_VERSION = 'v2.4.3';
 const DEFAULT_DATE = 'May 07, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.3',
+    date: 'May 07, 2026',
+    changes: [
+      'agents/link.md: one-time audit of every skill\'s Deps cell against actual tool calls in each SKILL.md — 19 of 22 skill rows corrected. Stale claims removed: data-analysis (PostHog), campaign-presenter (Gamma), outreach-sequencer (Apollo.io), investor-update-writer (Gamma), meeting-analyzer (Calendly). Missing tokens added: MCP: Slack on 6 skills (social-publisher, digital-marketing-analyst, social-calendar, proposal-generator, churn-predictor, outreach-sequencer), Gateway: Argil on creative-designer + content-generator, MCP: Notion on background-generator, MCP: Google Drive + Gmail on meeting-analyzer, MCP: PayPal (opt) + Notion + Google Drive (opt) on financial-reporter, Gateway: email on outreach-sequencer, MCP: Gmail on churn-predictor, MCP: Stripe (opt) + Gateway: email (opt) on invoice-collector. Missing Files refs added across most skills (audience.md, product.md, competitors.md, design-system/ opt). Companion fix: removed MCP: Notion from social-publisher row (initial cleanup that motivated the audit).',
+      'brand-setup: Step 10 email payload — added top-level brand_name field. Display name (e.g. "Five Agents"), read from the first # heading in brands/{brand}/brand.md. Lets the server-side template render the brand\'s actual name in the email title instead of the slug.',
+      'brand-setup: Step 8d-iv — clarified that connected_tools[] derivation reads agents/link.md Deps as the single source of truth (no per-agent table here).',
+      'brand-setup: Step 8d-i translation table — added "PayPal MCP → PayPal (revenue)" row to match link.md\'s expanded Deps vocabulary (financial-reporter now lists PayPal opt).',
+      'plugin-update: Step 5b email payload — added top-level brand_name field, mirrors the same field added to brand-setup Step 10 so the upgrade email title also renders the display name.',
+    ],
+  },
   {
     version: 'v2.4.2',
     date: 'May 07, 2026',
@@ -212,17 +223,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator: removed pre-stored background lookup — every image is now generated fresh via Gemini (no more browsing backgrounds/ folder for matches)',
       'social-calendar: replaced "Ken Burns background video (pre-stored images)" references with "Gemini-generated images"',
       '.gitignore: added editor/IDE, env/secrets, Python, Node, and OS patterns',
-    ],
-  },
-  {
-    version: 'v2.2.8',
-    date: 'April 28, 2026',
-    changes: [
-      'digital-marketing-analyst: date_preset changed from "last_30d" to "last_30dT" across all Windsor.ai calls (Google Ads, Meta, GA4) — fixes missing data for campaigns active on the current UTC day',
-      'digital-marketing-analyst: removed outdated ~12-day Windsor data lag warnings — all three connectors are near-real-time',
-      'digital-marketing-analyst: fixed invalid GA4 fields — removed "source" and "medium" from field lists, only "session_source_medium" is valid in Windsor',
-      'digital-marketing-analyst: fiveagents_log_run metrics block rewritten — replaced literal zero placeholders with descriptive <actual_value> placeholders and added explicit warning to populate with real computed data (fixes agent_runs logging 0 data)',
-      'data-analysis: same Windsor.ai fixes — date_preset → last_30dT, GA4 invalid field corrections, data lag note updated, per-connector field reference table added',
     ],
   },
 ];
