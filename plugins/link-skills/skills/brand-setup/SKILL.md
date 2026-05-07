@@ -6,11 +6,19 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.4.1 | May 07, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.4.1** — May 07, 2026
+- Step 2 prereqs table — added 6 business-ops MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma) so the user has full visibility of what they'll be asked to connect
+- Step 3 directory tree + Step 9b Workspace Structure — added 5 v2.4.0 brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with skip annotations for the conditional ones
+- Step 7c — added "Business-operations MCPs" walkthrough block with explicit per-MCP prompts (each prompt names the dependent skill + skip impact). Closes the gap where Step 8c-bis would probe MCPs the user was never asked to connect.
+- Steps 5g / 5h / 5i / 5j / 5k — added "Read existing context first" mapping table at the top of each new sub-step. Lists which existing brand files (brand.md, audience.md, product.md, etc.) to pre-fill from, so the agent never asks the user for info that's already on disk
+- **Step 8d (NEW) — Agent Readiness Summary.** Translation table (technical → business labels), status rules (Ready / Works with limitations / Not ready / You skipped), display format with worked example, structured save schema for Step 10
+- Step 10 email payload — restructured around `agent_readiness[]` + `readiness_summary` as primary blocks; demoted `connections[]` and `files[]` to diagnostic detail. Slack DM leads with readiness counts + top 3 fixes instead of integration count
 
 **v2.4.0** — May 07, 2026
 - UX intro audit — added top-level "What this skill does" overview + per-step intro paragraphs across all 10 steps; conversational tone, smart-default callouts, time estimates per step
@@ -184,7 +192,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 |---|---|---|---|
 | 5 | `LATE_API_KEY` | Social media publishing (Facebook, Instagram, LinkedIn) | 1. Sign up at https://zernio.com<br>2. Create a Profile for your brand<br>3. Connect your social accounts (Facebook, Instagram, LinkedIn) via OAuth<br>4. Go to Settings → API → copy your API key |
 
-**Optional API keys:**
+**Optional (SEO/GEO Research & Video Generation):**
 
 | # | Key | What it's for | How to get it |
 |---|---|---|---|
@@ -203,6 +211,12 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | 6 | **Windsor.ai** *(required)* | Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data — the universal source for all paid-ads + analytics reporting | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect **all three**: Google Ads, GA4, and Meta Ads (Facebook Ads)<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
 | 7 | **Meta Ads** *(optional enhancement — limited rollout)* | Meta's official MCP for direct Marketing API access. When available, skills prefer it for Meta data; otherwise the Windsor.ai connection above already covers Meta Ads. | Custom Connector — URL `https://mcp.facebook.com/ads` (configured in Step 7c). Skip without prejudice if your account doesn't have access yet — Windsor.ai already covers Meta Ads. |
 | 8 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
+| 9 | **Apollo.io** *(business-ops)* | Lead enrichment, contact search, sequence injection — used by `apollo-lead-prospector`, `outreach-sequencer` | Settings → Connected Apps → Apollo.io → Authorize |
+| 10 | **Calendly** *(business-ops)* | Kickoff scheduling and meeting metadata — used by `customer-onboarder`, `meeting-analyzer` | Settings → Connected Apps → Calendly → Authorize |
+| 11 | **Stripe** *(business-ops)* | Invoice status and payment data — used by `invoice-collector`, `financial-reporter` | Settings → Connected Apps → Stripe → Authorize (requires OAuth `complete_authentication` to unlock real tools) |
+| 12 | **Xero** *(business-ops)* | Invoice sync + P&L pull — used by `invoice-collector`, `financial-reporter` | Settings → Connected Apps → Xero → Authorize |
+| 13 | **PostHog** *(business-ops, optional)* | Product-usage signals for churn scoring — used by `churn-predictor`. Skip → falls back to support-ticket + login-frequency only | Settings → Connected Apps → PostHog → Authorize |
+| 14 | **Gamma** *(business-ops, optional)* | Investor decks — used by `investor-update-writer`. Skip → updates render as plain markdown / email | Settings → Connected Apps → Gamma → Authorize |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
@@ -229,6 +243,12 @@ brands/{brand}/
 ├── competitors.md
 ├── funnel.md
 ├── avatars.md
+├── sales.md                        ← Step 5g (v2.4.0 — required for apollo-lead-prospector / outreach-sequencer / proposal-generator)
+├── customer-success.md             ← Step 5h (v2.4.0 — required for customer-onboarder / churn-predictor)
+├── finance.md                      ← Step 5i (v2.4.0 — required for invoice-collector / financial-reporter)
+├── investors.md                    ← Step 5j (v2.4.0 — required for investor-update-writer; SKIP if no outside funding raised)
+├── operations.md                   ← Step 5k (v2.4.0 — required for meeting-analyzer; SKIP if you don't process meeting transcripts)
+├── logo.png                        ← Step 6
 ├── backgrounds/
 ├── design-system/                  ← installed in Step 4b (Claude Design — OPTIONAL, recommended)
 ├── social-carousel-template/       ← installed in Step 4c-i (Claude Design — OPTIONAL)
@@ -1038,6 +1058,17 @@ Pick avatars that match the brand's target market demographics.
 
 Generate `brands/{brand}/sales.md`. Unlike `product.md` / `competitors.md` (which are extracted from website research), this file is **operational config** — prompt the user for the values directly. The file is read by `apollo-lead-prospector`, `outreach-sequencer`, and `proposal-generator`.
 
+**Read existing context first — do not ask the user what's already in another brand file.** Before any prompt below, read these files and pre-populate draft answers. Then show the user the drafted block for each step and ask "Confirm or edit?" — never ask a question from scratch when the source file already has the answer:
+
+| File | Field to read | Step it pre-fills |
+|---|---|---|
+| `brand.md` | Founder name, title, voice samples, signature block (if present) | Step A (Sender Persona — Name / Title / Signature draft), Step E (Sequence Templates — tone matching) |
+| `audience.md` | Personas + their job titles, industries, company sizes, geos, pain points | Step B (ICP Filters — pre-drafted per persona), Step E (Sequence Templates — pain-point hooks per persona) |
+| `competitors.md` | Competitor URLs | Step C (Disqualification — derive `competitor_domains` blocklist from URLs; auto-set "skip if competitor employee" toggle to `yes`) |
+| `product.md` | Pricing section tier names | Step G (Proposal Defaults — Default tier per persona) |
+
+If a source file is empty or absent, fall back to asking the user from scratch for that field only — don't block the whole sub-step.
+
 **Step A — Sender Persona:**
 > Who is the human sender that outbound emails should appear to come from? I need:
 > - Name
@@ -1150,6 +1181,18 @@ Save as `brands/{brand}/sales.md` with the following sections:
 
 Generate `brands/{brand}/customer-success.md`. Read by `customer-onboarder` and `churn-predictor`. Operational config — prompt the user.
 
+**Read existing context first — do not ask the user what's already in another brand file.** Pre-populate draft answers from these sources, then ask "Confirm or edit?" per block:
+
+| File | Field to read | Step it pre-fills |
+|---|---|---|
+| `product.md` | Pricing section tier names + descriptions | Step A (Plan Tiers — pre-fill tier list and short descriptions) |
+| `audience.md` | Personas per tier (if mapped) + their key pain points | Step B (Onboarding Milestones — tailor milestone wording per persona's pain), Step E (Intervention Playbook — match outreach style to persona) |
+| `funnel.md` | GA4 conversion events / activation events | Step B (Onboarding Milestones — propose `trigger event` names from real funnel events instead of asking the user to invent them) |
+| `brand.md` | Voice samples, tone | Step E (Intervention Playbook — re-engagement email wording sounds on-brand), Step F (NPS check-in copy) |
+| `sales.md` (if Step 5g already ran) | Sender Persona signature | Step E (CSM personal outreach — use same signature unless user overrides) |
+
+If a source is missing, fall back to asking the user from scratch for just that field.
+
 **Step A — Plan Tiers:**
 
 Re-read `brands/{brand}/product.md` Pricing section to enumerate tiers (e.g. Free / Pro / Enterprise). Confirm the tier list with the user.
@@ -1234,6 +1277,17 @@ Save as `brands/{brand}/customer-success.md` with sections:
 > **Expect ~8 questions over 10–15 minutes.** This sub-step has the most jargon — terms like "revenue recognition method", "runway calc window", "alert thresholds". Don't sweat it; defaults are SaaS-standard (Net 30 / 6-month runway floor / 3-month avg burn / cash-basis reporting). The most important input is Step B (Escalation Tone Ladder) — the agent drafts your D+1 / D+7 / D+14 / D+30 reminder copy in your brand voice and asks you to review each. Budget extra time there.
 
 Generate `brands/{brand}/finance.md`. Read by `invoice-collector` and `financial-reporter`. Operational config — prompt the user; pull voice from `brand.md` for the escalation ladder so reminders sound on-brand.
+
+**Read existing context first — do not ask the user what's already in another brand file.** Pre-populate draft answers, then ask "Confirm or edit?" per block:
+
+| File | Field to read | Step it pre-fills |
+|---|---|---|
+| `brand.md` | Voice samples, tone | Step B (Escalation Tone Ladder — draft D+1 / D+7 / D+14 / D+30 wording in brand voice; user reviews not invents) |
+| `brand.md` | `## Locale` section (Currency / Timezone) | Step F (Alert Thresholds — use the right currency symbol; show AR threshold in local currency) |
+| `product.md` | Pricing section (subscription tiers vs one-off / project-based) | Step E (KPIs — auto-include MRR/ARR for subscription pricing; swap for project-margin / cash-collected for services), Step H (Revenue Recognition — default cash for one-off / SMB, default accrual if Pricing implies recurring revenue) |
+| `sales.md` (if Step 5g already ran) | Sender Persona signature | Step B (Escalation Ladder — append signature to D+30 final notice for human-feel) |
+
+If a source is missing, fall back to asking the user from scratch for just that field.
 
 **Step A — Payment Terms:**
 > What's your default invoice payment term? (Default: Net 30. Common alternatives: Net 7, Net 14, Net 60, "due on receipt", "50% upfront / 50% on completion".)
@@ -1336,6 +1390,17 @@ Ask the user:
 
 If **no**, skip this sub-step entirely — `investor-update-writer` won't be used. If **yes**, generate `brands/{brand}/investors.md`:
 
+**Read existing context first — do not ask the user what's already in another brand file.** Pre-populate draft answers, then ask "Confirm or edit?" per block:
+
+| File | Field to read | Step it pre-fills |
+|---|---|---|
+| `brand.md` | Voice samples, founder tone | Step B (Founder Voice — fall back to brand voice if user pastes <2 prior updates), Step C (Sections to Include — drafting tone) |
+| `finance.md` (if Step 5i already ran) | KPIs to Highlight + Alert Thresholds | Step C (Sections to Include — auto-add the same KPIs to the monthly update, so the dashboard alert thresholds and investor narrative use one source of truth) |
+| `sales.md` (if Step 5g already ran) | Sender Persona name + signature | Step E (drafting attribution — updates send under the same sender as outbound) |
+| `customer-success.md` (if Step 5h already ran) | Health-score bands | Step C (Wins / Lowlights drafting — auto-call out customers transitioning across health bands) |
+
+If a source is missing, fall back to asking the user from scratch for just that field.
+
 **Step A — Investor List:**
 
 Accept CSV paste. Each row has: name, firm, email, role (`lead` / `follow` / `angel` / `advisor`), preferred update frequency (`monthly` / `quarterly`).
@@ -1411,6 +1476,17 @@ Ask the user:
 > Do you run regular meetings (1:1s, standups, client calls, board meetings) and want Claude to process transcripts — extract action items, route them to owners, and archive notes?
 
 If **no**, skip this sub-step entirely. `meeting-analyzer` works without it (degrades to "unassigned" owners on action items). If **yes**, generate `brands/{brand}/operations.md`:
+
+**Read existing context first — do not ask the user what's already in another brand file.** Pre-populate draft answers, then ask "Confirm or edit?" per block:
+
+| File | Field to read | Step it pre-fills |
+|---|---|---|
+| `sales.md` (if Step 5g already ran) | Sender Persona name | Step A (Action Item Routing — pre-fill **Sales tasks** owner with the sender persona) |
+| `customer-success.md` (if Step 5h already ran) | CSM mentions in Step E intervention playbook | Step A (Action Item Routing — pre-fill **Customer issues** owner with the named CSM if present) |
+| `finance.md` (if Step 5i already ran) | Founder/CFO mentions in Step F alert thresholds | Step A (Action Item Routing — pre-fill **Finance tasks** owner with the alert recipient) |
+| `brand.md` | Founder name | Step C (Default Owners — fallback owner is the founder if no other owners are explicitly defined for a category) |
+
+If a source is missing, fall back to asking the user from scratch for that owner only.
 
 **Step A — Action Item Routing:**
 
@@ -1740,7 +1816,40 @@ For Windsor.ai specifically, walk the user through all 3 steps before asking if 
 
 If yes to all, proceed. If "not now", acknowledge and move on.
 
-**Do not proceed to Step 8 until the user has responded to every integration in Step 7 — either configured or explicitly skipped.**
+**Business-operations MCPs (added in v2.4.0 — required by the 10 new business-ops skills):**
+
+These MCPs are the connection layer for the v2.4.0 business-operations skills. **You must walk the user through each one explicitly** — do not just hand them the table and assume they'll connect what they need. Each prompt below explains what the MCP unlocks and what happens if they skip, so the user can make an informed call. Accept "skip" for any of them; that just marks the dependent skill(s) as unconfigurable for this brand.
+
+| # | MCP | Used by | Skip behavior |
+|---|---|---|---|
+| 7 | **Apollo.io** | `apollo-lead-prospector`, `outreach-sequencer` | Both skills become unconfigurable for this brand |
+| 8 | **Calendly** | `customer-onboarder`, `meeting-analyzer` | `customer-onboarder` falls back to manual scheduling; `meeting-analyzer` reads transcripts directly |
+| 9 | **Stripe** | `invoice-collector`, `financial-reporter` | Both skills become unconfigurable for this brand |
+| 10 | **Xero** | `invoice-collector` (invoice sync), `financial-reporter` (P&L) | `financial-reporter` falls back to Stripe-only data |
+| 11 | **PostHog** *(optional)* | `churn-predictor` (product-usage signals) | `churn-predictor` falls back to support-ticket + login-frequency signals only |
+| 12 | **Gamma** *(optional)* | `investor-update-writer` (monthly investor decks) | `investor-update-writer` becomes unconfigurable for this brand |
+
+Walk the user through each one in order. Post the prompt verbatim, wait for "done" or "skip", then move on.
+
+- **Apollo.io:**
+  > Apollo.io powers lead enrichment, contact search, and email-sequence injection — used by `apollo-lead-prospector` and `outreach-sequencer`. Connect: **Settings → Connected Apps → Apollo.io → Authorize**, then tell me when done. (Skip if you don't run outbound — those two skills will be unconfigurable for this brand.)
+
+- **Calendly:**
+  > Calendly handles kickoff scheduling and meeting-metadata pulls — used by `customer-onboarder` and `meeting-analyzer`. Connect: **Settings → Connected Apps → Calendly → Authorize**, then tell me when done. (Skip if you don't use Calendly — `customer-onboarder` falls back to manual scheduling and `meeting-analyzer` reads transcripts directly.)
+
+- **Stripe:**
+  > Stripe is the source of truth for invoice status and payment data — used by `invoice-collector` and `financial-reporter`. Connect: **Settings → Connected Apps → Stripe → Authorize**, then complete the OAuth flow it gates the real tools behind. Tell me when both `authenticate` and `complete_authentication` have succeeded. (Skip if you bill outside Stripe — those two skills will be unconfigurable for this brand.)
+
+- **Xero:**
+  > Xero is used for invoice status sync and pulling the P&L — used by `invoice-collector` and `financial-reporter`. Connect: **Settings → Connected Apps → Xero → Authorize**, then tell me when done. (Skip if you don't use Xero — `financial-reporter` falls back to Stripe-only data.)
+
+- **PostHog** *(optional)*:
+  > PostHog supplies product-usage signals (login frequency, feature engagement) for `churn-predictor`. Connect: **Settings → Connected Apps → PostHog → Authorize**, then tell me when done. (Skip if you don't use PostHog — `churn-predictor` falls back to support-ticket + login-frequency signals only.)
+
+- **Gamma** *(optional)*:
+  > Gamma generates investor decks for `investor-update-writer`'s monthly cron run. Connect: **Settings → Connected Apps → Gamma → Authorize**, then tell me when done. (Skip if you don't deliver investor updates — `investor-update-writer` will be unconfigurable for this brand.)
+
+**Do not proceed to Step 8 until the user has responded to every integration in Step 7 — either configured or explicitly skipped.** This includes the 6 business-ops MCPs above; if you skip them silently, Step 8c-bis will mark them ❌ and the user will hit "MCP not connected" errors on the first run of each dependent skill.
 
 ### Step 8 — Validate Connections
 
@@ -1926,9 +2035,156 @@ Both env var checks are mandatory — they are NOT skippable. If either is missi
 | `DEFAULT_BRAND` env var | ✅ / ❌ |
 | `{BRAND}_NOTION_DB` env var | ✅ / ❌ |
 
-Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving on. Save all results — they are used in the Step 10 completion email after CLAUDE.md is wired in Step 9.
+Show the table to the user. If any tests failed, offer to retry or troubleshoot before moving on. Save all results — they are used in Step 8d to build the agent readiness matrix and in the Step 10 completion email after CLAUDE.md is wired in Step 9.
 
-**Do not proceed to Step 9 until every configured integration has been tested and the summary table has been shown to the user.**
+**Do not proceed to Step 8d until every configured integration has been tested and the summary table has been shown to the user.**
+
+### Step 8d — Agent Readiness Summary (business-friendly)
+
+The integrations table you just saw answers a technical question: *which connections passed / failed / were skipped?* It's accurate but it's not what the brand owner actually wants to know. The owner wants the **business** answer: *which agents will actually run on my brand starting today, which need a fix, and which did I skip?* Step 8d turns the integrations table into that answer.
+
+**Expect 30 seconds.** No questions — the agent computes the matrix from Step 8 probe results + brand-file presence + env-var presence, then prints it to chat.
+
+**This step is mandatory.** It runs before the Step 10 email so the user sees the readiness picture during the chat session, not just in the email afterward.
+
+#### 8d-i. Translation table (technical → business labels)
+
+Use these display names everywhere in the matrix and the email — never raw MCP names, env vars, or `.md` filenames in user-facing output.
+
+| Technical name | Business label to display |
+|---|---|
+| Apollo.io MCP | Apollo (lead database) |
+| Calendly MCP | Calendly (meeting scheduler) |
+| Stripe MCP | Stripe (payments) |
+| Xero MCP | Xero (accounting) |
+| PostHog MCP | PostHog (product analytics) |
+| Gamma MCP | Gamma (presentations) |
+| Canva MCP | Canva (presentations) |
+| Notion MCP | Notion (your workspace) |
+| Slack MCP | Slack (your team chat) |
+| Gmail MCP | Gmail |
+| Google Calendar MCP | Google Calendar |
+| Google Drive MCP | Google Drive |
+| Windsor.ai MCP | Windsor (Google Ads + GA4 + Meta Ads) |
+| Meta Ads MCP | Meta Ads (direct API) |
+| gateway: Gemini | Image generator |
+| gateway: Zernio | Social publisher |
+| gateway: Argil | AI avatar videos |
+| gateway: DataforSEO | Keyword research |
+| gateway: templates | Branded templates |
+| gateway: email | Email reports |
+| `sales.md` | Sales playbook |
+| `customer-success.md` | Customer Success playbook |
+| `finance.md` | Finance playbook |
+| `investors.md` | Investor playbook |
+| `operations.md` | Meeting routing rules |
+| `brand.md` | Brand profile |
+| `audience.md` | Customer personas |
+| `product.md` | Product & pricing |
+| `competitors.md` | Competitor list |
+| `funnel.md` | Conversion funnel |
+| `${BRAND}_NOTION_DB` | Social Calendar database |
+| `${BRAND}_CRM_DB` | CRM database |
+| `${BRAND}_CUSTOMER_DB` | Customer database |
+| `${BRAND}_INVOICE_TRACKER_DB` | Invoice tracker |
+| `${BRAND}_REPORTS_DB` | Reports archive |
+| `${BRAND}_COMPETITOR_DB` | Competitor tracker |
+| `${BRAND}_MEETINGS_DB` | Meeting archive |
+| `${BRAND}_ACTIONS_DB` | Action items list |
+| `${BRAND}_LATE_FB` | Connected Facebook account |
+| `${BRAND}_LATE_IG` | Connected Instagram account |
+| `${BRAND}_LATE_LI` | Connected LinkedIn account |
+
+#### 8d-ii. Status rules
+
+For each of the 20 business agents (every skill in `agents/link.md` Skills table **except** `brand-setup` and `plugin-update`, which are setup skills not business agents), assign exactly one status:
+
+| Status | When to assign | What it means to the user |
+|---|---|---|
+| ✅ **Ready** | Every required dep is connected / present (per the agent's `Deps` row in `agents/link.md`). Optional deps may be missing. | Will run end-to-end on schedule starting today |
+| ⚠️ **Works with limitations** | Every required dep present, but a known optional dep that materially affects output is missing. The canonical case: `financial-reporter` ready but Stripe not connected → still runs, but MRR/ARR cannot be computed. | Will run, but with reduced output. State the specific limitation in the row. |
+| ❌ **Not ready yet** | At least one required dep is missing. | Will fail on first run. State the specific missing dep + the exact fix command. |
+| ⏭ **You skipped** | A required *brand context file* was explicitly skipped during Step 5 (e.g. `investors.md` skipped because the brand has not raised funding; `operations.md` skipped because the user does not process meeting transcripts). The skill is therefore intentionally off for this brand. | No action needed. |
+
+**Important:** Distinguish ❌ from ⏭ carefully. If `customer-success.md` is missing because the user *forgot* to fill it in → ❌ (with action: "run `/link-skills:brand-setup` Step 5h"). If `investors.md` is missing because the user *said no* in Step 5j Step 0 consent gate → ⏭. The Step 5g–5k consent gates and Step 8c-bis "skipped" markers tell you which case applies.
+
+**Optional deps that trigger ⚠️ Degraded (not ❌):**
+- `financial-reporter` without Stripe → "produces P&L from Xero, but cannot show MRR/ARR until you connect Stripe"
+- `digital-marketing-analyst` without Meta Ads MCP → no degradation flag (Windsor covers Meta fully; this is informational only, treat as ✅ Ready)
+- `meeting-analyzer` without `operations.md` → no degradation flag (action items just route to "Unassigned"; treat as ✅ Ready)
+- `creative-designer` / `content-generator` without `design-system/` → no degradation flag (brand.md fallback is fully functional; treat as ✅ Ready)
+
+Anything else missing that's marked `(opt)` in `agents/link.md` Deps → no impact on status; it's truly optional.
+
+#### 8d-iii. Build and display the matrix
+
+Walk every business agent in `agents/link.md` Skills table (rows 3–22, excluding `brand-setup` and `plugin-update`), check its `Deps` against Step 8 probe results + Step 5/6/7 file/env presence, assign the status per 8d-ii rules, and translate every dep name through the 8d-i table.
+
+Print the result to chat in this exact format:
+
+```
+Five Agents — Brand: {brand} — Readiness Summary
+
+✅ READY ({N} of 20) — these will run on schedule starting today
+   Marketing: Content Generator · Social Publisher · Social Calendar ·
+              Background Generator · Creative Designer · Content Writer ·
+              Research & Strategy · Campaign Presenter · Data Analysis ·
+              Digital Marketing Analyst
+   Sales:     Apollo Lead Prospector
+   Finance:   Invoice Collector
+   Strategy:  Competitor Monitor
+
+⚠️ WORKS WITH LIMITATIONS ({N})
+   Financial Reporter — produces P&L from Xero, but cannot show MRR/ARR
+                        until you connect Stripe
+                        Fix: Settings → Connected Apps → Stripe → Authorize
+
+❌ NOT READY YET ({N}) — fix these to unlock:
+   Outreach Sequencer    — needs Calendly (meeting scheduler)
+                           Fix: Settings → Connected Apps → Calendly → Authorize
+   Proposal Generator    — needs Stripe (payments) and Gamma (presentations)
+                           Fix: Settings → Connected Apps → Stripe + Gamma → Authorize
+   Customer Onboarder    — needs Calendly and Stripe
+                           Fix: Settings → Connected Apps → Calendly + Stripe → Authorize
+   Churn Predictor       — needs PostHog (product analytics) and Stripe
+                           Fix: Settings → Connected Apps → PostHog + Stripe → Authorize
+                           OR skip — only relevant if you use PostHog
+
+⏭ YOU SKIPPED ({N}) — no action needed
+   Investor Update Writer — you don't have outside investors
+   Meeting Analyzer       — you don't process meeting transcripts
+
+→ {N_ready} ready · {N_degraded} works with limitations · {N_not_ready} need fixing · {N_skipped} skipped
+```
+
+**Group the ✅ Ready section by Area** (Marketing / Sales / Customer Success / Finance / Strategy / Productivity) using the `Area` column from `agents/link.md`. Sub-bucket only if more than 3 skills land in the same area; otherwise list them inline.
+
+For ⚠️ and ❌ rows, **always include the specific fix command** — never just "X is not connected". The fix command should be copy-pasteable (e.g. "Settings → Connected Apps → Stripe → Authorize").
+
+For ⏭ rows, state *why* the user skipped (referencing the consent gate they answered "no" to in Step 5j or 5k). Do not state a fix; this is intentional opt-out, not a gap.
+
+**Save the computed matrix** as a structured object — Step 10 reads it directly into the email payload's new `agent_readiness[]` block. Schema:
+
+```json
+{
+  "agent_readiness": [
+    {
+      "agent": "Apollo Lead Prospector",
+      "skill_id": "apollo-lead-prospector",
+      "area": "Sales",
+      "status": "ready | degraded | not_ready | skipped",
+      "description": "Daily prospect search → Notion CRM",
+      "missing": ["Apollo (lead database)"],
+      "fix": "Settings → Connected Apps → Apollo.io → Authorize",
+      "skip_reason": null
+    }
+  ]
+}
+```
+
+Use `missing: []` and `fix: null` for ✅ Ready rows. Use `skip_reason` (string) instead of `fix` for ⏭ rows.
+
+**Do not proceed to Step 9 until the readiness matrix has been printed to chat and saved as the structured object for Step 10.**
 
 ### Step 9 — Initialize Workspace CLAUDE.md
 
@@ -2078,6 +2334,11 @@ These values are hardcoded here at brand-setup time so any session reading `CLAU
       ├─ brand.md, audience.md, product.md,  — written by brand-setup Steps 4–5
       │  competitors.md, funnel.md,
       │  avatars.md, logo.png
+      ├─ sales.md                            — outbound sales config (v2.4.0 Step 5g — apollo-lead-prospector, outreach-sequencer, proposal-generator)
+      ├─ customer-success.md                 — onboarding + retention config (v2.4.0 Step 5h — customer-onboarder, churn-predictor)
+      ├─ finance.md                          — billing + financial-reporting config (v2.4.0 Step 5i — invoice-collector, financial-reporter)
+      ├─ investors.md                        — investor-update config (v2.4.0 Step 5j — investor-update-writer; absent if no outside funding raised)
+      ├─ operations.md                       — meeting-processing config (v2.4.0 Step 5k — meeting-analyzer; absent if not used)
       ├─ backgrounds/                        — pre-generated background images (background-generator skill)
       ├─ design-system/                      — Claude Design export (Step 4b — see Visual System below)
       ├─ social-carousel-template/           — 4:5 IG/FB carousel template (Step 4c-i — optional)
@@ -2193,11 +2454,31 @@ Use gateway MCP tool `fiveagents_send_email`:
 
 ⚠️ **`tag` must be exactly `"brand-setup"`** — this routes to the server-side template.
 
-Build the JSON payload from Step 8 validation results **and** Step 9 CLAUDE.md / visual-asset status:
+Build the JSON payload from Step 8d's saved readiness matrix (the **primary** block — the user reads this first), Step 8 validation results, **and** Step 9 CLAUDE.md / visual-asset status. The server-side template (`brand-setup.ts`) renders `agent_readiness[]` as the headline section; `connections[]` and `files[]` are rendered as collapsed "Diagnostic detail" sections for debugging.
 
 ```json
 {
   "brand": "{brand}",
+  "agent_readiness": [
+    {
+      "agent": "Apollo Lead Prospector",
+      "skill_id": "apollo-lead-prospector",
+      "area": "Sales",
+      "status": "ready | degraded | not_ready | skipped",
+      "description": "Daily prospect search → Notion CRM",
+      "missing": ["Apollo (lead database)"],
+      "fix": "Settings → Connected Apps → Apollo.io → Authorize",
+      "skip_reason": null
+    }
+    // ... one entry per business agent (20 total — every link.md Skills row except brand-setup and plugin-update)
+  ],
+  "readiness_summary": {
+    "ready": 0,
+    "degraded": 0,
+    "not_ready": 0,
+    "skipped": 0,
+    "total": 20
+  },
   "files": [
     { "file": "brands/{brand}/brand.md", "status": "present | missing | failed" },
     { "file": "brands/{brand}/product.md", "status": "present | missing | failed" },
@@ -2272,12 +2553,23 @@ Build the JSON payload from Step 8 validation results **and** Step 9 CLAUDE.md /
 - ❌ **Do NOT** add an action item for visual asset folders showing `missing` — Step 9c already nudged the user inline; padding the email with these rows isn't useful.
 - ❌ **Do NOT** add an action item for `investors.md` or `operations.md` showing `skipped` — those are legitimate "not applicable" outcomes (no fundraising; no meeting workflow), not gaps. Add an action item only if those files came back `failed`.
 
-Also print the same summary to the chat and send a Slack notification to `$SLACK_NOTIFY_USER`:
+Also print the same summary to the chat and send a Slack notification to `$SLACK_NOTIFY_USER`. The Slack message leads with the **readiness counts** from `readiness_summary` (what users care about), with the integration count as a secondary diagnostic line:
 
 ```
 ✅ Brand "{brand}" setup complete
-• {N}/24 integrations connected
-• CLAUDE.md: {present | failed}
-• {N} action items (see email for details)
-• Brand files: brands/{brand}/
+
+Agent Readiness (20 total):
+  ✅ {N_ready} ready · ⚠️ {N_degraded} works with limitations · ❌ {N_not_ready} need fixing · ⏭ {N_skipped} skipped
+
+{If N_not_ready > 0:}
+Top fixes to unlock more agents:
+  • {Agent name 1} — {one-line fix from agent_readiness[].fix}
+  • {Agent name 2} — {one-line fix}
+  (full list in the email)
+
+CLAUDE.md: {present | failed}
+Brand files: brands/{brand}/
+{N} action items (see email for full details)
 ```
+
+Cap the "top fixes" inline list at 3 — the rest live in the email. If `N_not_ready == 0`, omit the "Top fixes" block entirely; lead instead with "🎉 Every connected agent is ready to run on schedule."

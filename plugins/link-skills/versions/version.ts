@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.0';
+const DEFAULT_VERSION = 'v2.4.1';
 const DEFAULT_DATE = 'May 07, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,25 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.1',
+    date: 'May 07, 2026',
+    changes: [
+      'agents/link.md: Skills table extended with Area (Marketing/Sales/Customer Success/Finance/Strategy/Productivity/Setup) and Deps columns — single source-of-truth for the agent readiness matrix that brand-setup Step 8d and plugin-update Step 4b compute. Added prefix notation guide (MCP: / Gateway: / Files: / Env: with (opt) marker) and per-skill dep mappings for all 22 entries.',
+      'brand-setup: Step 2 prereqs table — added 6 business-ops MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma) so users see what they\'ll be asked to connect upfront',
+      'brand-setup: Step 3 directory tree + Step 9b Workspace Structure — added 5 v2.4.0 brand-context files (sales/CS/finance/investors/operations) with skip annotations for the conditional ones',
+      'brand-setup: Step 7c — added "Business-operations MCPs" walkthrough block with explicit per-MCP prompts (each names dependent skill + skip impact). Closes the gap where Step 8c-bis would probe MCPs the user was never asked to connect.',
+      'brand-setup: Steps 5g/5h/5i/5j/5k — added "Read existing context first" mapping table at the top of each new sub-step. Lists which existing brand files (brand.md, audience.md, product.md, etc.) to pre-fill from, so the agent never asks for info already on disk.',
+      'brand-setup: Step 8d (NEW) — Agent Readiness Summary. Translation table (technical → business labels), status rules (Ready / Works with limitations / Not ready / You skipped), display format with worked example, structured save schema for Step 10. Owners get the business answer ("which agents will run on my brand starting today"), not the engineering answer ("which connections passed").',
+      'brand-setup: Step 10 email payload — restructured around agent_readiness[] + readiness_summary as primary blocks; demoted connections[] and files[] to diagnostic detail. Slack DM leads with readiness counts + top 3 fixes instead of integration count. Requires server-side template update at fiveagents/src/lib/email/templates/brand-setup.ts (handed off via JSON instruction spec).',
+      'plugin-update: Step 1e — added MCP probe rows for PostHog, Gamma, Meta Ads MCP (optional). Now matches every connector validated by brand-setup Step 8c-bis.',
+      'plugin-update: Step 2 gap report example — expanded to surface business-ops MCPs and the 5 v2.4.0 brand-context files',
+      'plugin-update: Step 3a — added top-of-section pre-fill rule + per-bullet pre-fill summaries for the 5 v2.4.0 files. In plugin-update context the v2.0 source files are essentially guaranteed to exist, so pre-fill is mandatory; agent reads existing brand files and drafts answers instead of asking from scratch.',
+      'plugin-update: Step 3f — rewrote MCP gap-fill flow with explicit per-MCP walkthrough prompts for all 14 MCPs (was only Windsor + Playwright). Closes the gap where business-ops MCPs flagged in Step 1e were silently skipped during interactive fill.',
+      'plugin-update: Step 3g — fixed CLAUDE.md re-embed bug. Previous version only refreshed the version stamp comment, leaving the embedded agents/link.md body unchanged after a git pull. New logic strips link.md frontmatter, builds a full BEGIN/END block (stamp + body), and atomically replaces everything between the markers using re.sub with re.DOTALL + lambda replacement (avoids backslash interpretation). Added post-write verification: grep CLAUDE.md for a string unique to the new version.',
+      'plugin-update: Step 4b (NEW) + Step 5b — Agent Readiness Summary using brand-setup Step 8d spec; same readiness-first email + Slack format. Inputs come from Step 1 audit overlaid with Step 3 fix outcomes, so the matrix reflects post-fix state.',
+    ],
+  },
   {
     version: 'v2.4.0',
     date: 'May 07, 2026',
@@ -207,14 +226,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Step 5 "Do not proceed" gate moved to after avatars.md (was incorrectly placed before it)',
       'brand-setup: Step 9 Slack message corrected N/16 → N/15 integrations',
       'brand-setup: Step 10 nested code block issues fixed (credential loader and Workspace Structure use indentation inside markdown template fence)',
-    ],
-  },
-  {
-    version: 'v2.2.6',
-    date: 'April 27, 2026',
-    changes: [
-      'brand-setup: explicit "Save ALL keys to settings.local.json" instruction — FIVEAGENTS_API_KEY and all keys now explicitly listed for env save',
-      'brand-setup: vault exclusion note clarified — keys not needing vault still MUST be saved to settings.local.json',
     ],
   },
 ];

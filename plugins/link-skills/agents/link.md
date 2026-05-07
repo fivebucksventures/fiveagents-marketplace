@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.4.1 | May 07, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.4.1** — May 07, 2026
+- Skills table — extended with `Area` (Marketing / Sales / Customer Success / Finance / Strategy / Productivity / Setup) and `Deps` columns. Deps column is the single source-of-truth for the agent readiness matrix that brand-setup Step 8d and plugin-update Step 4b compute. Added a prefix notation guide (`MCP:` / `Gateway:` / `Files:` / `Env:` with `(opt)` marker for graceful-degrade deps) and per-skill dep mappings for all 22 entries.
 
 **v2.4.0** — May 07, 2026
 - 10 new business-operations skills added: apollo-lead-prospector, outreach-sequencer, proposal-generator (sales); customer-onboarder, churn-predictor (retention); invoice-collector, financial-reporter (finance); competitor-monitor, investor-update-writer (strategy); meeting-analyzer (productivity)
@@ -94,30 +97,37 @@ Skills should filesystem-probe for `design-system/` at runtime (consistent with 
 
 Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before executing.
 
-| Skill | Use For |
-|---|---|
-| `brand-setup` | Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files |
-| `plugin-update` | Bring an existing brand's setup up to date with the latest plugin version — detects gaps since last brand-setup run and fills only what's missing (idempotent) |
-| `research-strategy` | Market research, ICP definition, positioning, competitive analysis, campaign briefs |
-| `content-creation` | Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy |
-| `creative-designer` | Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding |
-| `social-publisher` | Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio |
-| `data-analysis` | Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis |
-| `campaign-presenter` | Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks |
-| `digital-marketing-analyst` | Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs |
-| `social-calendar` | Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule |
-| `content-generator` | Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack |
-| `background-generator` | Generate 20 background images per brand for Reel video production. Run manually or schedule externally |
-| `apollo-lead-prospector` | Daily prospect search via Apollo against the brand's ICP, with deduplication, ICP fit scoring, and Notion CRM dropoff |
-| `outreach-sequencer` | Self-managed Gmail cold-email sequences. Tracks replies, schedules follow-ups, books meetings via Calendly |
-| `proposal-generator` | Generate branded sales proposal from a deal record. Gamma deck or Google Doc with embedded Stripe payment link |
-| `customer-onboarder` | Drive new-customer setup checklist. Welcome email, kickoff scheduling, shared Notion workspace, milestone tracking |
-| `churn-predictor` | Daily customer health-scoring via PostHog usage signals + Stripe subscription state. Alerts on at-risk transitions |
-| `invoice-collector` | Daily check for overdue Xero invoices. Sends polite reminders escalating in tone over time |
-| `financial-reporter` | Monthly P&L, cashflow forecast, runway, top movers. Investor-ready Gamma deck + Slack summary |
-| `competitor-monitor` | Weekly diff of competitor websites, pricing, blogs, careers. Alerts on price changes, exec moves, new features |
-| `investor-update-writer` | Monthly investor update email. Combines Xero financials + PostHog product KPIs + CRM wins, drafts in founder voice |
-| `meeting-analyzer` | Process meeting transcripts into structured action items + decisions. Routes owners, syncs Notion, drafts follow-ups |
+The **Deps** column lists every external resource the skill needs to actually run. It is the **single source-of-truth** that `brand-setup` Step 8 (and `plugin-update` Step 4) read to compute each skill's runtime readiness. Notation:
+- `MCP:` — Connected Apps / custom connectors the user must authorize in Claude settings
+- `Gateway:` — gateway-routed external APIs (Gemini, Zernio, Argil, DataforSEO, templates, email — all require `FIVEAGENTS_API_KEY` in the env, which is implicit on every skill via `fiveagents_log_run` and not repeated in each row)
+- `Files:` — brand context files under `brands/{brand}/`
+- `Env:` — environment variables in `.claude/settings.local.json` `env` block (Notion DB IDs auto-bootstrap on first run unless flagged otherwise)
+- `(opt)` suffix marks an optional dep — its absence either degrades functionality gracefully or is a no-op
+
+| Skill | Area | Use For | Deps |
+|---|---|---|---|
+| `brand-setup` | Setup | Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files | MCP: all (this is the setup skill — it walks the user through connecting everything) |
+| `plugin-update` | Setup | Bring an existing brand's setup up to date with the latest plugin version — detects gaps since last brand-setup run and fills only what's missing (idempotent) | MCP: all (this is the audit skill — it probes everything) |
+| `research-strategy` | Marketing | Market research, ICP definition, positioning, competitive analysis, campaign briefs | Gateway: DataforSEO (opt) · Files: brand.md, audience.md, product.md, competitors.md |
+| `content-creation` | Marketing | Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy | Files: brand.md, audience.md, product.md |
+| `creative-designer` | Marketing | Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding | Gateway: Gemini, templates · Files: brand.md, design-system/ (opt — falls back to brand.md colors/fonts), social-{carousel,story}-template/ (opt — falls back to Gemini + Pillow) |
+| `social-publisher` | Marketing | Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio | Gateway: Zernio · MCP: Notion · Files: brand.md · Env: `${BRAND}_LATE_FB`, `${BRAND}_LATE_IG`, `${BRAND}_LATE_LI` (per-platform; only required for platforms the brand publishes to) |
+| `data-analysis` | Marketing | Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis | MCP: Windsor.ai (PostHog opt) · Files: brand.md, funnel.md |
+| `campaign-presenter` | Marketing | Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks | MCP: Canva or Gamma (either satisfies; brand picks one in brand-setup Step 7c) · Files: brand.md |
+| `digital-marketing-analyst` | Marketing | Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs | MCP: Windsor.ai, Meta Ads MCP (opt — Windsor covers Meta when absent) · Files: brand.md, funnel.md · Gateway: email |
+| `social-calendar` | Marketing | Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule | MCP: Notion · Files: brand.md, audience.md · Env: `${BRAND}_NOTION_DB` |
+| `content-generator` | Marketing | Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack | MCP: Notion, Slack · Gateway: Gemini, Zernio, templates · Files: brand.md · Env: `${BRAND}_NOTION_DB`, `${BRAND}_LATE_FB/IG/LI` |
+| `background-generator` | Marketing | Generate 20 background images per brand for Reel video production. Run manually or schedule externally | Gateway: Gemini · Files: brand.md |
+| `apollo-lead-prospector` | Sales | Daily prospect search via Apollo against the brand's ICP, with deduplication, ICP fit scoring, and Notion CRM dropoff | MCP: Apollo.io, Notion, Slack · Files: sales.md, audience.md, competitors.md · Env: `${BRAND}_CRM_DB` (auto-bootstraps on first run) |
+| `outreach-sequencer` | Sales | Self-managed Gmail cold-email sequences. Tracks replies, schedules follow-ups, books meetings via Calendly | MCP: Apollo.io, Calendly, Gmail, Notion · Files: sales.md · Env: `${BRAND}_CRM_DB` (must be bootstrapped by `apollo-lead-prospector` first) |
+| `proposal-generator` | Sales | Generate branded sales proposal from a deal record. Gamma deck or Google Doc with embedded Stripe payment link | MCP: Stripe, Gamma, Google Drive, Notion · Files: sales.md, product.md, brand.md · Env: `${BRAND}_CRM_DB` |
+| `customer-onboarder` | Customer Success | Drive new-customer setup checklist. Welcome email, kickoff scheduling, shared Notion workspace, milestone tracking | MCP: Stripe, Calendly, Gmail, Notion, Slack · Files: customer-success.md, brand.md, product.md · Env: `${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB` (auto-bootstraps) |
+| `churn-predictor` | Customer Success | Daily customer health-scoring via PostHog usage signals + Stripe subscription state. Alerts on at-risk transitions | MCP: PostHog, Stripe, Notion, Slack · Files: customer-success.md, audience.md, product.md · Env: `${BRAND}_CUSTOMER_DB` |
+| `invoice-collector` | Finance | Daily check for overdue Xero invoices. Sends polite reminders escalating in tone over time | MCP: Xero, Gmail, Notion, Slack · Files: finance.md, brand.md · Env: `${BRAND}_INVOICE_TRACKER_DB` (auto-bootstraps) |
+| `financial-reporter` | Finance | Monthly P&L, cashflow forecast, runway, top movers. Investor-ready Gamma deck + Slack summary | MCP: Xero, Gamma, Slack, Stripe (opt — degrades to Xero-only invoice data when absent) · Files: finance.md · Env: `${BRAND}_REPORTS_DB` (auto-bootstraps) |
+| `competitor-monitor` | Strategy | Weekly diff of competitor websites, pricing, blogs, careers. Alerts on price changes, exec moves, new features | MCP: Notion, Slack · Files: competitors.md (with v2.4.0 extension fields: `monitor_urls`, `track_pages`, `exec_team`) · Env: `${BRAND}_COMPETITOR_DB` (auto-bootstraps) |
+| `investor-update-writer` | Strategy | Monthly investor update email. Combines Xero financials + PostHog product KPIs + CRM wins, drafts in founder voice | MCP: Xero, Stripe, PostHog, Notion, Gmail, Gamma · Files: investors.md, finance.md, brand.md, product.md · Env: `${BRAND}_CRM_DB` |
+| `meeting-analyzer` | Productivity | Process meeting transcripts into structured action items + decisions. Routes owners, syncs Notion, drafts follow-ups | MCP: Notion, Slack, Calendly (opt — only used if the brand pulls transcripts via Calendly) · Files: operations.md (opt — falls back to Unassigned owner) · Env: `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB` (both auto-bootstrap) |
 
 ### Skill Chains
 

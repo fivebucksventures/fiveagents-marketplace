@@ -6,11 +6,20 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.4.1 | May 07, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.4.1** — May 07, 2026
+- Step 1e — added MCP probe rows for PostHog, Gamma, and Meta Ads MCP (optional). Now matches every connector validated by brand-setup Step 8c-bis.
+- Step 2 — gap report example expanded to surface the new business-operations MCPs and the 5 v2.4.0 brand-context files (sales/CS/finance/investors/operations)
+- Step 3a — added top-of-section pre-fill rule + per-bullet pre-fill summaries for the 5 v2.4.0 files. Plugin-update context guarantees v2.0 source files exist, so pre-fill is essentially mandatory; agent reads brand.md/product.md/audience.md/etc. and drafts answers instead of asking from scratch
+- Step 3f — rewrote MCP gap-fill flow with explicit per-MCP walkthrough prompts for **all 14 MCPs** (was only Windsor + Playwright). Closes the gap where business-ops MCPs flagged in Step 1e were silently skipped during interactive fill.
+- **Step 3g — fixed CLAUDE.md re-embed bug.** Previous version only refreshed the `<!-- link.md version: ... -->` stamp comment, leaving the embedded `agents/link.md` body unchanged. After a `git pull` that brought new content (e.g. v2.4.0's 10 business-ops skills), CLAUDE.md would stamp `v2.4.0` while its embedded body still described v2.3.x. New logic strips link.md's frontmatter, builds a full BEGIN/END block (stamp + body), and atomically replaces everything between the markers. Added post-write verification: grep for a string unique to the new version (e.g. `apollo-lead-prospector` after a v2.4.0 upgrade) to confirm the body was actually swapped.
+- **Step 4b (NEW) — Agent Readiness Summary** using the canonical spec from brand-setup Step 8d. Same translation table, status rules, display format. Inputs come from Step 1 audit overlaid with Step 3 fix outcomes, so the matrix reflects post-fix state.
+- Step 5b — email payload + Slack DM use the same readiness-first format as brand-setup Step 10. Top 3 fixes inline, full list in email.
 
 **v2.4.0** — May 07, 2026
 - Step 1a — added 5 new brand context file rows: sales.md, customer-success.md, finance.md, investors.md, operations.md
@@ -237,6 +246,9 @@ You cannot directly probe what the user has connected in Claude settings. Instea
 | Calendly | OAuth status check (Calendly MCP gates real tools behind authenticate) | v2.4.0 |
 | Stripe | OAuth status check (Stripe MCP gates real tools behind authenticate) | v2.4.0 |
 | Xero | `whoami` | v2.4.0 |
+| PostHog | `user-get` | v2.4.0 (used by `churn-predictor`; `data-analysis` may already validate it — reuse if so) |
+| Gamma | `get_themes` | v2.4.0 (used by `investor-update-writer`; `campaign-presenter` may already validate it — reuse if so) |
+| Meta Ads MCP *(optional enhancement — limited rollout)* | attempt any `ads_*` tool call (e.g. `ads_get_ad_accounts`); 401 / not-found → not connected | v2.2.13 (Windsor.ai already covers Meta data fully when this isn't connected — never flag as a required gap) |
 
 ### 1f. Workspace CLAUDE.md
 
@@ -377,6 +389,11 @@ Skills/agents updated since {last_applied}
 
 Brand context files
   ✅ brand.md, product.md, audience.md, competitors.md, funnel.md, avatars.md, logo.png
+  ❌ sales.md                             ← v2.4.0 (apollo-lead-prospector / outreach-sequencer / proposal-generator)
+  ❌ customer-success.md                  ← v2.4.0 (customer-onboarder / churn-predictor)
+  ❌ finance.md                           ← v2.4.0 (invoice-collector / financial-reporter)
+  ⏭ investors.md                         ← v2.4.0 optional (only required if brand has raised external capital)
+  ⏭ operations.md                        ← v2.4.0 optional (only required if user processes meeting transcripts)
   ⏭ design-system/                       ← optional (recommended; brand.md fallback if absent)
   ⏭ social-carousel-template/            ← optional
   ⏭ social-story-template/               ← optional
@@ -400,6 +417,13 @@ MCP connectors
   ❌ Windsor.ai (required for digital-marketing-analyst)
   ❌ Canva (required for campaign-presenter)
   ❌ Playwright (required for website analysis in brand-setup Step 4)
+  ❌ Apollo.io (required for apollo-lead-prospector, outreach-sequencer)
+  ❌ Calendly (required for customer-onboarder, meeting-analyzer)
+  ❌ Stripe (required for invoice-collector, financial-reporter)
+  ❌ Xero (required for invoice-collector, financial-reporter)
+  ⏭ PostHog (optional — churn-predictor falls back to support-ticket + login signals)
+  ⏭ Gamma (optional — investor-update-writer needs it; skip if you don't deliver investor decks)
+  ⏭ Meta Ads MCP (optional enhancement — Windsor.ai already covers Meta Ads fully)
 
 Workspace CLAUDE.md
   ❌ link.md path is RELATIVE — must be absolute (v2.2.10)
@@ -431,17 +455,19 @@ Walk through each missing item in this order. **Skip any that came back ✅ in S
 
 For each missing file in `brands/{brand}/`:
 
+**Pre-fill rule — applies to every v2.4.0 file below (sales / customer-success / finance / investors / operations).** In a plugin-update context, the brand has been around for a while, so the v2.0 files (`brand.md`, `product.md`, `audience.md`, `competitors.md`, `funnel.md`) almost always already exist with rich content. **You MUST follow the "Read existing context first" mapping table at the top of each brand-setup sub-step (Step 5g intro, 5h intro, 5i intro, 5j intro, 5k intro) before asking the user anything.** Read those source files, draft answers from them, then ask "Confirm or edit?" per block — never ask from scratch what's already on disk. In a plugin-update context this rule is essentially mandatory because the source data is virtually guaranteed to exist; in a fresh brand-setup run it is best-effort because the source files are being built up in the same session.
+
 - `brand.md` / `audience.md` missing → run `brand-setup` Step 4 (Website Analysis) for this brand only. Re-extract from the website.
 - `product.md` / `competitors.md` missing → run `/link-skills:research-strategy` to regenerate.
 - `funnel.md` missing → run `brand-setup` Step 5 funnel block (ask user about funnel + GA4 events).
 - `avatars.md` missing → run `brand-setup` Step 5 avatars block.
 - `logo.png` missing → ask the user for the file path, copy into `brands/{brand}/logo.png`.
 - `backgrounds/` missing → just `mkdir`. No content needed (Gemini generates fresh per post since v2.2.9).
-- `sales.md` missing → run `brand-setup` Step 5g (Sales context). Prompts user for sender persona, ICP filters per persona, sequence templates, proposal defaults.
-- `customer-success.md` missing → run `brand-setup` Step 5h. Prompts for plan tiers, onboarding milestones, kickoff agenda, health-score weights, NPS cadence.
-- `finance.md` missing → run `brand-setup` Step 5i. Prompts for payment terms, escalation tone ladder, KPIs to highlight, alert thresholds, runway calc method.
-- `investors.md` missing → ask first: "Have you raised external capital?" If no → skip (not flagged as gap). If yes → run `brand-setup` Step 5j. Prompts for investor list, founder voice samples, prior-updates archive.
-- `operations.md` missing → ask first: "Do you run regular meetings (1:1s, standups, client calls) and want Claude to process transcripts?" If no → skip (not flagged as gap; meeting-analyzer falls back). If yes → run `brand-setup` Step 5k.
+- `sales.md` missing → run `brand-setup` Step 5g (Sales context). **Apply the Read-first pre-fill table at the top of Step 5g** — Sender Persona drafts from brand.md (founder name/title), ICP filters draft per persona from audience.md, disqualification blocklist drafts from competitors.md URLs, default tier per persona drafts from product.md Pricing. Only ask the user from scratch for fields that have no source.
+- `customer-success.md` missing → run `brand-setup` Step 5h. **Apply the Read-first pre-fill table at the top of Step 5h** — Plan Tiers drafts from product.md Pricing, Onboarding Milestone trigger events draft from funnel.md GA4 events, Intervention Playbook copy drafts from brand.md voice. Only ask the user from scratch for fields that have no source.
+- `finance.md` missing → run `brand-setup` Step 5i. **Apply the Read-first pre-fill table at the top of Step 5i** — Escalation Tone Ladder copy drafts from brand.md voice, currency / Alert Threshold formatting from brand.md `## Locale`, KPIs to Highlight defaults to MRR/ARR if product.md Pricing implies subscription else project margin / cash collected. Only ask the user from scratch for fields that have no source.
+- `investors.md` missing → ask first: "Have you raised external capital?" If no → skip (not flagged as gap). If yes → run `brand-setup` Step 5j. **Apply the Read-first pre-fill table at the top of Step 5j** — Sections to Include KPIs draft from finance.md (if present), drafting tone falls back to brand.md voice if user pastes <2 prior updates, sender attribution drafts from sales.md Sender Persona. Only ask the user from scratch for the investor list and prior-updates archive (those have no other source).
+- `operations.md` missing → ask first: "Do you run regular meetings (1:1s, standups, client calls) and want Claude to process transcripts?" If no → skip (not flagged as gap; meeting-analyzer falls back). If yes → run `brand-setup` Step 5k. **Apply the Read-first pre-fill table at the top of Step 5k** — Sales tasks owner drafts from sales.md Sender Persona, Customer issues owner drafts from customer-success.md CSM mentions, Finance tasks owner drafts from finance.md alert recipient. Only ask the user from scratch for owners that have no other-file source.
 - `competitors.md` extension missing (existing file present but lacks `monitor_urls` / `track_pages` / `exec_team` per competitor) → run `brand-setup` Step 5l. Prompts user to add the new fields per existing competitor entry.
 
 ### 3b. design-system/ (optional — recommended)
@@ -542,21 +568,77 @@ Surface this informationally in the gap report — do not flag as a required gap
 
 ### 3f. MCP connectors
 
-For each missing MCP, point the user at the connector flow:
+**For every MCP flagged ❌ or ⏭ in Step 1e, walk the user through the specific connector flow below — do not just list them in the gap report and move on.** The user's brand-setup run is the only place these prompts appear in full; if plugin-update silently skips them, the user will end up with skills that error on first use because their MCP isn't connected.
 
-> **Windsor.ai not connected.** Sign up at https://windsor.ai/register, connect your Google Ads / Meta / GA4 accounts, then in Claude: Settings → Connected Apps → Windsor.ai → Authorize. Tell me when done.
+Iterate through the missing MCPs in this order. For each one, post the prompt verbatim, wait for the user to confirm (or say "skip"), then re-probe. Mark complete only when the probe call succeeds.
 
-Re-probe after the user confirms. Mark complete only when the probe call succeeds.
+**Connected Apps (OAuth via Settings → Connected Apps):**
 
-For Playwright (CLI-installed, not OAuth):
-```bash
-claude mcp add playwright -- npx @playwright/mcp@latest
-```
-Then ask the user to restart Claude Code and confirm `/mcp` shows `playwright`.
+- **Notion not connected** (required — content calendar, briefs, auto-bootstrapped DBs):
+  > Notion isn't connected — used for the content calendar, strategy briefs, and the auto-bootstrapped CRM / customer / invoice / report / competitor / meeting / actions DBs. Go to **Settings → Connected Apps → Notion → Authorize**, then tell me when done.
+
+- **Slack not connected** (required — skill-run notifications):
+  > Slack isn't connected — used for "skill done" DMs after each run. Go to **Settings → Connected Apps → Slack → Authorize**, then tell me when done.
+
+- **Gmail not connected** (required — email reading + report delivery):
+  > Gmail isn't connected — used for reading inbound replies and delivering reports. Go to **Settings → Connected Apps → Gmail → Authorize**, then tell me when done.
+
+- **Google Calendar not connected** (required — scheduling content drops & meetings):
+  > Google Calendar isn't connected — used for scheduling content drops and meetings. Go to **Settings → Connected Apps → Google Calendar → Authorize**, then tell me when done.
+
+- **Windsor.ai not connected** (mandatory — Google Ads + GA4 + Meta Ads): walk all 3 steps, do not collapse to one prompt:
+  > Windsor.ai isn't connected — this is the universal source for Google Ads + GA4 + Meta Ads (Facebook + Instagram).
+  > 1. If you don't have an account yet, sign up free at https://windsor.ai/register
+  > 2. In your Windsor dashboard, connect **all three**: Google Ads, GA4, and Meta Ads (Facebook Ads). All three are required — Meta Ads in Windsor is mandatory regardless of whether the optional Meta Ads MCP is added.
+  > 3. Then in Claude: **Settings → Connected Apps → Windsor.ai → Authorize**.
+  > Tell me when done.
+
+  After the user confirms, re-run `get_connectors` and verify the result includes Google Ads, GA4, **and** Facebook. If any of the three is missing, ask the user to connect the missing one in their Windsor dashboard before marking complete.
+
+- **Canva not connected** (used by `campaign-presenter`):
+  > Canva isn't connected — used for campaign decks and pitch presentations. Go to **Settings → Connected Apps → Canva → Authorize**, then tell me when done. (Skip if you don't deliver Canva decks — `campaign-presenter` will be unconfigurable for this brand.)
+
+**Business-operations MCPs (added in v2.4.0):**
+
+- **Apollo.io not connected** (used by `apollo-lead-prospector`, `outreach-sequencer`):
+  > Apollo.io isn't connected — used for lead enrichment, contact search, and email-sequence injection. Go to **Settings → Connected Apps → Apollo.io → Authorize**, then tell me when done. (Skip if you don't run outbound — those two skills will be unconfigurable for this brand.)
+
+- **Calendly not connected** (used by `customer-onboarder`, `meeting-analyzer`):
+  > Calendly isn't connected — used for kickoff scheduling and meeting metadata pulls. Go to **Settings → Connected Apps → Calendly → Authorize**, then tell me when done. (Skip if you don't use Calendly — `customer-onboarder` falls back to manual scheduling and `meeting-analyzer` reads transcripts directly.)
+
+- **Stripe not connected** (used by `invoice-collector`, `financial-reporter`):
+  > Stripe isn't connected — used for invoice status and payment data. Go to **Settings → Connected Apps → Stripe → Authorize**, then complete the OAuth flow it gates the real tools behind. Tell me when both `authenticate` and `complete_authentication` have succeeded. (Skip if you bill outside Stripe — `invoice-collector` and `financial-reporter` will be unconfigurable for this brand.)
+
+- **Xero not connected** (used by `invoice-collector` for invoice sync, `financial-reporter` for P&L):
+  > Xero isn't connected — used for invoice status sync and pulling the P&L. Go to **Settings → Connected Apps → Xero → Authorize**, then tell me when done. (Skip if you don't use Xero — `financial-reporter` will fall back to Stripe-only data.)
+
+- **PostHog not connected** (used by `churn-predictor` for product-usage signals):
+  > PostHog isn't connected — used by `churn-predictor` for product-usage signals (login frequency, feature engagement). Go to **Settings → Connected Apps → PostHog → Authorize**, then tell me when done. (Skip if you don't use PostHog — `churn-predictor` falls back to support-ticket + login-frequency signals only.)
+
+- **Gamma not connected** (used by `investor-update-writer` for investor decks):
+  > Gamma isn't connected — used by `investor-update-writer` for monthly investor decks. Go to **Settings → Connected Apps → Gamma → Authorize**, then tell me when done. (Skip if you don't deliver investor updates — `investor-update-writer` will be unconfigurable for this brand.)
+
+**Custom connectors (Settings → Connectors → Add custom connector):**
+
+- **Meta Ads MCP not connected** (optional enhancement — limited rollout):
+  > (Optional) Meta has an official MCP server that gives skills slightly more direct Marketing API access than Windsor.ai. If you want to try it: **Settings → Connectors → Add custom connector**, name `Meta Ads`, URL `https://mcp.facebook.com/ads`, sign in with the Facebook/Meta Business account that owns the brand's ad accounts. If "Add custom connector" isn't visible or sign-in fails — no problem, your Windsor.ai connection already covers Meta Ads fully. Tell me whether you added it or skipped.
+
+  - If the user added it successfully → save `META_ADS_SOURCE=meta_ads_mcp` to `.claude/settings.local.json` `env` block.
+  - If the user skipped or couldn't add it → leave `META_ADS_SOURCE` unset. Downstream skills default to Windsor for Meta data. **Do not flag as a required gap** — this is purely an enhancement.
+
+**CLI-installed MCPs:**
+
+- **Playwright not connected** (required for website analysis in `brand-setup` Step 4):
+  ```bash
+  claude mcp add playwright -- npx @playwright/mcp@latest
+  ```
+  Then ask the user to restart Claude Code and confirm `/mcp` shows `playwright`.
+
+After every walkthrough, re-run the corresponding probe from Step 1e and only mark the gap closed when the probe succeeds. If the user said "skip", record it as ⏭ in the final summary so they can revisit later.
 
 ### 3g. CLAUDE.md (re-run brand-setup Step 9)
 
-**First — always refresh the version stamp, regardless of any other CLAUDE.md gaps:**
+**First — always re-embed the full `agents/link.md` body between the BEGIN/END markers, regardless of any other CLAUDE.md gaps. Refreshing the stamp comment alone is wrong — after a `git pull` that adds new skills (e.g. v2.4.0's 10 business-ops skills), the stamp will read "v2.4.0" while the embedded body still describes v2.3.x as a "marketing agent" with no Apollo / Stripe / Xero / etc. mentions. Always replace the body too.**
 
 ```python
 import glob, os, re, datetime
@@ -576,25 +658,48 @@ link_md_path = os.path.abspath(os.path.realpath(found[0])) if found else None
 if not link_md_path:
     raise RuntimeError("Could not locate agents/link.md — ask user for the full path.")
 
-# Read current link.md from disk
+# Read current link.md from disk + strip YAML frontmatter (same as brand-setup Step 9a)
 link_md_content = open(link_md_path, encoding='utf-8').read()
+link_md_body = re.sub(r'^---\s*\n.*?\n---\s*\n', '', link_md_content, count=1, flags=re.DOTALL).lstrip()
+
+# Extract version from the Maintenance table
 version_match = re.search(r'\|\s*Link\s*\|\s*(v[\S]+)\s*\|\s*([^|\n]+)\s*\|', link_md_content)
 link_version = version_match.group(1).strip() if version_match else "unknown"
 link_version_date = version_match.group(2).strip() if version_match else "unknown"
 embed_date = datetime.date.today().isoformat()
-new_stamp = f"<!-- link.md version: {link_version} | Last Changed: {link_version_date} | Embedded: {embed_date} -->"
 
-# Replace existing stamp line inside BEGIN/END markers, or insert it if absent
-claude_md = open("CLAUDE.md", encoding='utf-8').read()
-claude_md = re.sub(
-    r'(<!-- BEGIN agents/link\.md \(embedded by brand-setup\) -->)\s*\n(<!-- link\.md version:.*?-->)?',
-    rf'\1\n{new_stamp}',
-    claude_md
+# Build the full replacement block (stamp + body), wrapped in the existing BEGIN/END markers
+new_block = (
+    f"<!-- BEGIN agents/link.md (embedded by brand-setup) -->\n"
+    f"<!-- link.md version: {link_version} | Last Changed: {link_version_date} | Embedded: {embed_date} -->\n"
+    f"\n"
+    f"{link_md_body}\n"
+    f"\n"
+    f"<!-- END agents/link.md -->"
 )
-open("CLAUDE.md", "w", encoding='utf-8').write(claude_md)
+
+# Replace EVERYTHING between (and including) the markers — body and stamp together
+claude_md = open("CLAUDE.md", encoding='utf-8').read()
+if "<!-- BEGIN agents/link.md (embedded by brand-setup) -->" in claude_md and "<!-- END agents/link.md -->" in claude_md:
+    claude_md_new = re.sub(
+        r'<!-- BEGIN agents/link\.md \(embedded by brand-setup\) -->.*?<!-- END agents/link\.md -->',
+        lambda m: new_block,  # lambda avoids re.sub's backslash interpretation in link_md_body
+        claude_md,
+        count=1,
+        flags=re.DOTALL,
+    )
+else:
+    # Markers absent — fall through to the "Missing entirely" branch below; do not partial-write here.
+    claude_md_new = claude_md
+
+if claude_md_new != claude_md:
+    # Show the diff to the user before writing (per the rule at the bottom of this step)
+    open("CLAUDE.md", "w", encoding='utf-8').write(claude_md_new)
 ```
 
-This runs unconditionally every time plugin-update executes — it is the equivalent of what brand-setup Step 9a does on first install. After a `git pull`, link.md's version changes; this ensures CLAUDE.md always reflects the currently installed version.
+This runs unconditionally every time plugin-update executes — it is the equivalent of what brand-setup Step 9b does on first install. After a `git pull`, both the version stamp **and** the embedded `link.md` body are refreshed, so CLAUDE.md always reflects the currently installed version's full content (skills table, MCP list, context-file rows, etc.).
+
+**Verification after re-embed** — confirm the stamp matches `agents/link.md`'s current Maintenance version AND that a string unique to the new version appears in the embedded body. Example: after upgrading to v2.4.0, grep CLAUDE.md for `apollo-lead-prospector` (one of the 10 new skills); if absent, the body did not get re-embedded and you should retry the regex with the full text re-read.
 
 **Then patch any remaining CLAUDE.md gaps** — only the affected lines:
 
@@ -667,7 +772,7 @@ After you've filled the selected gaps, the agent runs a **focused validation pas
 
 After all selected gaps are filled, run a focused validation pass — only test integrations that were touched in Step 3. Reuse the test calls from `brand-setup` Step 8.
 
-Show a summary table of what was fixed:
+### 4a. Show what was fixed
 
 | Gap | Action taken | Status |
 |---|---|---|
@@ -678,6 +783,26 @@ Show a summary table of what was fixed:
 | CLAUDE.md link.md path relative | Replaced with absolute path | ✅ |
 | social-carousel-template/ | User chose to skip | ⏭ |
 | ... | ... | ... |
+
+This is the **diagnostic** view — useful for "what changed?" but not what the user actually wants to know.
+
+### 4b. Agent Readiness Summary (business-friendly)
+
+The "what was fixed" table answers a technical question. The owner wants the business answer: *which agents will run on my brand starting today, which still need a fix, and which did I skip?* Step 4b produces that answer.
+
+**Build the readiness matrix using the exact spec in `brand-setup` Step 8d** (translation table, status rules, display format, JSON schema). The only difference is where the inputs come from:
+
+| Input | brand-setup Step 8d source | plugin-update Step 4b source |
+|---|---|---|
+| MCP connection state | Step 8a–8c-bis probe results | Step 1e probe results, **updated** by any Step 3f re-probes |
+| Brand context file presence | Step 5/6 generation outcomes | Step 1a inspection, **updated** by any Step 3a fills |
+| Env vars / Notion DBs | Step 7b save + Step 8d validation | Step 1d inspection, **updated** by any Step 3e fills |
+
+In other words: take the Step 1 audit, overlay every successful fix from Step 3, and compute the matrix from the post-fix state. Skills the user explicitly skipped during Step 3 (e.g. "skip Apollo, I don't run outbound") map to ⏭ in the matrix; skills that had a missing dep neither fixed nor skipped map to ❌.
+
+Print the matrix to chat in the same exact format documented in `brand-setup` Step 8d-iii. Save the structured `agent_readiness[]` + `readiness_summary` object — Step 5b reads it directly into the email payload.
+
+**Do not proceed to Step 5 until the readiness matrix has been printed to chat and saved.**
 
 ---
 
@@ -711,15 +836,29 @@ Use gateway MCP tool `fiveagents_send_email`:
 - tag: "brand-setup"
 ```
 
-JSON payload mirrors the `brand-setup` Step 10 schema, but `files` and `connections` only contain the items that were touched in Step 3. Add a top-level `mode: "update"` field so the template (or downstream telemetry) can distinguish.
+JSON payload mirrors the `brand-setup` Step 10 schema:
+- **`agent_readiness[]` + `readiness_summary`** — primary block; reuse the structured object saved in Step 4b verbatim. Same schema as brand-setup. The server-side template renders this as the headline section.
+- **`files[]` and `connections[]`** — secondary diagnostic blocks; only contain items that were touched in Step 3 (not the full inventory).
+- Add a top-level `mode: "update"` field so the template (or downstream telemetry) can distinguish a fresh setup from an upgrade.
 
-Slack DM:
+Slack DM (lead with readiness, integration deltas as secondary diagnostic):
 ```
 🔧 [{brand}] Plugin update applied
-• {N} gaps fixed · {M} skipped
-• Mandatory items: {N}/{N} complete
-• Detail in email
+
+Agent Readiness (20 total):
+  ✅ {N_ready} ready · ⚠️ {N_degraded} works with limitations · ❌ {N_not_ready} need fixing · ⏭ {N_skipped} skipped
+
+{If N_not_ready > 0:}
+Top fixes to unlock more agents:
+  • {Agent name 1} — {one-line fix from agent_readiness[].fix}
+  • {Agent name 2} — {one-line fix}
+  (full list in the email)
+
+This update: {N} gaps fixed · {M} skipped
+Detail in email
 ```
+
+Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; lead with "🎉 Every connected agent is ready to run on schedule."
 
 ---
 
@@ -730,7 +869,8 @@ Slack DM:
 - [ ] Step 1 ran a full inspection without prompting the user
 - [ ] Step 1a checked all 5 new brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with optional annotations applied to investors.md and operations.md
 - [ ] Step 1d checked the 7 new auto-bootstrapped DB env vars without flagging missing ones as required gaps
-- [ ] Step 1e probed the 4 new MCPs (Apollo.io, Calendly, Stripe, Xero)
+- [ ] Step 1e probed all 7 v2.4.0 / v2.2.13 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional Meta Ads MCP)
+- [ ] Step 3f walked the user through every ❌/⏭ MCP with the explicit per-MCP prompt — never silently skipped a missing connector
 - [ ] Step 1j produced a version table showing which skills/agents changed since `last_applied`
 - [ ] Step 2 gap report opened with the version delta block (updated skills listed with changelog summaries)
 - [ ] Step 3 only walked through items marked ❌ or offered ⏭ — never re-asked for known-good state
