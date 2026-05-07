@@ -6,11 +6,15 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.1 | May 07, 2026 |
+| Link | v2.4.2 | May 07, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.4.2** — May 07, 2026
+- Step 4b — references brand-setup Step 8d-iv derivation rule for `connected_tools[]` (pulled from `agents/link.md` Deps + 8d-i translation) instead of a separate mapping table
+- Step 5b Slack DM "no fixes needed" line synchronized with brand-setup Step 10 — "configured and ready to run" instead of "ready to run on schedule"
 
 **v2.4.1** — May 07, 2026
 - Step 1e — added MCP probe rows for PostHog, Gamma, and Meta Ads MCP (optional). Now matches every connector validated by brand-setup Step 8c-bis.
@@ -790,7 +794,7 @@ This is the **diagnostic** view — useful for "what changed?" but not what the 
 
 The "what was fixed" table answers a technical question. The owner wants the business answer: *which agents will run on my brand starting today, which still need a fix, and which did I skip?* Step 4b produces that answer.
 
-**Build the readiness matrix using the exact spec in `brand-setup` Step 8d** (translation table, status rules, display format, JSON schema). The only difference is where the inputs come from:
+**Build the readiness matrix using the exact spec in `brand-setup` Step 8d** (translation table, status rules, display format, JSON schema, and the 8d-iv rule for deriving `connected_tools[]` from `agents/link.md` Deps). The only difference is where the inputs come from:
 
 | Input | brand-setup Step 8d source | plugin-update Step 4b source |
 |---|---|---|
@@ -858,7 +862,7 @@ This update: {N} gaps fixed · {M} skipped
 Detail in email
 ```
 
-Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; lead with "🎉 Every connected agent is ready to run on schedule."
+Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; lead with "🎉 Every connected agent is configured and ready to run."
 
 ---
 

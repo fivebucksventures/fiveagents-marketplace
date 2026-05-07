@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.1';
+const DEFAULT_VERSION = 'v2.4.2';
 const DEFAULT_DATE = 'May 07, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.2',
+    date: 'May 07, 2026',
+    changes: [
+      'brand-setup: Step 8d agent_readiness[] schema — JSON example in 8d-iii and Step 10 email payload brought into sync; added `name` (renamed from `agent`), `category`, `status_label`, and `connected_tools[]` fields. Step 10 was lagging the 8d-iii schema after v2.4.1.',
+      'brand-setup: Step 8d-ii / 8d-iii / Step 10 Slack DM — dropped "run on schedule starting today" framing in favor of "configured and available to run" / "configured and ready to run". Three call-sites were contradicting each other after v2.4.1.',
+      'brand-setup: Step 8d-iv (NEW) — derivation rule for connected_tools[]: pull each agent\'s MCP:/Gateway: tokens from agents/link.md Deps column, translate via 8d-i, preserve (opt) markers. Replaces a duplicate per-agent mapping table that would have drifted from link.md. Keeps agents/link.md as the single source of truth (matching its own v2.4.1 claim).',
+      'plugin-update: Step 4b — references brand-setup Step 8d-iv derivation rule for connected_tools[] (pulled from agents/link.md Deps + 8d-i translation) instead of a separate mapping table.',
+      'plugin-update: Step 5b Slack DM "no fixes needed" line synchronized with brand-setup Step 10 — "configured and ready to run" instead of "ready to run on schedule".',
+    ],
+  },
   {
     version: 'v2.4.1',
     date: 'May 07, 2026',
@@ -212,20 +223,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'digital-marketing-analyst: fixed invalid GA4 fields — removed "source" and "medium" from field lists, only "session_source_medium" is valid in Windsor',
       'digital-marketing-analyst: fiveagents_log_run metrics block rewritten — replaced literal zero placeholders with descriptive <actual_value> placeholders and added explicit warning to populate with real computed data (fixes agent_runs logging 0 data)',
       'data-analysis: same Windsor.ai fixes — date_preset → last_30dT, GA4 invalid field corrections, data lag note updated, per-connector field reference table added',
-    ],
-  },
-  {
-    version: 'v2.2.7',
-    date: 'April 27, 2026',
-    changes: [
-      'brand-setup: added Step 10 — Initialize Workspace CLAUDE.md (auto-discovers agents/link.md path, writes Agent Identity + credential loader + brand context)',
-      'brand-setup: Step 2 FiveAgents MCP row simplified — full setup instructions removed from overview, deferred to Step 7a',
-      'brand-setup: LATE_API_KEY moved from Required to Required-for-social-publishing category in Step 2 and Step 7b',
-      'brand-setup: Step 5 DataforSEO note corrected — keyword research skipped at Step 5, re-run research-strategy manually after Step 7',
-      'brand-setup: Step 7b DataforSEO and Argil merged into single Optional table (was two separate Optional sections)',
-      'brand-setup: Step 5 "Do not proceed" gate moved to after avatars.md (was incorrectly placed before it)',
-      'brand-setup: Step 9 Slack message corrected N/16 → N/15 integrations',
-      'brand-setup: Step 10 nested code block issues fixed (credential loader and Workspace Structure use indentation inside markdown template fence)',
     ],
   },
 ];

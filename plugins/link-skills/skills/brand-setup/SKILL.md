@@ -6,11 +6,16 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.1 | May 07, 2026 |
+| Link | v2.4.2 | May 07, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.4.2** — May 07, 2026
+- Step 8d `agent_readiness[]` schema — JSON example in 8d-iii and Step 10 email payload brought into sync; added `name` (renamed from `agent`), `category`, `status_label`, `connected_tools[]`. Step 10 was lagging the 8d-iii schema after v2.4.1.
+- Step 8d-ii / 8d-iii / Step 10 Slack DM — dropped "run on schedule starting today" framing in favor of "configured and available to run" / "configured and ready to run". Three call-sites were contradicting each other.
+- **Step 8d-iv (NEW)** — derivation rule for `connected_tools[]`: pull each agent's `MCP:` and `Gateway:` tokens from `agents/link.md` Deps column, translate via 8d-i, preserve `(opt)` markers. Replaces a duplicate per-agent mapping table that would have drifted from link.md. Keeps `agents/link.md` as the single source of truth (matching its own v2.4.1 claim).
 
 **v2.4.1** — May 07, 2026
 - Step 2 prereqs table — added 6 business-ops MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma) so the user has full visibility of what they'll be asked to connect
@@ -2101,7 +2106,7 @@ For each of the 20 business agents (every skill in `agents/link.md` Skills table
 
 | Status | When to assign | What it means to the user |
 |---|---|---|
-| ✅ **Ready** | Every required dep is connected / present (per the agent's `Deps` row in `agents/link.md`). Optional deps may be missing. | Will run end-to-end on schedule starting today |
+| ✅ **Ready** | Every required dep is connected / present (per the agent's `Deps` row in `agents/link.md`). Optional deps may be missing. | Configured and available to run end-to-end |
 | ⚠️ **Works with limitations** | Every required dep present, but a known optional dep that materially affects output is missing. The canonical case: `financial-reporter` ready but Stripe not connected → still runs, but MRR/ARR cannot be computed. | Will run, but with reduced output. State the specific limitation in the row. |
 | ❌ **Not ready yet** | At least one required dep is missing. | Will fail on first run. State the specific missing dep + the exact fix command. |
 | ⏭ **You skipped** | A required *brand context file* was explicitly skipped during Step 5 (e.g. `investors.md` skipped because the brand has not raised funding; `operations.md` skipped because the user does not process meeting transcripts). The skill is therefore intentionally off for this brand. | No action needed. |
@@ -2125,7 +2130,7 @@ Print the result to chat in this exact format:
 ```
 Five Agents — Brand: {brand} — Readiness Summary
 
-✅ READY ({N} of 20) — these will run on schedule starting today
+✅ READY ({N} of 20) — configured and available to run
    Marketing: Content Generator · Social Publisher · Social Calendar ·
               Background Generator · Creative Designer · Content Writer ·
               Research & Strategy · Campaign Presenter · Data Analysis ·
@@ -2169,11 +2174,14 @@ For ⏭ rows, state *why* the user skipped (referencing the consent gate they an
 {
   "agent_readiness": [
     {
-      "agent": "Apollo Lead Prospector",
+      "name": "Apollo Lead Prospector",
       "skill_id": "apollo-lead-prospector",
       "area": "Sales",
+      "category": "Sales",
       "status": "ready | degraded | not_ready | skipped",
+      "status_label": "Ready | Works with limitations | Not ready yet | You skipped",
       "description": "Daily prospect search → Notion CRM",
+      "connected_tools": ["Apollo (lead database)", "Notion (your workspace)"],
       "missing": ["Apollo (lead database)"],
       "fix": "Settings → Connected Apps → Apollo.io → Authorize",
       "skip_reason": null
@@ -2183,6 +2191,17 @@ For ⏭ rows, state *why* the user skipped (referencing the consent gate they an
 ```
 
 Use `missing: []` and `fix: null` for ✅ Ready rows. Use `skip_reason` (string) instead of `fix` for ⏭ rows.
+
+#### 8d-iv. Derive `connected_tools[]` from link.md Deps
+
+Do not maintain a separate mapping table — `agents/link.md` Skills table is the single source of truth. For each agent, read its `Deps` cell and:
+
+1. Extract every `MCP:` and `Gateway:` token (skip `Files:` and `Env:` — those aren't user-facing tools).
+2. Translate each token through the 8d-i table to its business display name (e.g. `MCP: Windsor.ai` → `Windsor (Google Ads + GA4 + Meta Ads)`; `Gateway: Gemini` → `Image generator`).
+3. Preserve `(opt)` markers as a parenthetical hint in the displayed name — e.g. a dep listed as `PostHog (opt)` displays as `PostHog (product analytics, optional)`.
+4. For ✅ Ready rows, only list tools that actually passed validation in Step 8a–8c-bis. For ❌ Not ready or ⚠️ Degraded, list the full set — what's missing is conveyed by the `missing[]` field. For ⏭ Skipped, list the full set for informational display.
+
+This keeps the readiness matrix in lockstep with `agents/link.md`: if a skill's `Deps` cell changes (a new MCP added, an existing one marked optional), the matrix tracks it without a separate edit here.
 
 **Do not proceed to Step 9 until the readiness matrix has been printed to chat and saved as the structured object for Step 10.**
 
@@ -2461,11 +2480,14 @@ Build the JSON payload from Step 8d's saved readiness matrix (the **primary** bl
   "brand": "{brand}",
   "agent_readiness": [
     {
-      "agent": "Apollo Lead Prospector",
+      "name": "Apollo Lead Prospector",
       "skill_id": "apollo-lead-prospector",
       "area": "Sales",
+      "category": "Sales",
       "status": "ready | degraded | not_ready | skipped",
+      "status_label": "Ready | Works with limitations | Not ready yet | You skipped",
       "description": "Daily prospect search → Notion CRM",
+      "connected_tools": ["Apollo (lead database)", "Notion (your workspace)"],
       "missing": ["Apollo (lead database)"],
       "fix": "Settings → Connected Apps → Apollo.io → Authorize",
       "skip_reason": null
@@ -2572,4 +2594,4 @@ Brand files: brands/{brand}/
 {N} action items (see email for full details)
 ```
 
-Cap the "top fixes" inline list at 3 — the rest live in the email. If `N_not_ready == 0`, omit the "Top fixes" block entirely; lead instead with "🎉 Every connected agent is ready to run on schedule."
+Cap the "top fixes" inline list at 3 — the rest live in the email. If `N_not_ready == 0`, omit the "Top fixes" block entirely; lead instead with "🎉 Every connected agent is configured and ready to run."
