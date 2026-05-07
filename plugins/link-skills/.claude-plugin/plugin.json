@@ -1,7 +1,7 @@
 {
   "name": "fiveagents-link",
-  "version": "1.0.0",
-  "description": "Marketing agent — research, create, design, analyze, publish content for any brand",
+  "version": "2.4.4",
+  "description": "Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand",
   "author": {
     "name": "fiveagents.io",
     "email": "support@fiveagents.io",
@@ -10,7 +10,7 @@
   "homepage": "https://fiveagents.io",
   "repository": "https://github.com/fiveagents/link",
   "license": "proprietary",
-  "keywords": ["marketing", "social-media", "content", "analytics", "agent"],
+  "keywords": ["marketing", "sales", "customer-success", "finance", "strategy", "productivity", "social-media", "content", "analytics", "agent"],
 
   "skills": "./skills/",
   "agents": "./agents/",

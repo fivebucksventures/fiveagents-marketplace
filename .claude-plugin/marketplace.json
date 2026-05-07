@@ -5,22 +5,22 @@
     "email": "support@fiveagents.io"
   },
   "metadata": {
-    "description": "Marketing agent plugins by fiveagents.io",
-    "version": "1.0.0"
+    "description": "Business operations agent plugins by fiveagents.io",
+    "version": "2.4.4"
   },
   "plugins": [
     {
       "name": "link-skills",
       "source": "./plugins/link-skills",
-      "description": "Marketing agent — research, create, design, analyze, publish content for any brand",
-      "version": "1.0.0",
+      "description": "Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand",
+      "version": "2.4.4",
       "author": {
         "name": "Five Agents",
         "email": "support@fiveagents.io"
       },
       "homepage": "https://fiveagents.io",
       "license": "proprietary",
-      "keywords": ["marketing", "social-media", "content", "analytics", "agent"]
+      "keywords": ["marketing", "sales", "customer-success", "finance", "strategy", "productivity", "social-media", "content", "analytics", "agent"]
     }
   ]
 }

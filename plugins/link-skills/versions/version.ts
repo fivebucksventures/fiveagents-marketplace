@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.3';
+const DEFAULT_VERSION = 'v2.4.4';
 const DEFAULT_DATE = 'May 07, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.4',
+    date: 'May 07, 2026',
+    changes: [
+      'plugin metadata sync — plugin.json description and keywords were stuck on the v2.4.0 expansion gap (still said "Marketing agent — research, create, design, analyze, publish content"; keywords missed sales/customer-success/finance/strategy/productivity). Updated description to match link.md frontmatter ("Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand") and extended keywords. Same fix applied to .claude-plugin/marketplace.json (top-level metadata.description and per-plugin description + keywords).',
+      'plugin.json + marketplace.json: bumped version field from 1.0.0 (had been stuck since launch) to 2.4.4 — now in lockstep with version.ts. Bug surfaced during v2.4.3 release: drift between version.ts (vN) and plugin.json/marketplace.json (1.0.0) meant marketplace consumers never saw a version bump.',
+      'commit-to-git workflow: Step 5b rewritten — now requires updating all three version files in lockstep (version.ts, plugin.json, marketplace.json metadata.version + plugin entry version). Quality checklist extended with three new boxes covering the metadata files. Step 6 stage command extended to include .claude-plugin/marketplace.json. Prevents the version-drift bug from recurring.',
+    ],
+  },
   {
     version: 'v2.4.3',
     date: 'May 07, 2026',
@@ -214,15 +223,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'creative-designer: design-system/ is source of truth (replaces brand.md as primary visual reference); new Step 4a branches Carousel/Story to template-render via Playwright when template folder exists; Gemini still required to fill visual slots inside template',
       'content-generator: Step 2 reads design-system/ (mandatory) + detects optional templates; Step 4c-template renders via Playwright for IG/FB Carousel/Story when templates installed; falls back to Gemini+Pillow if templates absent or Playwright fails; quality checklist guards against double-stamp text/logo on template path',
       'content-creation: reads design-system/ to size copy against text frames; for IG/FB carousel/story copy, inspects template (when present) to write per-slide blocks within slot lengths; falls back to standard format defaults if templates absent',
-    ],
-  },
-  {
-    version: 'v2.2.9',
-    date: 'April 30, 2026',
-    changes: [
-      'content-generator: removed pre-stored background lookup — every image is now generated fresh via Gemini (no more browsing backgrounds/ folder for matches)',
-      'social-calendar: replaced "Ken Burns background video (pre-stored images)" references with "Gemini-generated images"',
-      '.gitignore: added editor/IDE, env/secrets, Python, Node, and OS patterns',
     ],
   },
 ];
