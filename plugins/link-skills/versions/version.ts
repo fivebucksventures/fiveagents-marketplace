@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.5';
+const DEFAULT_VERSION = 'v2.4.6';
 const DEFAULT_DATE = 'May 08, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.6',
+    date: 'May 08, 2026',
+    changes: [
+      'content-generator + creative-designer: add_logo — fixed logo aspect-ratio distortion. logo.crop(logo.getbbox()) now runs BEFORE logo_w/logo_h are computed, so the resize target is derived from the cleaned (cropped) logo bounds instead of the original padded ones. Previously the resize calc used padded proportions but the crop-then-resize sequence applied them to a different aspect ratio, stretching the mark.',
+      'content-generator Step 4h + creative-designer Step 3b: fix tables updated — the "Logo visually offset" row now confirms the crop is automatic; new "Logo aspect ratio looks distorted" row points to the crop-order requirement.',
+    ],
+  },
   {
     version: 'v2.4.5',
     date: 'May 08, 2026',
@@ -208,19 +216,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Step 8 summary table and Step 9 completion-email connections[] now include the two env-var checks; Step 9 Slack message integration count bumped 16 → 18',
       'brand-setup: Step 10b CLAUDE.md template — replaced "Active Brand" section with "Workspace Defaults" that hardcodes the brand slug and Notion DB ID inline (so any session sees them immediately) with an env-var fallback rule for stale/copied workspaces; placeholder list extended to {brand} / {BRAND} / {notion_db_id}',
       'brand-setup: normalized {BRAND} env-var prefix convention (uppercased, hyphens removed) across Step 7b note, Step 8d, Step 8 summary, Step 9 connections, Step 10b template — replaces accidental {BRAND_UPPER} variants',
-    ],
-  },
-  {
-    version: 'v2.2.11',
-    date: 'May 04, 2026',
-    changes: [
-      'brand-setup: Step 10 — CLAUDE.md now embeds the full content of agents/link.md directly (frontmatter stripped) instead of writing an absolute-path reference; workspace becomes self-contained for scheduled runs and fresh clones',
-      'brand-setup: Step 10b uses BEGIN/END markers (<!-- BEGIN agents/link.md (embedded by brand-setup) -->) for idempotent re-runs; backwards-compat handling replaces older absolute-path Agent Identity blocks',
-      'brand-setup: Meta Ads — added official Meta Ads MCP custom connector (https://mcp.facebook.com/ads); replaces Windsor.ai for Meta Ads (Facebook + Instagram) campaign data across Step 2 prereqs, Step 7c connector flow, Step 8 validation, Step 8 summary table, Step 9 completion email JSON',
-      'brand-setup: Windsor.ai narrowed to Google Ads + GA4 only; vault-storage note in Step 7b clarifies Meta Ads credentials live with the Meta Ads MCP, not Windsor; integration count bumped 15 → 16 in Step 9 Slack message',
-      'digital-marketing-analyst: Phase 2 daily Meta pull and Weekly Step 1b migrated from Windsor.ai (source: "facebook") to the Meta Ads MCP; ad_set / ad / lp_views / video_views / conversions / cpm now expected (Meta Marketing API surfaces them); Notes data-sources / data-lag / TikTok-future updated; lp_views note no longer says "not in Windsor"',
-      'data-analysis: Step 1a split — Windsor.ai block for Google Ads + GA4, separate Meta Ads MCP block for Facebook + Instagram; inputs table data-source row updated; fallback prompt mentions both connectors',
-      'agents/link.md: MCP Connectors list — Windsor.ai narrowed to Google Ads + GA4; new Meta Ads MCP custom-connector entry',
     ],
   },
 ];

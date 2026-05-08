@@ -8,11 +8,15 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.5 | May 08, 2026 |
+| Link | v2.4.6 | May 08, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.4.6** — May 08, 2026
+- `add_logo` — fixed logo aspect-ratio distortion. `logo.crop(logo.getbbox())` now runs BEFORE `logo_w`/`logo_h` are computed, so the resize target is derived from the cleaned (cropped) logo bounds instead of the original padded ones. Previously the resize calc used padded proportions but the crop-then-resize sequence applied them to a different aspect ratio, stretching the mark.
+- Step 3b fix table — updated the "Logo visually offset" row (the manual crop is now automatic) and added a "Logo aspect ratio looks distorted" row pointing to the crop-order requirement.
 
 **v2.4.5** — May 08, 2026
 - `add_text_overlay` — gradient now runs to `target_h` on every canvas (was `target_h - safe_bottom_px`); decoupled `text_bottom` anchors text above the inset — eliminates raw-image gap below the scrim on FB/IG Story and feed
@@ -486,9 +490,10 @@ from PIL import Image
 def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.18):
     img = Image.open(image_path).convert('RGBA')
     logo = Image.open(logo_path).convert('RGBA')
+    logo = logo.crop(logo.getbbox())                # strip transparent padding BEFORE dimension calc
     w, h = img.size
     logo_w = int(w * scale)
-    logo_h = int(logo.height * logo_w / logo.width)
+    logo_h = int(logo.height * logo_w / logo.width)  # aspect ratio preserved from cropped logo
     logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
     # Logo has NO safe zone on any canvas type — flat aesthetic margin only, identical for 9:16 and feed.
     # Platform UI safe zones apply to interactive text/CTA elements, NOT decorative brand marks.
@@ -559,7 +564,8 @@ Read the final image and visually inspect it. Check every item below. Determine 
 | Logo in same zone as text | Logo must be `top-*`; if it was placed `bottom-*`, move to `top-right` or `top-left`; re-render |
 | Logo floats mid-canvas (not anchored to corner) | Verify `margin = max(int(w * 0.03), 30)` is applied for both `top_y` and `side_margin` on every canvas type — no `is_story_reel` branch in `add_logo`; re-render |
 | Logo clipped at edge | Reduce `scale` by 0.02 and re-render |
-| Logo visually offset (unequal margins) | Crop transparent padding: `logo = logo.crop(logo.getbbox())` before resizing; re-render |
+| Logo visually offset (unequal margins) | `add_logo` already crops transparent padding via `logo.crop(logo.getbbox())` before computing dimensions — verify the crop line is present at the top of the function; re-render |
+| Logo aspect ratio looks distorted | Confirm `logo.crop(logo.getbbox())` runs BEFORE `logo_w`/`logo_h` are computed (cropping after the resize-target calc distorts aspect); re-render |
 | Logo too small to read | Increase `scale` to 0.22 and re-render |
 | Logo too large / dominates image | Reduce `scale` to 0.14 and re-render |
 | Logo blends into background | Add white semi-transparent backing: `bg = Image.new('RGBA', (logo_w + pad, logo_h + pad), (255,255,255,160))`, paste at `(x - pad//2, y - pad//2)` before pasting logo |

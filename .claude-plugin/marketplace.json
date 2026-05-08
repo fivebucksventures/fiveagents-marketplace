@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Business operations agent plugins by fiveagents.io",
-    "version": "2.4.5"
+    "version": "2.4.6"
   },
   "plugins": [
     {
       "name": "link-skills",
       "source": "./plugins/link-skills",
       "description": "Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand",
-      "version": "2.4.5",
+      "version": "2.4.6",
       "author": {
         "name": "Five Agents",
         "email": "support@fiveagents.io"
