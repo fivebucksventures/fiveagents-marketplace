@@ -8,11 +8,19 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.7 | May 08, 2026 |
+| Link | v2.4.8 | May 08, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.4.8** — May 08, 2026
+- `add_text_overlay` (Step 4d) — bottom inset tuned to push text closer to the canvas edge:
+  - **9:16:** `0.18` → `0.13` (now matches Meta's published safe zone — 250 px on 1920 canvas — instead of the previous conservative 346 px). Text bottom moves down by 96 px.
+  - **Feed:** `pad` → `pad // 2` (~32–36 px instead of ~65–72 px). Text bottom moves down by 32–36 px on every feed canvas. Side inset stays at `pad` (still survives IG profile-grid 3:4 cropping ~34 px side trim).
+- Step 4a safe-zone table — updated to reflect the new 13% / `pad // 2` values; rationale rewritten to cite Meta's "central 1080×1420" rule for 9:16 and the asymmetric (smaller bottom, larger sides) feed inset.
+- Step 4b text-position note + Step 4d code comments updated to match.
+- Step 4h checklist + fix table — pixel/percentage references updated; added a "feed text drifts above natural edge / has too much bottom buffer" row that points to `pad // 2`.
 
 **v2.4.7** — May 08, 2026
 - `add_text_overlay` (Step 4d) — geometry fix: text bottom now anchored directly via `text_y = (target_h - safe_bottom_px) - block_h`; the previous `scrim_h = block_h + 2*pad` framing left an extra `pad` of empty gradient below text on every canvas. Feed text now sits exactly `pad` above the natural edge as intended; 9:16 text sits exactly at the 18% safe-zone boundary.
@@ -276,15 +284,16 @@ If the post brief is too thin to fill all required keys, leave the template's de
 
 | Canvas | Text bottom | Text sides | Reason |
 |---|---|---|---|
-| 9:16 Story/Reel (1080×1920) | 18% (~346 px) | 13% (~140 px) | Platform UI overlays: Reels UI stack bottom, right-rail action buttons |
-| All feed formats (IG square/portrait, FB, LinkedIn, X) | `pad` (~6% of width) | `pad` (~6% of width) | No platform UI overlay, but text needs a `pad` inset on every side to read in IG/FB feed tile views and survive IG profile-grid 3:4 cropping |
+| 9:16 Story/Reel (1080×1920) | 13% (~250 px) | 13% (~140 px) | Matches Meta's published safe zone — central 1080×1420 frame for Reels/Stories (UI stack bottom, right-rail action buttons) |
+| All feed formats (IG square/portrait, FB, LinkedIn, X) | `pad // 2` (~3% of width) | `pad` (~6% of width) | No platform UI overlay; bottom uses half-pad so text sits close to the natural edge while keeping a small aesthetic buffer; sides keep full `pad` for tile-view readability and IG profile-grid 3:4 cropping |
 
 **Annotations:**
-- The **9:16 row reflects platform-UI safe zones** (Meta spec). The **feed row is a design inset**, not a platform safe zone — it ensures text doesn't run flush to the edge in tile views.
+- The **9:16 row matches Meta's published safe zones** — bottom 13% (250 px on 1920 canvas) clears the Reels UI stack and Stories caption bar; sides 13% clears the right-rail action buttons.
+- The **feed row is a design inset**, not a platform safe zone — Meta requires no bottom safe zone on feed. Bottom is `pad // 2` (smaller aesthetic buffer); sides are `pad` (larger, to survive IG profile-grid 3:4 cropping ~34 px side trim).
 - The **logo** has **no safe zone on any canvas type**. It uses a flat margin = `max(int(w * 0.03), 30)` from the top and sides, identical for 9:16 and feed. Platform UI safe zones apply to interactive text/CTA elements, not decorative brand marks.
 - The **gradient scrim always runs from `scrim_top` to `target_h`** — the canvas bottom. There is never a gap below the gradient. Text position within the scrim is anchored above the inset via `text_bottom = target_h - safe_bottom_px`.
 
-For 9:16, `(target_h / target_w) >= 1.7` is `True` and `safe_bottom_px = int(target_h * 0.18)`, `safe_side_px = int(target_w * 0.13)`. For all feed formats it is `False`, so `safe_bottom_px = pad` and `safe_side_px = pad` apply automatically — no extra logic needed.
+For 9:16, `(target_h / target_w) >= 1.7` is `True` and `safe_bottom_px = int(target_h * 0.13)`, `safe_side_px = int(target_w * 0.13)`. For all feed formats it is `False`, so `safe_bottom_px = pad // 2` and `safe_side_px = pad` apply automatically — no extra logic needed.
 
 ### Step 4b — Day-of-week layout rotation
 
@@ -299,7 +308,7 @@ Determine the day-of-week for the post date, then apply:
 | Fri | center | bottom | top-right |
 | Sat | right | bottom | top-left |
 
-`text_position` is **always "bottom"**. On 9:16 the 18% safe-zone offset lifts the text above IG/FB platform UI; on feed canvases the `pad` (~6%) inset keeps text off the natural edge for tile-view readability. `text_align` rotates left/center/right across days.
+`text_position` is **always "bottom"**. On 9:16 the 13% safe-zone offset (Meta-spec) lifts the text above IG/FB platform UI; on feed canvases a `pad // 2` (~3%) bottom inset keeps text just off the natural edge while staying close to it. `text_align` rotates left/center/right across days.
 
 ⚠️ **The day-of-week rotation table applies only on the Gemini-only image-path (Step 4c-image).** On the template-path (Step 4c-template) all text, logo, kicker numerals, and CTA chrome are produced by the React template's render — Pillow text overlay and logo overlay are both skipped, and neither `text_align` nor `logo_position` rotation has any effect on template-path posts.
 
@@ -549,13 +558,14 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     img = img.crop(((nw-target_w)//2, (nh-target_h)//2, (nw-target_w)//2+target_w, (nh-target_h)//2+target_h))
 
     pad = int(target_w * 0.06)
-    # 9:16 (Story/Reel): Meta UI overlays the bottom 18% and the right-rail 13% — text must clear those.
-    # Feed posts: no platform UI overlay, but text still needs a `pad` inset on all sides so it reads
-    # in IG/FB feed tile views (and survives IG profile-grid 3:4 cropping ~34 px side trim).
+    # 9:16 (Story/Reel): Meta-spec safe zones — bottom 13% (~250 px on 1920) clears the Reels UI stack;
+    # sides 13% (~140 px) clear the right-rail action buttons. Matches Meta's "central 1080x1420" rule.
+    # Feed posts: no platform UI overlay. Bottom uses `pad // 2` (smaller aesthetic buffer so text sits
+    # close to the natural edge); sides keep full `pad` for IG profile-grid 3:4 cropping survival.
     # is_story_reel: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 → feed treatment.
     # target_h > target_w is NOT sufficient: IG portrait (1080×1350) would wrongly get 9:16 safe zones.
     is_story_reel = (target_h / target_w) >= 1.7
-    safe_bottom_px = int(target_h * 0.18) if is_story_reel else pad
+    safe_bottom_px = int(target_h * 0.13) if is_story_reel else pad // 2
     safe_side_px   = int(target_w * 0.13) if is_story_reel else pad
     hs = max(36, int(target_w * 0.048))
     ss2 = max(22, int(target_w * 0.026))
@@ -575,8 +585,8 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     block_h = len(h_lines) * (hs + line_gap) + int(hs * 0.5) + len(s_lines) * (ss2 + line_gap)
 
     # Text bottom is anchored directly above the safe zone / inset:
-    #   - feed: text_bottom = target_h - pad (so text sits pad above the natural edge)
-    #   - 9:16: text_bottom = target_h - 0.18*target_h (just above the Meta UI strip)
+    #   - feed: text_bottom = target_h - pad // 2 (text sits a small aesthetic buffer above the natural edge)
+    #   - 9:16: text_bottom = target_h - 0.13*target_h (~250 px above the natural edge — Meta-spec safe zone)
     # text_y and scrim_top derive from text_bottom; the scrim ALWAYS runs to target_h (no gap at last pixel).
     # NOTE: do NOT use scrim_h = block_h + 2*pad to size scrim_top — that produces an off-by-pad gap below text.
     text_bottom  = target_h - safe_bottom_px
@@ -706,12 +716,12 @@ Only `_final.png` (or `_final.mp4`) should remain in the output folder. Delete a
 
 For every `_final.png`, read the image file and visually inspect it before uploading to Zernio. Determine canvas type first: **9:16** = 1080×1920 (Story/Reel); **Feed** = all other formats.
 
-**Text — position and inset (9:16 = platform safe zone; feed = `pad` design inset):**
+**Text — position and inset (9:16 = Meta safe zone; feed = `pad // 2` bottom + `pad` sides):**
 - [ ] Text block is at the **bottom** of the image — never at the top
 - [ ] Text alignment matches the day-of-week rotation: left (Mon/Thu), center (Tue/Fri), right (Wed/Sat)
-- [ ] **9:16:** bottom of text block is at least ~346 px (18%) from canvas bottom — clear of IG/FB Reels UI stack
+- [ ] **9:16:** bottom of text block is at least ~250 px (13%) from canvas bottom — matches Meta's published safe zone (clears Reels UI stack)
 - [ ] **9:16:** text stays within ~140 px (13%) side margins — clear of Reels right-rail action buttons
-- [ ] **Feed:** text has a `pad` (~6% of width) inset on every side — readable in IG/FB tile views and IG grid 3:4 crops
+- [ ] **Feed:** text has a `pad // 2` (~3% of width) bottom inset and `pad` (~6%) side inset — close to the natural bottom edge; sides survive IG grid 3:4 crops
 - [ ] **Every canvas:** gradient scrim reaches `target_h` (the last pixel) — no visible strip of raw image below the gradient
 
 **Text — legibility and color:**
@@ -738,10 +748,10 @@ For every `_final.png`, read the image file and visually inspect it before uploa
 
 | Issue | Fix |
 |---|---|
-| **Text too close to bottom edge (9:16)** | Verify `safe_bottom_px = int(target_h * 0.18)` is applied; re-render |
+| **Text too close to bottom edge (9:16)** | Verify `safe_bottom_px = int(target_h * 0.13)` is applied (Meta-spec — was 0.18 in earlier versions); re-render |
 | **Text too close to sides (9:16)** | Verify `safe_side_px = int(target_w * 0.13)` is applied; re-render |
 | **Gradient has visible gap at bottom edge** | Verify `scrim_bottom = target_h` (NOT `target_h - safe_bottom_px`); re-render |
-| **Feed text touches edge / unreadable in tile view** | Confirm feed branch sets `safe_bottom_px = pad` and `safe_side_px = pad` (not 0 or 60); re-render |
+| **Feed text drifts above natural edge / has too much bottom buffer** | Confirm feed branch sets `safe_bottom_px = pad // 2` (NOT `pad`) and `safe_side_px = pad`; re-render |
 | Wrong text alignment for the day | Check day-of-week and pass correct `text_align` (`'left'`/`'center'`/`'right'`) to `add_text_overlay`; re-render |
 | Wrong text color scheme | Adjust the brightness multiplier in `add_text_overlay` (change `0.40` up/down to shift the threshold); re-render |
 | Subline illegible against busy or light bg | Increase scrim max-alpha — change `230` to `245` in the gradient loop; re-render |

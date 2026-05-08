@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.7';
+const DEFAULT_VERSION = 'v2.4.8';
 const DEFAULT_DATE = 'May 08, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.8',
+    date: 'May 08, 2026',
+    changes: [
+      'content-generator + creative-designer: add_text_overlay — bottom inset tuned to push text closer to the natural edge. 9:16 (Story/Reel): safe_bottom_px = int(target_h * 0.13), down from 0.18 — now matches Meta\'s published safe zone (central 1080x1420 of a 1080x1920 frame, ~250 px from bottom). Text moves 96 px lower; still clears the Reels UI stack.',
+      'content-generator + creative-designer: add_text_overlay — feed bottom inset halved: safe_bottom_px = pad // 2 (was pad). Side inset stays at pad. Feed text now sits ~32-36 px above the natural edge (down from ~65-72 px). The asymmetry is deliberate: Meta has no bottom safe zone for feed posts, but IG profile-grid 3:4 cropping (~34 px side trim) is real, so sides keep the larger inset.',
+      'content-generator Step 4a + Step 4h + creative-designer Layout rules + Step 3b: tables, checklists, and fix-table rows updated to reflect the new 13% / pad // 2 values. Rationale rewritten to cite Meta docs for 9:16 and explain the feed bottom-vs-sides asymmetry.',
+    ],
+  },
   {
     version: 'v2.4.7',
     date: 'May 08, 2026',
@@ -197,25 +206,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator: Step 4h (mandatory visual verification before Zernio) — agent reads final image and checks text visibility, logo visibility, equal visual margins, contrast, and no overlap; fix table covers clipping, offset, blending, size, and overlap issues',
       'creative-designer: Step 3b (mandatory visual verification before Zernio upload) — same checks and fix table as content-generator; covers all per-client logo variations without assuming logo internal structure',
       'content-generator + creative-designer: fix table includes logo getbbox() crop for transparent-padding logos, scale adjustments, corner switching for busy backgrounds, semi-transparent backing for low-contrast logos',
-    ],
-  },
-  {
-    version: 'v2.2.13',
-    date: 'May 05, 2026',
-    changes: [
-      'brand-setup: Meta Ads framing reversed — Windsor.ai with Meta Ads (Facebook Ads) connected is now the MANDATORY universal path for every brand (because Meta Ads MCP rollout cannot be guaranteed); the Meta Ads MCP at https://mcp.facebook.com/ads is an optional enhancement that flips downstream behavior only when explicitly opted into',
-      'brand-setup: Step 2 prereq table — Windsor.ai marked *(required)* and now lists Google Ads + GA4 + Meta Ads as a combined required scope; Meta Ads MCP marked *(optional enhancement — limited rollout)* with explicit "skip without prejudice" wording',
-      'brand-setup: Step 7c — Meta Ads section rewritten so Windsor.ai is the standard path and the MCP is the optional layer-on-top; user prompt for the MCP starts with "(Optional)" and reassures the user that skipping costs nothing because Windsor already covers Meta fully',
-      'brand-setup: Step 7c Windsor.ai walkthrough — step 2 unconditionally instructs the user to connect Google Ads, GA4, AND Meta Ads in Windsor (no env-var conditional); Meta in Windsor is required regardless of MCP status',
-      'brand-setup: Step 7c — META_ADS_SOURCE env var contract: only set to "meta_ads_mcp" when user successfully added the optional MCP; left unset otherwise (skills default to Windsor)',
-      'brand-setup: Step 8 #14 — Windsor.ai test now verifies all three required connectors (Google Ads, GA4, Facebook); fails ❌ if any is missing (no partial pass). #15 Meta Ads MCP — only runs when META_ADS_SOURCE=meta_ads_mcp; skipped (not failed) otherwise since Windsor already covers Meta',
-      'brand-setup: Step 8 summary table + Step 9 JSON payload — Windsor.ai row is ✅/❌ only (no skip option), Meta Ads MCP row remains ✅/❌/⏭ with notes clarifying it is purely additive',
-      'digital-marketing-analyst: Phase 2 Step 1 + Weekly Step 1b — Windsor.ai with source: "facebook" is the documented default path; Meta Ads MCP is the opt-in alternative with automatic fallback to Windsor on runtime error',
-      'digital-marketing-analyst: Windsor field set verified live against Windsor get_fields(connector: "facebook") which exposes 741 fields. Field map covers campaign + adset_name/adset_id/adset_effective_status + ad_name/ad_id + clicks/impressions/ctr/spend/reach/frequency/cpm/cpc + actions_landing_page_view + actions_video_view + brand-funnel-specific actions_* conversion field — near-parity with Marketing API',
-      'digital-marketing-analyst: removed false claims that Windsor Facebook is "campaign-level only" and "no conversion data available" (those claims dated to a pre-2026 Windsor API and were inaccurate)',
-      'digital-marketing-analyst: meta_ads JSON block — added required "source" field ("windsor" | "meta_ads_mcp") so the dashboard can interpret which field-name space the data came from. On MCP→Windsor runtime fallback, source records the data actually used (windsor), not the path attempted first',
-      'data-analysis: Step 1a — same default-Windsor / opt-in-MCP branching with explicit Windsor field map and conversion-event guidance from brands/{brand}/funnel.md; corrected Windsor capability claims',
-      'agents/link.md: MCP Connectors list — Windsor.ai marked required (Google Ads + GA4 + Meta Ads); Meta Ads MCP marked optional enhancement with the META_ADS_SOURCE contract documented',
     ],
   },
 ];
