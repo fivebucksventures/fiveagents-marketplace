@@ -8,11 +8,18 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.6 | May 08, 2026 |
+| Link | v2.4.7 | May 08, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.4.7** — May 08, 2026
+- `add_text_overlay` (Step 4d) — geometry fix: text bottom now anchored directly via `text_y = (target_h - safe_bottom_px) - block_h`; the previous `scrim_h = block_h + 2*pad` framing left an extra `pad` of empty gradient below text on every canvas. Feed text now sits exactly `pad` above the natural edge as intended; 9:16 text sits exactly at the 18% safe-zone boundary.
+- `add_text_overlay` (Step 4d) — brightness sample now reads the actual text zone (`text_y` to `text_bottom`) instead of the upper half of the old `scrim_h` slot.
+- `add_text_overlay` (Step 4d) — runtime asserts added: `text_y + block_h == target_h - safe_bottom_px`, `scrim_top + pad == text_y`, `scrim_bottom == target_h`, `text_y >= 0`. Crashes loudly on geometry regression instead of silently shipping a misplaced text block.
+- `add_logo` (Step 4e) — runtime asserts added: cropped logo has non-zero dimensions; resize aspect-ratio matches cropped aspect within 1%. Catches anyone who reorders the crop/resize sequence and re-introduces the v2.4.5 distortion.
+- Step 4h fix table — replaced "Headline cut off at bottom of scrim" (stale wording from the old `scrim_h` geometry) with "Headline clipped at top of canvas" pointing to the actual failure mode under the new geometry.
 
 **v2.4.6** — May 08, 2026
 - `add_logo` (Step 4e) — fixed logo aspect-ratio distortion. `logo.crop(logo.getbbox())` now runs BEFORE `logo_w`/`logo_h` are computed, so the resize target is derived from the cleaned (cropped) logo bounds instead of the original padded ones. Previously the resize calc used padded proportions but the crop-then-resize sequence applied them to a different aspect ratio, stretching the mark.
@@ -567,19 +574,30 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     line_gap = int(hs * 0.3)
     block_h = len(h_lines) * (hs + line_gap) + int(hs * 0.5) + len(s_lines) * (ss2 + line_gap)
 
-    # Gradient ALWAYS runs from scrim_top to the canvas bottom (target_h) — no gap at the last pixel.
-    # Text is anchored ABOVE the inset via text_bottom: on 9:16 it sits above the 18% UI strip;
-    # on feed (safe_bottom_px = pad) text_bottom = target_h - pad so text stays off the natural edge for tile views.
-    scrim_h      = block_h + pad * 2
+    # Text bottom is anchored directly above the safe zone / inset:
+    #   - feed: text_bottom = target_h - pad (so text sits pad above the natural edge)
+    #   - 9:16: text_bottom = target_h - 0.18*target_h (just above the Meta UI strip)
+    # text_y and scrim_top derive from text_bottom; the scrim ALWAYS runs to target_h (no gap at last pixel).
+    # NOTE: do NOT use scrim_h = block_h + 2*pad to size scrim_top — that produces an off-by-pad gap below text.
     text_bottom  = target_h - safe_bottom_px
-    scrim_top    = text_bottom - scrim_h
+    text_y       = text_bottom - block_h
+    scrim_top    = text_y - pad
     scrim_bottom = target_h
 
-    # Sample the underlying image in the text zone BEFORE the scrim is applied.
-    # Use the upper half of the scrim region — that's where text starts and contrast matters most.
+    # Geometric invariants — crash loudly on regression instead of shipping a silently-wrong image.
+    assert text_y + block_h == target_h - safe_bottom_px, \
+        f"text bottom must equal target_h - safe_bottom_px (got {text_y + block_h}, expected {target_h - safe_bottom_px})"
+    assert scrim_top + pad == text_y, \
+        f"scrim must have exactly `pad` above text (scrim_top={scrim_top}, text_y={text_y}, pad={pad})"
+    assert scrim_bottom == target_h, \
+        f"gradient must run to canvas bottom (scrim_bottom={scrim_bottom}, target_h={target_h})"
+    assert text_y >= 0, \
+        f"text overflows canvas top — block_h={block_h} too large for target_h-safe_bottom_px={target_h - safe_bottom_px}; reduce headline/subline length or font size"
+
+    # Sample the underlying image in the actual text zone BEFORE the scrim is applied.
     sample = img.convert('RGB').crop((
-        safe_side_px, max(0, scrim_top),
-        target_w - safe_side_px, min(target_h, scrim_top + scrim_h // 2)
+        safe_side_px, max(0, text_y),
+        target_w - safe_side_px, min(target_h, text_bottom)
     ))
     bg_brightness = ImageStat.Stat(sample.convert('L')).mean[0]
     # The heavier scrim (max alpha 230/255) darkens this zone to ~40% of the original brightness on average.
@@ -599,7 +617,6 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
 
     img = Image.alpha_composite(img, scrim)
     draw = ImageDraw.Draw(img)
-    text_y = scrim_top + pad
 
     def get_x(lw):
         if text_align == 'left':  return safe_side_px
@@ -643,9 +660,16 @@ def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.1
     img = Image.open(image_path).convert('RGBA')
     logo = Image.open(logo_path).convert('RGBA')
     logo = logo.crop(logo.getbbox())                # strip transparent padding BEFORE dimension calc
+    cropped_w, cropped_h = logo.size                # capture for aspect-ratio assertion
+    assert cropped_w > 0 and cropped_h > 0, \
+        f"cropped logo has zero dimension ({cropped_w}x{cropped_h}); check logo file integrity"
     w, h = img.size
     logo_w = int(w * scale)
     logo_h = int(logo.height * logo_w / logo.width)  # aspect ratio preserved from cropped logo
+    # Geometric invariant — fail loudly if anyone reorders the crop/resize and distorts the mark.
+    assert abs((logo_w / logo_h) - (cropped_w / cropped_h)) / (cropped_w / cropped_h) < 0.01, \
+        f"logo resize distorts aspect ratio — logo.crop(getbbox()) must run BEFORE logo_w/logo_h " \
+        f"(cropped {cropped_w}/{cropped_h}={cropped_w/cropped_h:.3f}, resize {logo_w}/{logo_h}={logo_w/logo_h:.3f})"
     logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
     # Logo has NO safe zone on any canvas type — flat aesthetic margin only, identical for 9:16 and feed.
     # Platform UI safe zones apply to interactive text/CTA elements, NOT decorative brand marks.
@@ -722,7 +746,7 @@ For every `_final.png`, read the image file and visually inspect it before uploa
 | Wrong text color scheme | Adjust the brightness multiplier in `add_text_overlay` (change `0.40` up/down to shift the threshold); re-render |
 | Subline illegible against busy or light bg | Increase scrim max-alpha — change `230` to `245` in the gradient loop; re-render |
 | Headline clipped at sides | Increase `safe_side_px` by 20 px and re-render |
-| Headline cut off at bottom of scrim | Reduce `hs` by 10% and re-render |
+| Headline clipped at top of canvas (block too tall for canvas) | Reduce `hs` by 10% and re-render — happens when `block_h > target_h - safe_bottom_px`, pushing `text_y` negative |
 | Subline cut off | Reduce `ss2` by 10% and re-render |
 | Low text contrast (scrim too light) | Increase scrim opacity — change `230` to `245` in the gradient alpha and re-render |
 | Text overlaps logo | Text is always bottom; logo is always `top-*`. If still overlapping (very long text on short canvas), reduce `hs` by 10% to shorten the text block. Never move logo to `bottom-*`. Re-render. |

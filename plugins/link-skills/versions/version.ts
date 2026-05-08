@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.6';
+const DEFAULT_VERSION = 'v2.4.7';
 const DEFAULT_DATE = 'May 08, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.7',
+    date: 'May 08, 2026',
+    changes: [
+      'content-generator + creative-designer: add_text_overlay — geometry fix. Text bottom now anchored directly via text_y = (target_h - safe_bottom_px) - block_h. The previous scrim_h = block_h + 2*pad framing left an extra pad of empty gradient below text on every canvas (feed text drifted up to ~77% down on LinkedIn 1200x628 instead of hugging the bottom; 9:16 text sat one pad above the safe-zone boundary instead of at it). Feed text now sits exactly pad above the natural edge; 9:16 text sits exactly at the 18% safe-zone boundary.',
+      'content-generator + creative-designer: add_text_overlay — brightness sample now reads the actual text zone (text_y to text_bottom) instead of the upper half of the old scrim_h slot. Sample area shrinks from "top half of scrim region" to "exact text region" — adaptive color picks become more accurate.',
+      'content-generator + creative-designer: add_text_overlay — runtime asserts added inside the function: text_y + block_h == target_h - safe_bottom_px, scrim_top + pad == text_y, scrim_bottom == target_h, text_y >= 0. Geometric regressions now raise AssertionError at execution time instead of silently shipping a misplaced text block. Each assert message names the exact mismatch.',
+      'content-generator + creative-designer: add_logo — runtime asserts added: cropped logo has non-zero dimensions; resize aspect-ratio matches cropped aspect within 1%. Catches anyone who reorders the crop/resize sequence and re-introduces the v2.4.5 logo-distortion bug.',
+      'content-generator Step 4h + creative-designer Step 3b fix tables: replaced "Headline cut off at bottom of scrim" (stale wording from the old scrim_h geometry where the scrim was a tight block_h + 2*pad slot) with "Headline clipped at top of canvas (block too tall for canvas)" — under the new geometry the scrim runs to target_h regardless and any clipping happens at the canvas top, not the scrim bottom.',
+    ],
+  },
   {
     version: 'v2.4.6',
     date: 'May 08, 2026',
@@ -205,17 +216,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'digital-marketing-analyst: meta_ads JSON block — added required "source" field ("windsor" | "meta_ads_mcp") so the dashboard can interpret which field-name space the data came from. On MCP→Windsor runtime fallback, source records the data actually used (windsor), not the path attempted first',
       'data-analysis: Step 1a — same default-Windsor / opt-in-MCP branching with explicit Windsor field map and conversion-event guidance from brands/{brand}/funnel.md; corrected Windsor capability claims',
       'agents/link.md: MCP Connectors list — Windsor.ai marked required (Google Ads + GA4 + Meta Ads); Meta Ads MCP marked optional enhancement with the META_ADS_SOURCE contract documented',
-    ],
-  },
-  {
-    version: 'v2.2.12',
-    date: 'May 04, 2026',
-    changes: [
-      'brand-setup: Step 7b — explicit instruction to save DEFAULT_BRAND (active brand slug) and {BRAND}_NOTION_DB (Notion Social Calendar DB page ID) to .claude/settings.local.json env block; how-to-get-Notion-DB-ID note included',
-      'brand-setup: Step 8d — new mandatory validation block (#18, #19) that checks DEFAULT_BRAND and {BRAND}_NOTION_DB are present in settings.local.json; both are non-skippable (❌ stops the flow)',
-      'brand-setup: Step 8 summary table and Step 9 completion-email connections[] now include the two env-var checks; Step 9 Slack message integration count bumped 16 → 18',
-      'brand-setup: Step 10b CLAUDE.md template — replaced "Active Brand" section with "Workspace Defaults" that hardcodes the brand slug and Notion DB ID inline (so any session sees them immediately) with an env-var fallback rule for stale/copied workspaces; placeholder list extended to {brand} / {BRAND} / {notion_db_id}',
-      'brand-setup: normalized {BRAND} env-var prefix convention (uppercased, hyphens removed) across Step 7b note, Step 8d, Step 8 summary, Step 9 connections, Step 10b template — replaces accidental {BRAND_UPPER} variants',
     ],
   },
 ];
