@@ -147,7 +147,7 @@ Use ToolSearch:
 - query: "select:mcp__claude_ai_Calendly__authenticate,mcp__claude_ai_Calendly__complete_authentication"
 ```
 
-After OAuth completes, additional Calendly tools become available — use `ToolSearch` with query `"calendly"` to enumerate the post-auth toolset (typically including a single-use scheduling-link creator). Do NOT hardcode speculative tool names; rely on what `ToolSearch` actually returns after auth. If no scheduling-link tool is available, fall back to a standing booking-link URL stored in `brands/{brand}/sales.md` Sender Persona section and tag the CRM row with the prospect's Apollo ID as the booking ref. Append `?utm_source=outreach&utm_campaign=cold&utm_content=<apollo_id>` to the standing link for attribution.
+After OAuth completes, additional Calendly tools become available — use `ToolSearch` with query `"calendly"` to enumerate the post-auth toolset (typically including a single-use scheduling-link creator). Do NOT hardcode speculative tool names; rely on what `ToolSearch` actually returns after auth. If no scheduling-link tool is available, fall back to the standing booking-link URL on the `Booking URL:` line inside the `## Sender Persona` block of `brands/{brand}/sales.md`, and tag the CRM row with the prospect's Apollo ID as the booking ref. Append `?utm_source=outreach&utm_campaign=cold&utm_content=<apollo_id>` to the standing link for attribution. If `Booking URL:` is missing or empty, abort the touch for this prospect and log a one-time Slack DM to `$SLACK_NOTIFY_USER` instructing the user to run `/link-skills:plugin-update` to backfill it — never send a CTA email with a broken or empty booking link.
 
 ### Step 5: Send the email via Gmail
 

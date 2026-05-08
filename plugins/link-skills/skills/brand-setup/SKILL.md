@@ -1084,6 +1084,7 @@ If a source file is empty or absent, fall back to asking the user from scratch f
 > - Title
 > - Email signature block (paste the exact block you'd want appended to outbound emails)
 > - Photo URL (LinkedIn or website headshot — used in proposals and on the email signature)
+> - Booking URL — your public Calendly scheduling link (e.g. `https://calendly.com/you/intro-call`). Used as the standing CTA link in outreach emails when the per-prospect single-use Calendly tool isn't available, in `customer-onboarder` welcome emails when the kickoff event-type lookup fails, and to resolve the `{link}` placeholder in Reply Routing below.
 
 **Step B — ICP Filters (per persona):**
 
@@ -1136,6 +1137,7 @@ Save as `brands/{brand}/sales.md` with the following sections:
   {paste signature block}
   ```
 - Photo URL: {...}
+- Booking URL: {https://calendly.com/...}
 
 ## ICP Filters
 
@@ -1168,7 +1170,7 @@ Save as `brands/{brand}/sales.md` with the following sections:
 ...
 
 ## Reply Routing
-- interested → book meeting (Calendly: {link})
+- interested → book meeting (Calendly: {Booking URL from Sender Persona above})
 - not now → 90-day nurture
 - wrong person → ask for referral, disqualify original
 - unsubscribe → permanent skip

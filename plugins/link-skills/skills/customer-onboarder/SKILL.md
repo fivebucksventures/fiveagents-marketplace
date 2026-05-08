@@ -257,6 +257,8 @@ Use Calendly MCP scheduling_links_create_single_use_scheduling_link tool (loaded
 
 Capture `booking_url`. Inject it into the welcome email body (Step 4a) and into the Notion workspace Kickoff Agenda block (Step 4b).
 
+**Fallback** — if the Calendly OAuth check fails, no event type matches the kickoff name/duration in `customer-success.md`, or the single-use scheduling-link tool errors out: read the `Booking URL:` line inside the `## Sender Persona` block of `brands/{brand}/sales.md` and use that as `booking_url`. This is a standing (multi-use) link, not single-use — acceptable degradation for kickoff scheduling. If that line is also missing or empty, abort Step 4c, omit the booking-link variable from the email, and append a one-line note to the Slack notification in Step 4d: `⚠ Calendly booking link unavailable — run /link-skills:plugin-update to backfill sales.md Sender Persona Booking URL`.
+
 If the plan tier does not include a kickoff (e.g., Free), skip this step and omit the booking-link variable from the email template.
 
 #### Step 4d — CS Team Slack Notification

@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.5.0';
+const DEFAULT_VERSION = 'v2.5.1';
 const DEFAULT_DATE = 'May 08, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.5.1',
+    date: 'May 08, 2026',
+    changes: [
+      'content-generator + creative-designer: add_text_overlay — replaced character-count textwrap heuristic with pixel-aware wrap_to_fit() using draw.textbbox(). Fixes headline overflow on wide feed canvases (LinkedIn 1200×628, Facebook 1200×630) where DejaVu Bold widths exceeded the hs * 0.55 estimate, causing text to spill past the side inset. Removed import textwrap.',
+      'brand-setup: Step 5g Step A (Sender Persona) now collects Booking URL alongside Name/Title/Signature/Photo. sales.md template Sender Persona block adds Booking URL: line. Reply Routing {link} placeholder now resolves explicitly from Sender Persona Booking URL (was unresolved — silent breakage in outbound CTAs).',
+      'plugin-update: Step 1a — added inline schema check for sales.md Booking URL: line in ## Sender Persona block (flags ⚠ schema gap if missing). Step 3a — new targeted single-question backfill handler for present-but-incomplete sales.md (asks only the Booking URL, no full Step 5g re-walk).',
+      'outreach-sequencer: Step 4 fallback contract pinned — was "stored in sales.md Sender Persona section", now reads "the Booking URL: line inside the ## Sender Persona block" with explicit abort + Slack alert if missing/empty. No more silent CTAs with empty booking links.',
+      'customer-onboarder: Step 4c — added explicit fallback path. If Calendly OAuth fails, no event-type matches kickoff, or single-use scheduling-link tool errors out, read Booking URL from sales.md Sender Persona instead (standing link, acceptable degradation). If that is also missing, abort + Slack alert routing user to /link-skills:plugin-update.',
+    ],
+  },
   {
     version: 'v2.5.0',
     date: 'May 08, 2026',
@@ -186,31 +197,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'plugin-update: new skill — comprehensive brand audit with version gap detection (Step 0: reads version.ts + brand.md Plugin Version + all 14 maintenance sections to build delta table); Step 1j skill/agent version audit; Step 3g unconditional version stamp refresh; Step 3j changelog-driven brand action mapping; Step 5 writes plugin version to brand.md after completion',
       'all 14 files: ## Maintenance sections added to every SKILL.md and link.md — Version, Last Changed, Description, last 5 changelog entries per file',
       'commit-to-git workflow: overhauled — Step 3 audits maintenance section freshness, Step 4 syncs all 14 rows to Notion "Five Agents - Agents Library" DB, Step 6 scoped to plugins/link-skills/ only, Step 7 push + tag + ls-remote confirmation',
-    ],
-  },
-  {
-    version: 'v2.2.15',
-    date: 'May 05, 2026',
-    changes: [
-      'brand-setup: Step 9 ↔ Step 10 swap — CLAUDE.md initialization (was Step 10) is now Step 9 and runs BEFORE the Step 10 completion email, so the email reflects the actual CLAUDE.md write status and visual-asset detection rather than lying about success when the post-validation steps fail',
-      'brand-setup: Step 4b (Claude Design System) MANDATORY → OPTIONAL — when absent, downstream skills fall back to brand.md colors/voice + Google Font names from Step 4; no hard block on missing design-system',
-      'brand-setup: agents/link.md visual rule softened to match — design-system/ is now "optional but recommended"; new lookup order documented: design-system/ (when present) → brand.md (universal fallback)',
-      'brand-setup: Step 4b/4c install flow rewritten — user provides path to unzipped folder, agent copies + renames into canonical brands/{brand}/{folder}/ (mirrors Step 6 logo pattern); Cowork-aware path guidance ("must be inside your project mount"); idempotent re-run support via shutil.rmtree before copytree; nested-zip detection',
-      'brand-setup: Step 6 (logo) install now path-based with Python copy + validation — matches the Step 4b/4c pattern',
-      'brand-setup: Step 9a glob patterns Cowork-aware — $CLAUDE_CONFIG_DIR/**/agents/link.md tried first (canonical inside Cowork sandbox), with $HOME/.claude/ + Windows/macOS host fallbacks; eliminates the "couldn\'t auto-detect, please paste path" prompt in 99% of Cowork runs',
-      'brand-setup: Step 9b "Workspace Defaults" multi-brand handling — append "### Brand: {brand}" sub-block on re-run instead of overwriting prior brands\' defaults; DEFAULT_BRAND env var still selects which brand is active per session',
-      'brand-setup: Step 9c — best-effort, non-mandatory detection of design-system/, social-carousel-template/, social-story-template/; results wired into CLAUDE.md as "Visual System" section bracketed by BEGIN/END markers for idempotent re-runs; step is independently re-runnable',
-      'brand-setup: Step 10 (completion email) files[] vocab harmonized to `present | missing | failed` across all rows (was a mix of `created`/`installed`/`updated`/`missing` per-row); Slack message includes CLAUDE.md write status; action_items rule explicitly carves out Meta Ads MCP skips and other intentionally-optional integrations',
-      'brand-setup: Step 4c rewrite — social templates are now React + Babel apps with EDITMODE-BEGIN/END JSON contracts (not blank background shells); both Carousel (6 slides: Cover + 4 signs + CTA) and Story (6 slides: Hook → Problem → Solution → Proof → Offer → CTA, three direction styles A/B/C) prompts produce a fully-laid-out template app with stable export DOM IDs; agent verifies the EDITMODE block parses and contains all required keys at install time',
-      'content-generator: shell-path replaced with template-path (Step 4c-template) — read entry HTML, parse EDITMODE JSON, merge post copy, write modified HTML to tmp, render in Playwright, screenshot each slide via stable offscreen export DOM IDs (#export-cover/#export-s2.../#export-cta for carousel; #export-{A|B|C}-0...-5 for story)',
-      'content-generator: Notion calendar schema gained Direction column at index 9, pushing Status to index 10 (now 11 columns: Date/Platform/Format/Topic/Persona/ContentAngle/CTA/Hashtags/ImageBrief/Direction/Status); Step 6 status update + cell index references updated',
-      'content-generator: new Step 3b — generate structured _copy.json for template-path posts matching the template\'s key contract (cover_*/s2-5_*/cta_* for carousel, s1-6_* for story); skipped for non-template posts',
-      'content-generator: Gemini + Pillow text + Pillow logo fallback path (Step 4c-image / 4d / 4e) preserved verbatim, including v2.2.14\'s text overlay improvements and Step 4h visual verification — universal fallback for LinkedIn, non-template formats, and any template-path failure',
-      'content-generator: design-system/ MANDATORY → OPTIONAL — never log a `failed` run for missing visual assets; brand.md provides the fallback colors/voice',
-      'social-calendar: Direction column added to the planning table — picker rules per format (Carousel: coverVariant-bodyVariant combos like type-allnumbers/sticker-editorial/editorial-mixed; Story/Reel: A/B/C per template subtitle hint; LinkedIn / Reel(Argil): blank); Notion table column count 10 → 11; Quality Checklist requires Direction populated',
-      'creative-designer: Step 4a switched from shell-path to template-path; delegates canonical implementation to content-generator/SKILL.md; Step 4b Gemini + Pillow fallback unchanged (incl. v2.2.14\'s Step 3b visual verification); design-system/ mandate softened to optional with brand.md fallback',
-      'content-creation: Carousel/Story copy outputs now produce structured _copy.json next to _copy.md, matching the templates\' EDITMODE key contracts with per-key character budgets; Direction is explicitly NOT content-creation\'s concern (lives in social-calendar\'s Notion column); naming convention split into social ([Slug]_[Date]) vs non-social ([ContentType]_[Date])',
-      'background-generator: Role section updated to clarify it produces a separate general-purpose backgrounds library at brands/{brand}/backgrounds/ (used by Reel video production), distinct from the social-{carousel,story}-template/ template apps that Steps 4c-i / 4c-ii install',
     ],
   },
 ];

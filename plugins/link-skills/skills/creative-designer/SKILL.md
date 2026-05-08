@@ -386,7 +386,6 @@ See instructions above for the Python decode snippet. Save the PNG to `outputs/{
 
 ```python
 from PIL import Image, ImageDraw, ImageFont, ImageStat
-import textwrap
 
 def add_text_overlay(input_path, output_path, headline, subline, target_w, target_h,
                      text_align='center', text_position='bottom'):
@@ -424,10 +423,31 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     except:
         fh = fs = ImageFont.load_default()
 
-    # Word-wrap within horizontal safe zone (clears IG Reels right-rail action buttons)
-    max_chars = max(10, int((target_w - 2 * side_inset) / (hs * 0.55)))
-    h_lines = textwrap.wrap(headline, width=max_chars)
-    s_lines = textwrap.wrap(subline, width=max_chars + 10)
+    # Pixel-width-aware wrapping — no character-count heuristic.
+    # Uses a throwaway draw context for measurement; avail_w is exact canvas space.
+    _tmp = Image.new('RGBA', (target_w, target_h))
+    draw_tmp = ImageDraw.Draw(_tmp)
+    avail_w = target_w - 2 * side_inset
+
+    def wrap_to_fit(text, font, max_w, draw):
+        """Wrap text word-by-word so no rendered line exceeds max_w pixels."""
+        words = text.split()
+        lines = []
+        current = ""
+        for word in words:
+            test = (current + " " + word).strip()
+            if draw.textbbox((0, 0), test, font=font)[2] <= max_w:
+                current = test
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+        return lines or [text]
+
+    h_lines = wrap_to_fit(headline, fh, avail_w, draw_tmp)
+    s_lines = wrap_to_fit(subline,  fs, avail_w, draw_tmp)
 
     # Measure total text block height
     line_gap = int(hs * 0.3)
