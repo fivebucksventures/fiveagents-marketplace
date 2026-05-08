@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.8';
+const DEFAULT_VERSION = 'v2.5.0';
 const DEFAULT_DATE = 'May 08, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,23 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.5.0',
+    date: 'May 08, 2026',
+    changes: [
+      'content-generator + creative-designer: add_text_overlay — new text_position parameter (\'bottom\' default or \'top\'). Text and scrim anchor per position; gradient direction flips so the dark end is always on the same end as the text. Position-aware asserts.',
+      'content-generator + creative-designer: text + logo geometry refactored to named per-canvas insets (top_inset / bottom_inset / side_inset / scrim_fade). Single rule across both functions — 9:16 = Meta safe zones only (14% top, 13% bottom, 13% sides, scrim_fade 0); feed = uniform pad // 2. Eliminates the legacy safe_bottom_px / safe_side_px / scrim_h naming.',
+      'content-generator + creative-designer: add_logo bottom-right and bottom-left positions restored, enabling bottom-anchored logo placement. Per-canvas insets match the text rule.',
+      'content-generator Step 4b + creative-designer rotation table: day-of-week rotation now alternates text_position. Mon/Wed/Fri = bottom text + top-right logo; Tue/Thu/Sat = top text + bottom-left logo. Text and logo always on opposite vertical ends. **Tue/Thu/Sat posts will look different on this release.**',
+      'content-generator Step 4a/4d/4e/4h + creative-designer Layout rules/Step 4a/Step 4b/Step 3b: tables, narratives, checklists, fix-table rows rewritten to reflect named insets, top/bottom text, rotated logo placements.',
+      'creative-designer bug fix: Step 5 "Run quality checklist" empty stub deleted; Argil section renumbered Step 6 → Step 5.',
+      'creative-designer bug fix: avatar table in Argil section had a duplicated empty header above the populated rows; merged into single header + rows.',
+      'content-generator bug fix: Quality Checklist line said "All Planned posts for tomorrow processed" but Step 1 targets today; corrected to "today".',
+      'creative-designer bug fix: broken cross-references "(Step 4f)" (line 273) and "(Step 4d)"/"(Step 4e)" (lines 275, 815) pointed to step IDs that exist in content-generator but not creative-designer; rewritten to refer to the actual sections inside creative-designer.',
+      'creative-designer bug fix: rotation-rule sentences referenced only text_align and logo_position; added text_position to match the new rotation.',
+      'content-generator Step 4h fix table "Logo over busy image area" reworded as a last-resort fallback that explicitly overrides the day-of-week rotation, used only when contrast cannot be salvaged via scrim alpha or backing.',
+    ],
+  },
   {
     version: 'v2.4.8',
     date: 'May 08, 2026',
@@ -194,18 +211,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'creative-designer: Step 4a switched from shell-path to template-path; delegates canonical implementation to content-generator/SKILL.md; Step 4b Gemini + Pillow fallback unchanged (incl. v2.2.14\'s Step 3b visual verification); design-system/ mandate softened to optional with brand.md fallback',
       'content-creation: Carousel/Story copy outputs now produce structured _copy.json next to _copy.md, matching the templates\' EDITMODE key contracts with per-key character budgets; Direction is explicitly NOT content-creation\'s concern (lives in social-calendar\'s Notion column); naming convention split into social ([Slug]_[Date]) vs non-social ([ContentType]_[Date])',
       'background-generator: Role section updated to clarify it produces a separate general-purpose backgrounds library at brands/{brand}/backgrounds/ (used by Reel video production), distinct from the social-{carousel,story}-template/ template apps that Steps 4c-i / 4c-ii install',
-    ],
-  },
-  {
-    version: 'v2.2.14',
-    date: 'May 05, 2026',
-    changes: [
-      'content-generator + creative-designer: text overlay — text_align fixed to always "center"; day-of-week rotation now alternates text_position between "bottom" (Mon/Wed/Fri) and "top" (Tue/Thu/Sat) instead of rotating left/center/right alignment',
-      'content-generator + creative-designer: add_text_overlay stub replaced with complete Pillow implementation — uses textwrap.wrap() with max_chars calculated from canvas width and font size, draws each line centered via textbbox pixel measurement; text cannot overflow canvas',
-      'content-generator + creative-designer: gradient scrim dynamically sized to fit the text block (no fixed 45% assumption); scrim direction flips correctly for top vs bottom position',
-      'content-generator: Step 4h (mandatory visual verification before Zernio) — agent reads final image and checks text visibility, logo visibility, equal visual margins, contrast, and no overlap; fix table covers clipping, offset, blending, size, and overlap issues',
-      'creative-designer: Step 3b (mandatory visual verification before Zernio upload) — same checks and fix table as content-generator; covers all per-client logo variations without assuming logo internal structure',
-      'content-generator + creative-designer: fix table includes logo getbbox() crop for transparent-padding logos, scale adjustments, corner switching for busy backgrounds, semi-transparent backing for low-contrast logos',
     ],
   },
 ];
