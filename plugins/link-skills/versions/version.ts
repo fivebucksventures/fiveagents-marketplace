@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.4.4';
-const DEFAULT_DATE = 'May 07, 2026';
+const DEFAULT_VERSION = 'v2.4.5';
+const DEFAULT_DATE = 'May 08, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,19 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.4.5',
+    date: 'May 08, 2026',
+    changes: [
+      'content-generator + creative-designer: add_text_overlay — gradient now runs from scrim_top to target_h on every canvas (was target_h - safe_bottom_px). Decoupled text_bottom anchors text above the inset for 9:16; on feed text_bottom = target_h - pad. Eliminates the raw-image gap below the scrim that was visible on every FB/IG Story (~346 px) and feed post (~60 px).',
+      'content-generator + creative-designer: add_text_overlay — feed text inset corrected to pad on every side (was 60 / max(pad, 60), mislabeled as "safe zone"). Meta safe zones are Stories/Reels-only — feed posts use a pad design inset so text reads in IG/FB tile views and survives IG profile-grid 3:4 cropping. 9:16 18%/13% safe zones unchanged.',
+      'content-generator + creative-designer: add_text_overlay — scrim max-alpha 200→230 + brightness threshold 0.45→0.40. Heavier scrim flattens busy and light backgrounds enough that the dark-pink subline stays legible (IG Story subline was barely visible at the previous 200/0.45 settings).',
+      'content-generator + creative-designer: add_logo — flat margin = max(int(w * 0.03), 30) on every canvas. Removed the 9:16 safe-zone inheritance that pushed the logo 269 px from top + 140 px from sides — logos were floating mid-canvas instead of anchored to the corner. Dropped bottom-right/bottom-left dict entries (already marked NEVER USE).',
+      'content-generator: Step 4a safe-zone table rewritten — 9:16 row reflects platform UI; feed row labeled as design inset (not a platform safe zone); logo flat-margin and gradient-to-canvas-bottom rules stated explicitly. Step 4b note clarified that the 18% offset applies to 9:16 only.',
+      'content-generator: Step 4h visual verification rewritten — feed pad inset, gradient-reaches-canvas-bottom, logo-anchored-to-corner checks added; fix table updated for the four new symptoms.',
+      'creative-designer: Layout rules section rewritten — 9:16 / feed / logo / gradient blocks brought into sync with the new implementation; replaced the "60 px rendering buffer" claim with the pad design inset framing. Step 3b checklist + fix table mirror content-generator.',
+    ],
+  },
   {
     version: 'v2.4.4',
     date: 'May 07, 2026',
@@ -208,21 +221,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'digital-marketing-analyst: Phase 2 daily Meta pull and Weekly Step 1b migrated from Windsor.ai (source: "facebook") to the Meta Ads MCP; ad_set / ad / lp_views / video_views / conversions / cpm now expected (Meta Marketing API surfaces them); Notes data-sources / data-lag / TikTok-future updated; lp_views note no longer says "not in Windsor"',
       'data-analysis: Step 1a split — Windsor.ai block for Google Ads + GA4, separate Meta Ads MCP block for Facebook + Instagram; inputs table data-source row updated; fallback prompt mentions both connectors',
       'agents/link.md: MCP Connectors list — Windsor.ai narrowed to Google Ads + GA4; new Meta Ads MCP custom-connector entry',
-    ],
-  },
-  {
-    version: 'v2.2.10',
-    date: 'May 04, 2026',
-    changes: [
-      'brand-setup: Step 4b (mandatory) — Claude Design system installed at brands/{brand}/design-system/ via claude.ai/design Share → Download Project as .zip',
-      'brand-setup: Step 4c (optional) — Social Carousel (4:5) and Social Story (9:16) Claude Design templates installed at brands/{brand}/social-carousel-template/ and social-story-template/',
-      'brand-setup: prerequisites overview, directory structure, and Step 9 completion email updated to include design-system + template folders',
-      'brand-setup: Step 10a hardened to enforce ABSOLUTE path for agents/link.md — os.path.abspath(os.path.realpath(...)) + os.path.isabs assertion, manual-fallback path is also normalized and validated',
-      'brand-setup: Step 10b explicit instruction that link.md path written into CLAUDE.md must be absolute (verbatim with drive letter on Windows / leading slash on Unix)',
-      'agents/link.md: design-system/ added to Context Files as authoritative for visuals; carousel/story templates listed as optional with fallback; new Visual consistency rule',
-      'creative-designer: design-system/ is source of truth (replaces brand.md as primary visual reference); new Step 4a branches Carousel/Story to template-render via Playwright when template folder exists; Gemini still required to fill visual slots inside template',
-      'content-generator: Step 2 reads design-system/ (mandatory) + detects optional templates; Step 4c-template renders via Playwright for IG/FB Carousel/Story when templates installed; falls back to Gemini+Pillow if templates absent or Playwright fails; quality checklist guards against double-stamp text/logo on template path',
-      'content-creation: reads design-system/ to size copy against text frames; for IG/FB carousel/story copy, inspects template (when present) to write per-slide blocks within slot lengths; falls back to standard format defaults if templates absent',
     ],
   },
 ];
