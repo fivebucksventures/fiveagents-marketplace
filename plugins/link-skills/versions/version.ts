@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.5.1';
-const DEFAULT_DATE = 'May 08, 2026';
+const DEFAULT_VERSION = 'v2.6.0';
+const DEFAULT_DATE = 'May 10, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,16 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.6.0',
+    date: 'May 10, 2026',
+    changes: [
+      'social-calendar v2.5.0: image_brief for Story/Reel posts now wrapped in full-frame composition template before saving to Notion — enforces full-bleed photorealistic 9:16 composition (no bottom void). Reel(Argil) excluded (uses script, not image_brief). Quality checklist corrected: adaptive content mix, Direction/Argil carve-out, raw-scene watermark rule.',
+      'content-generator v2.5.1: defensive full-frame guard added at Step 4c-image — if Story/Reel image_brief lacks "fills the ENTIRE frame" (calendar authored before v2.6.0), wraps it in composition template before calling gemini_generate_image. Reel(Argil) excluded. Quality checklist item added.',
+      'creative-designer v2.5.1: same defensive full-frame guard at Step 4b — wraps Story/Reel prompts in composition template before gemini_generate_image. Safe asset_type variable check via dir() fallback. Quality checklist item added.',
+      'workflow/commit-to-git.md: new release workflow document added — git status, skill version audit (no double-bump), Notion Agents Library sync, three-file version lockstep, commit and push steps with quality checklist.',
+    ],
+  },
   {
     version: 'v2.5.1',
     date: 'May 08, 2026',
@@ -182,21 +192,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'plugin-update: compute_version_hash in Step 1h — same __MACOSX fix as brand-setup; template_list brand parameter documented as OPTIONAL',
       'content-generator: template_list verbose response now documents entry_html field; brand parameter marked OPTIONAL; template_render updated with optional version_hash field and PNG/JPEG slots type',
       'creative-designer: template_list entry_html added to bullet 2 and quality checklist; template_render bullet 6 updated with version_hash optional and PNG/JPEG slots',
-    ],
-  },
-  {
-    version: 'v2.3.0',
-    date: 'May 06, 2026',
-    changes: [
-      'link.md: External APIs section — added template_upload / template_list / template_render gateway tools for server-side carousel/story rendering',
-      'brand-setup: Step 9a — version stamp extracted from link.md Maintenance table; embedded into CLAUDE.md as <!-- link.md version: ... | Last Changed: ... | Embedded: ... --> comment inside BEGIN/END markers on every brand-setup and plugin-update run',
-      'brand-setup: Steps 4c-i/ii — template upload sub-flow added: zip templates (excluding __MACOSX, .DS_Store, node_modules), call template_upload gateway, persist ## Social Templates section to brand.md with template IDs, verify via template_list',
-      'brand-setup: Step 9c Visual System block updated — gateway template_render path documented; no local Playwright required for rendering',
-      'content-generator: Step 4c-template — migrated from local Playwright render to gateway template_render MCP tool; shell_path resolved via template_list as template_id; no local browser required',
-      'creative-designer: Step 4a template-path — gateway renders templates server-side via template_render MCP; Playwright removed; stale intro text corrected',
-      'plugin-update: new skill — comprehensive brand audit with version gap detection (Step 0: reads version.ts + brand.md Plugin Version + all 14 maintenance sections to build delta table); Step 1j skill/agent version audit; Step 3g unconditional version stamp refresh; Step 3j changelog-driven brand action mapping; Step 5 writes plugin version to brand.md after completion',
-      'all 14 files: ## Maintenance sections added to every SKILL.md and link.md — Version, Last Changed, Description, last 5 changelog entries per file',
-      'commit-to-git workflow: overhauled — Step 3 audits maintenance section freshness, Step 4 syncs all 14 rows to Notion "Five Agents - Agents Library" DB, Step 6 scoped to plugins/link-skills/ only, Step 7 push + tag + ls-remote confirmation',
     ],
   },
 ];

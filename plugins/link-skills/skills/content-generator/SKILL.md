@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.0 | May 08, 2026 |
+| Link | v2.5.1 | May 10, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.5.1** — May 10, 2026
+- Step 4c-image — defensive full-frame guard added: if a Story/Reel post's `image_brief` does not already contain `"fills the ENTIRE frame"` (i.e. was authored by an older `social-calendar` run), wrap it in the Story composition template before calling `gemini_generate_image`. Belt-and-suspenders; primary fix is in `social-calendar` v2.5.0.
 
 **v2.5.0** — May 08, 2026
 - `add_text_overlay` (Step 4d) — new `text_position` parameter (`'bottom'` default or `'top'`). Text and scrim anchor per position; gradient direction flips so the dark end is always on the same end as the text. Asserts are position-aware.
@@ -525,12 +528,36 @@ Use the founder avatar + voice clone only for authority/founder content. For all
 
 ### Step 4c-image — Generate image via Gemini
 
+**Story/Reel full-frame guard (defensive — belt-and-suspenders):**
+
+Before building the Gemini prompt, check whether the post is a Story or Reel and whether the `image_brief` already contains the full-frame composition instruction written by `social-calendar` v2.5.0+. If it does not (e.g. the calendar was authored by an older run), wrap it now:
+
+```python
+STORY_FULLFRAME_TEMPLATE = (
+    "Photorealistic, full-bleed vertical portrait image for a 9:16 social media Story. "
+    "{SCENE_DESCRIPTION}. The scene fills the ENTIRE frame from top to bottom — no empty areas, "
+    "no plain backgrounds, no flat colour zones anywhere in the image. Rich environmental detail "
+    "in the upper, middle, AND lower thirds of the frame. Cinematic lighting, editorial quality. "
+    "Shot as if for a magazine cover in portrait orientation. "
+    "Do not include any text, logos, or UI elements."
+)
+
+if post.format.lower() in ("story", "reel") \
+        and "fills the ENTIRE frame" not in post.image_brief:
+    image_brief = STORY_FULLFRAME_TEMPLATE.format(SCENE_DESCRIPTION=post.image_brief)
+else:
+    image_brief = post.image_brief
+# Reel (Argil) → guard does NOT apply; Argil uses a video script, not image_brief
+```
+
+Use `image_brief` (the potentially-wrapped version) as the Gemini prompt base from this point on — never `post.image_brief` directly.
+
 Generate a fresh image for every post using Gemini:
 
 ```
 Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- prompt: Build from: brand visual style (from brand.md), post topic, mood, and ImageBrief from the Notion calendar entry. Example: "Professional clean desk workspace with laptop showing analytics dashboard, soft natural lighting, warm tones, no text, no people, bokeh background"
+- prompt: Build from: brand visual style (from brand.md), post topic, mood, and image_brief (the wrapped version from the guard above). Example: "Professional clean desk workspace with laptop showing analytics dashboard, soft natural lighting, warm tones, no text, no people, bokeh background"
 - aspect_ratio: match target canvas from Step 4a (e.g. "1:1" for IG square, "9:16" for Story/Reel, "191:100" for LinkedIn)
 - model: "gemini-3.1-flash-image-preview"
 
@@ -1006,6 +1033,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] **Template-path:** `template_render` called once; `publicUrls` from response used as `media_items` in `late_create_post`
 - [ ] **Template-path:** Pillow text overlay AND logo overlay BOTH skipped — gateway render includes all chrome; Steps 4d, 4e, 4g all skipped
 - [ ] **Template-path (failure):** 5xx/504 falls back to Step 4c-image; Notion status set to `"Draft Ready"` (not `"Published"`); Slack warning logged
+- [ ] **Image-path (Gemini-only):** Story/Reel full-frame guard applied — `image_brief` passed to Gemini contains `"fills the ENTIRE frame"` (either from `social-calendar` or wrapped by the guard)
 - [ ] **Image-path (Gemini-only):** Pillow text overlay (Step 4d) AND logo overlay (Step 4e) BOTH applied — Gemini background has no logo
 - [ ] **Image-path:** text overlay applied with correct day-of-week `text_align` (left Mon/Thu, center Tue/Fri, right Wed/Sat) AND `text_position` (bottom Mon/Wed/Fri, top Tue/Thu/Sat) per Step 4b
 - [ ] **Image-path:** Logo at 0.18 scale with correct day-of-week `logo_position`

@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.0 | May 08, 2026 |
+| Link | v2.5.1 | May 10, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.5.1** — May 10, 2026
+- Step 4b (Gemini image generation) — defensive full-frame guard added for Story/Reel prompts: if the `image_brief` / prompt does not already contain `"fills the ENTIRE frame"`, wrap it in the Story composition template before calling `gemini_generate_image`. Prevents the bottom-void bug on any image generated via creative-designer directly (not routed through content-generator).
 
 **v2.5.0** — May 08, 2026
 - `add_text_overlay` — new `text_position` parameter (`'bottom'` default or `'top'`). Text and scrim anchor per position; gradient direction flips so the dark end is always on the same end as the text. Asserts are position-aware.
@@ -293,6 +296,30 @@ After the template-path completes, continue to the upload step further down in t
 The image must stop the scroll and evoke a feeling *before* the viewer reads a single word. Text overlays sharpen the message — they never explain what the image already shows.
 
 Use **Gemini image generation** for assets that need real imagery — scenes, people, environments, data visualizations. Do NOT use Gemini for pure typographic/text-only graphics (use HTML/CSS for those instead).
+
+**Story/Reel full-frame guard — apply BEFORE building the Gemini prompt:**
+
+For Story and Reel assets (9:16, 1080×1920), the generated image must fill the entire canvas — no flat-colour void in the lower half. If the image prompt/brief does not already contain `"fills the ENTIRE frame"`, wrap it now:
+
+```python
+STORY_FULLFRAME_TEMPLATE = (
+    "Photorealistic, full-bleed vertical portrait image for a 9:16 social media Story. "
+    "{SCENE_DESCRIPTION}. The scene fills the ENTIRE frame from top to bottom — no empty areas, "
+    "no plain backgrounds, no flat colour zones anywhere in the image. Rich environmental detail "
+    "in the upper, middle, AND lower thirds of the frame. Cinematic lighting, editorial quality. "
+    "Shot as if for a magazine cover in portrait orientation. "
+    "Do not include any text, logos, or UI elements."
+)
+
+# Use canvas ratio as the primary signal — works whether asset_type is set or not.
+# 9:16 = 1.778; IG portrait 4:5 = 1.25 (feed treatment, no wrap needed).
+_asset_label = (asset_type or "").lower() if 'asset_type' in dir() else ""
+is_story_reel = _asset_label in ("story", "reel") or (target_h / target_w) >= 1.7
+if is_story_reel and "fills the ENTIRE frame" not in image_prompt:
+    image_prompt = STORY_FULLFRAME_TEMPLATE.format(SCENE_DESCRIPTION=image_prompt)
+```
+
+Use `image_prompt` (the potentially-wrapped version) as the `prompt` argument to `gemini_generate_image`.
 
 ```
 Use gateway MCP tool `gemini_generate_image`:
@@ -843,6 +870,7 @@ Before finalizing any design output:
 - [ ] Template-path: `template_list(verbose=true)` called to get `edit_keys`, `image_slots`, and `entry_html`; Gemini visuals held in memory as base64 (not uploaded)
 - [ ] Template-path: `edits` payload matches the template's key contract; Direction applied (`_direction` for story, `coverVariant`/`bodyVariant` for carousel)
 - [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome
+- [ ] Gemini-only fallback path (Step 4b): Story/Reel full-frame guard applied — `image_prompt` passed to Gemini contains `"fills the ENTIRE frame"` for every 9:16 asset
 - [ ] Gemini-only fallback path (Step 4b): Pillow text overlay AND Pillow logo overlay (both inside Step 4b) BOTH applied — Gemini background has no copy and no logo
 - [ ] Day-of-week `text_align`, `text_position`, and `logo_position` rotations applied only on the Gemini-only fallback path; not used on template-path
 

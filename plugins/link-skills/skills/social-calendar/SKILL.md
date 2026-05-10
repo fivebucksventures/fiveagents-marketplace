@@ -8,11 +8,15 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.5.0 | May 10, 2026 |
 
 **Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
 
 ### Change Log
+
+**v2.5.0** — May 10, 2026
+- `image_brief` for Story / Reel posts now wrapped in full-frame composition template before saving to Notion — enforces full-bleed photorealistic composition so Gemini fills the entire 9:16 canvas (top, middle, and lower thirds) with no empty void at the bottom
+- Template applied in Step 2 Notion row construction; raw scene description is preserved as `SCENE_DESCRIPTION` inside the template
 
 **v2.4.0** — May 07, 2026
 - Notion MCP tool prefix normalized — `mcp__notion__notion-*` → `mcp__claude_ai_Notion__notion-*` (matches the actual registered tool names; old shorter form was working via undocumented fuzzy matching)
@@ -117,7 +121,7 @@ Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table,
 | Content Angle | Hook + key message (1 sentence, ≤20 words) |
 | CTA | Specific action (≤8 words) |
 | Hashtags | 3–5 hashtags |
-| Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." |
+| Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." For Story/Reel posts the raw scene is automatically wrapped in the full-frame composition template (see "Story/Reel image_brief wrapping" below) before saving to Notion. |
 | Direction | Template variant for the post — see "Direction selection" below. Required for IG/FB Carousel and Story/Reel posts; leave blank for LinkedIn / Reel(Argil) / formats without a Claude Design template. |
 | Status | Planned |
 
@@ -172,6 +176,39 @@ Research-driven adjustments:
 - Rotate across all personas defined in `brands/{brand}/audience.md` (e.g. `content-mgr`, `seo-pro`, `sales-rep`, `agency-owner`, `solopreneur`, `growth-mktr`)
 - Direct CTAs at least 3 slots apart per platform
 - No same topic twice
+
+### Story/Reel image_brief wrapping
+
+Before saving any post row to Notion, apply this transformation to `image_brief` for Story and non-Argil Reel posts. **Do NOT wrap `Reel (Argil)`** — Argil uses a script, not `image_brief`, so the composition template has no effect and only bloats the Notion cell.
+
+```python
+STORY_TEMPLATE = (
+    "Photorealistic, full-bleed vertical portrait image for a 9:16 social media Story. "
+    "{SCENE_DESCRIPTION}. The scene fills the ENTIRE frame from top to bottom — no empty areas, "
+    "no plain backgrounds, no flat colour zones anywhere in the image. Rich environmental detail "
+    "in the upper, middle, AND lower thirds of the frame. Cinematic lighting, editorial quality. "
+    "Shot as if for a magazine cover in portrait orientation. "
+    "Do not include any text, logos, or UI elements."
+)
+
+if format.lower() in ("story", "reel"):
+    image_brief = STORY_TEMPLATE.format(SCENE_DESCRIPTION=image_brief)
+# Reel (Argil) → do NOT wrap; Argil uses a video script, not image_brief
+```
+
+**Rules:**
+- Apply AFTER writing the raw scene description (the inner `SCENE_DESCRIPTION`) — the template adds composition constraints, not content.
+- The raw scene description must already end with "No text. No logos. No watermarks." — the template's final sentence supersedes it but the rule still guards earlier drafting.
+- For LinkedIn posts and all Carousel posts (any aspect ratio), do NOT apply the template — pass `image_brief` verbatim.
+- The wrapped string (not the raw scene) is what gets saved to Notion `Image Brief` and read verbatim by `content-generator`.
+
+**Example:**
+
+*Raw scene (before wrapping):*
+> A glowing analogue clock face on a clean minimal background, concept of time and urgency. No text. No logos. No watermarks.
+
+*Wrapped image_brief (saved to Notion):*
+> Photorealistic, full-bleed vertical portrait image for a 9:16 social media Story. A glowing analogue clock face on a clean minimal background, concept of time and urgency. No text. No logos. No watermarks. The scene fills the ENTIRE frame from top to bottom — no empty areas, no plain backgrounds, no flat colour zones anywhere in the image. Rich environmental detail in the upper, middle, AND lower thirds of the frame. Cinematic lighting, editorial quality. Shot as if for a magazine cover in portrait orientation. Do not include any text, logos, or UI elements.
 
 ---
 
@@ -340,9 +377,10 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 - [ ] Thursday Facebook = Reel, Thursday Instagram = Story
 - [ ] Friday Facebook = Story, Saturday Instagram = Carousel
 - [ ] Persona rotation applied — no persona used more than 2× across 14 posts
-- [ ] Content mix: 5 edu / 3 proof / 3 product / 2 CTA / 1 engage
-- [ ] All image briefs end with "No text. No logos. No watermarks."
-- [ ] **Direction column populated** for every IG/FB Carousel post (one of `type-allnumbers` / `sticker-editorial` / `editorial-mixed` — or whatever combos the brand's carousel template supports) and every IG/FB Story / Reel post (one of `A` / `B` / `C`); left blank for LinkedIn posts and Reel(Argil)
+- [ ] Content mix is research-driven (Step 1b) — if research was available, mix reflects findings; if research was unavailable, default mix used (5 edu / 3 proof / 3 product / 2 CTA / 1 engage); at minimum 2 Direct CTA posts present
+- [ ] All raw scene descriptions (before wrapping) end with "No text. No logos. No watermarks."
+- [ ] Story and Reel (non-Argil) image briefs are wrapped in the full-frame composition template before saving to Notion — the saved `Image Brief` cell must contain "fills the ENTIRE frame"; `Reel (Argil)`, LinkedIn, and Carousel briefs are saved verbatim (no wrapping)
+- [ ] **Direction column populated** for every IG/FB Carousel post (one of `type-allnumbers` / `sticker-editorial` / `editorial-mixed`) and every IG/FB Story / non-Argil Reel post (one of `A` / `B` / `C`); left blank for LinkedIn posts and `Reel (Argil)` (Argil ignores Direction — it uses the script only)
 - [ ] Notion page URL logged to memory
 - [ ] Agent run logged to dashboard
 
