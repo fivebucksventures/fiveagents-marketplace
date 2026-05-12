@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.6.1';
+const DEFAULT_VERSION = 'v2.6.2';
 const DEFAULT_DATE = 'May 12, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,21 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.6.2',
+    date: 'May 12, 2026',
+    changes: [
+      'design-system audit across every content-generating skill — closes the gap where users had to manually remind skills to read brands/{brand}/design-system/. The global Visual consistency rule in agents/link.md was correct, but four skills (campaign-presenter, background-generator, proposal-generator, investor-update-writer) silently omitted design-system/ from their Deps and SKILL.md, and three others had a probe but didn\'t use it where it mattered. brand-setup Step 8d-iv parses Deps to compute the agent_readiness matrix — drift here lied to users.',
+      'investor-update-writer v2.5.0: NEW Step 9 — Generate the Branded Deck. Gamma deck primary, Google Doc fallback. Previously dispatched a Gmail draft with markdown body and a separate Google Doc archive copy — investors got a wall of email. New flow: local markdown audit → Gamma generate_from_template with brand HEX + font-family → fall back to GDoc on Gamma failure → abort entirely (skip Gmail) only if BOTH error. Frontmatter allowed-tools gained Gamma MCP. Gmail body rewritten as a tight cover note (opener + TL;DR + deck link + reply CTA) — the deck is the deliverable. Step 11b Notion archive + Step 12 Slack + Output metadata + metrics JSONB all carry deck_url, deck_format (gamma|gdoc), pdf_url. Mirrors proposal-generator Step 5 + financial-reporter Step 6.',
+      'campaign-presenter v2.2.6 (had zero design-system mention): Step 1 restructured with leading Brand visual system block (design-system/ preferred, brand.md fallback). Step 4 Canva generate-design query now explicitly carries extracted HEX values + font-family. brand_kit_id still wins when available. New Visual identity block in the quality checklist.',
+      'background-generator v2.4.1 (had zero design-system mention): Step 2 added explicit "Read brand visual identity FIRST" block. Every Gemini prompt now appends a brand-palette hint (HEX values phrased as ambient mood, e.g. "warm tones around #ec4899"). Library is on-brand instead of generic stock-photo aesthetics. Two new quality checklist entries.',
+      'proposal-generator v2.4.1: Step 1 restructured with leading Brand visual identity block. Step 5 Gamma additionalInstructions expanded from vague "Use brand colors {primary, secondary}" to explicit primary/secondary/accent/background HEX + typography family. Decks now match the brand instead of defaulting to Gamma templates. Two new checklist entries.',
+      'financial-reporter v2.4.1: Step 6 restructured with the same Brand visual identity FIRST block. Gamma additionalInstructions expanded with explicit HEX/font payload (was a hand-wavy "Pass these into the Gamma generation request"). Two new checklist entries.',
+      'content-generator v2.5.3: Step 4c-image Prompt rules expanded to spell out the read order (design-system/ first, brand.md fallback) AND how to inject palette into the Gemini prompt (HEX values as ambient mood). New clarifying note on why Pillow uses DejaVuSans-Bold regardless of brand (universal rasterizer) — colors are the lever for on-brand output on the Pillow path. Fixed stale "text overlay needs readable space at the bottom" claim — now correctly references top OR bottom per day-of-week rotation.',
+      'creative-designer v2.5.3: matching Step 4b Image prompt guidelines bullet — inject brand HEX into the Gemini prompt with phrasing rules. Matching callout on Pillow fonts. Closes the loop where Step 1 read design-system but the Gemini prompt-construction guide didn\'t tell the model to use it.',
+      'agents/link.md v2.4.4: four Deps rows updated (campaign-presenter, background-generator, proposal-generator, investor-update-writer) to declare design-system/ (opt). investor-update-writer row also rewrote Use For to reflect the new Gamma deck deliverable and added Gamma MCP as a first-class dep.',
+    ],
+  },
   {
     version: 'v2.6.1',
     date: 'May 12, 2026',
@@ -175,18 +190,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'creative-designer/style-guide.md — replaced "Nano Banana" brand name with "Claude\'s continue_editing" in two Don\'t rules (more durable phrasing)',
       'link.md: skills table — removed stale "with Nano Banana Pro" from creative-designer description row',
       'commit-to-git workflow — Step 3b: added "already bumped this session" rule (do not re-increment if maintenance sections were updated in the current session); Step 5a: added branch to use highest existing version instead of incrementing again',
-    ],
-  },
-  {
-    version: 'v2.3.2',
-    date: 'May 06, 2026',
-    changes: [
-      'brand-setup: Arguments section added — /brand-setup -- project created skips Step 1a and starts at 1b, ensuring all setup steps run inside the project session',
-      'brand-setup: Step 1a — after project creation, user is redirected into the project session to continue; session does not proceed in-place',
-      'brand-setup: carousel + story design prompts (Step A) — added IMAGE SLOTS AND SIZE LIMIT paragraph banning embedded images/base64/bundled photos, mandating uploads/<slot>.png placeholder naming, enforcing 3 MB export limit',
-      'brand-setup: Step 4c-i Step C — 3 MB size check added before shutil.copytree; if exceeded, blocks copy and surfaces claude.ai/design re-export prompt',
-      'brand-setup: Step 4c-ii Step C — same 3 MB size check before copy with story-specific re-export prompt',
-      'plugin-update: Step 3c upload sub-flow — step 0 size check (3 MB) added before zip/upload; blocks upload and surfaces re-export prompt if limit exceeded; Case 3 reference updated to Steps 0–5',
     ],
   },
 ];

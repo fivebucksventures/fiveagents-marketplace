@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.4.1 | May 12, 2026 |
 
 **Description:** Monthly P&L, cashflow forecast, runway calculation, and top movers. Investor-ready Gamma deck plus Slack summary, archived to Notion.
 
 ### Change Log
+
+**v2.4.1** — May 12, 2026
+- Step 6 (Generate the report deck via Gamma) — restructured with an explicit "Brand visual identity — read FIRST" block. design-system/ probed first (extract HEX color tokens + typography), brand.md Colors + Google Font as fallback. Same Visual consistency rule as `agents/link.md`.
+- Step 6 — Gamma `additionalInstructions` payload expanded to carry explicit HEX values + font-family extracted from the read above. Was previously a hand-wavy "Pass these into the Gamma generation request so the deck matches the brand" with no actual payload spec.
+- Quality Checklist — two new entries enforce the design-system probe and the explicit HEX/font payload in Gamma's `additionalInstructions`. Decks now render on-brand instead of Gamma defaults.
 
 **v2.4.0** — May 07, 2026
 - Initial production release as part of the v2.4.0 business-operations expansion.
@@ -225,7 +230,11 @@ Build a `breaches[]` list (each: `{rule, metric, value, threshold, severity}`) �
 
 ### Step 6: Generate the report deck via Gamma
 
-Read `brands/{brand}/brand.md` → Colors + Voice & Tone + Approved phrases, and any installed `brands/{brand}/design-system/` for visual identity. Pass these into the Gamma generation request so the deck matches the brand.
+**Brand visual identity — read FIRST so the deck matches the brand instead of Gamma defaults:**
+- `brands/{brand}/design-system/` *(optional but authoritative when present)* — list its files and read the entry HTML/CSS or `tokens.json` for color HEX tokens (primary/secondary/accent/background) and typography (font-family + weight scale).
+- `brands/{brand}/brand.md` — Colors section + Google Font name + Voice & Tone + Approved phrases. Universal fallback when `design-system/` is absent. Never block on missing design-system.
+
+Same Visual consistency rule as `agents/link.md` — derive from `design-system/` (preferred) or `brand.md` (fallback), never hardcode brand colors/fonts from memory. The values from this read feed the Gamma `additionalInstructions` below.
 
 ```
 Use mcp__claude_ai_Gamma__generate_from_template:
@@ -233,6 +242,7 @@ Use mcp__claude_ai_Gamma__generate_from_template:
 - text_options: { "amount": "preserve", "tone": "<from brand.md voice>", "language": "en" }
 - card_options: { "dimensions": "16x9" }
 - theme_name: "<brand theme if available, else default>"
+- additionalInstructions: "Brand: {brand}. Use brand colors: primary {HEX}, secondary {HEX}, accent {HEX}, background {HEX} (from design-system/ when present, brand.md Colors section when fallback). Typography: {font-family} (from design-system/ when present, brand.md Google Font when fallback). Voice: {voice from brand.md}. The deck is an investor-ready monthly financial report — keep visual identity tight to the brand throughout."
 - format: "presentation"
 ```
 
@@ -454,6 +464,8 @@ Before finalizing any monthly report:
 - [ ] Top 5 revenue movers and top 5 expense movers each tagged (`new` / `expansion` / `contraction` / `churn` for revenue; absolute delta sort for expenses)
 - [ ] Currency conversions use Xero month-end rate; reporting currency matches `finance.md` Reporting Currency
 - [ ] Gamma deck (or Google Doc fallback) generated and PDF export URL captured
+- [ ] `brands/{brand}/design-system/` was read at Step 6 when present; brand.md Colors + Google Font used as fallback when absent — never blocked on missing design-system
+- [ ] Gamma `additionalInstructions` carried explicit HEX values + font-family extracted at Step 6 — deck visual identity matches the brand, not Gamma defaults
 - [ ] Notion archive row created in `${BRAND}_REPORTS_DB` with Status="Final" and all KPI columns populated
 - [ ] Local backup saved to `outputs/{brand}/finance/Report_{YYYYMM}.md` with full source-attribution map
 - [ ] Slack summary delivered with vs-prior arrows, runway, top movers, breach flags, and three deliverable links

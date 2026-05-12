@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.4.1 | May 12, 2026 |
 
 **Description:** Generate a branded sales proposal from a CRM deal record — packaged as a Gamma deck (or Google Doc fallback) with embedded Stripe payment link, emailed to the prospect via Gmail draft. On-demand per deal.
 
 ### Change Log
+
+**v2.4.1** — May 12, 2026
+- Step 1 (Read Brand Context) — restructured with a leading "Brand visual identity" block. design-system/ probed first (extract HEX color tokens + typography + component patterns), brand.md visual identity as fallback. Strategic + commercial context (product.md, audience.md, sales.md) now grouped under their own subhead. Abort behavior clarified: only `brand.md`/`product.md`/`audience.md`/`sales.md` missing aborts; design-system/ missing is a graceful fallback.
+- Step 5 — Gamma `additionalInstructions` payload expanded to carry explicit HEX values + font-family extracted at Step 1. Was previously "Use brand colors {primary, secondary}" — vague enough that Gamma routinely defaulted to its own template colors. Now spells out primary/secondary/accent/background HEX + typography family, with the design-system→brand.md fallback order baked into the spec.
+- Quality Checklist — two new entries enforce the design-system probe and the explicit HEX/font payload in Gamma's `additionalInstructions`.
 
 **v2.4.0** — May 07, 2026
 - Initial production release as part of the v2.4.0 business-operations expansion.
@@ -68,13 +73,18 @@ Before starting, confirm these inputs with the user:
 
 ### Step 1 — Read Brand Context
 
-Read these files before generating anything:
-- `brands/{brand}/brand.md` — visual identity (colors, fonts, logo URL), voice, locale, currency, approved phrases
+**Brand visual identity — read FIRST so the Gamma deck inherits the right palette:**
+- `brands/{brand}/design-system/` *(optional but authoritative when present)* — Claude Design system. If the folder exists and is non-empty, list its files and read the entry HTML/CSS (typically `index.html`, `styles.css`, or `tokens.json`). Extract color tokens (HEX), typography (font-family + weight scale), and any component patterns you'll reference in the Gamma `additionalInstructions` at Step 5. Takes precedence over `brand.md` colors/fonts when both are present.
+- `brands/{brand}/brand.md` — visual identity (colors, fonts, logo URL), voice, locale, currency, approved phrases. The Colors + Google Font sections are the universal fallback when `design-system/` is absent. Never block on a missing design-system; brand.md is always available.
+
+Same Visual consistency rule as `agents/link.md` — derive from `design-system/` (preferred) or `brand.md` (fallback), never hardcode brand colors/fonts from memory.
+
+**Strategic + commercial context:**
 - `brands/{brand}/product.md` — pricing tiers, features per tier, differentiators, add-ons
 - `brands/{brand}/audience.md` — persona pain points, objections, buying triggers (used to tailor the Solution section)
 - `brands/{brand}/sales.md` — Proposal Defaults (terms, payment, validity, cancellation), Default tier per persona, Upsell rules, Sender Persona (signature block, photo URL, email)
 
-If any of these files is missing, abort with a `failed` log and tell the user which file to populate. Do not invent missing context.
+If `brand.md`, `product.md`, `audience.md`, or `sales.md` is missing, abort with a `failed` log and tell the user which file to populate. `design-system/` missing is NOT a hard fail — fall back to brand.md and continue.
 
 ### Step 2 — Fetch Deal Record from CRM
 
@@ -127,11 +137,13 @@ Keep total content under 1200 words for a deck (Gamma renders best in this range
 ```
 Use mcp__claude_ai_Gamma__generate_from_template:
 - inputText: <full proposal content from Step 4, structured as section headings>
-- additionalInstructions: "Brand: {brand}. Voice: {voice from brand.md}. Use brand colors {primary, secondary}. Logo: {logo URL}. Persona: {persona}."
+- additionalInstructions: "Brand: {brand}. Voice: {voice from brand.md}. Use brand colors: primary {HEX}, secondary {HEX}, accent {HEX}, background {HEX} (from design-system/ when present, brand.md Colors section when fallback — never invent). Typography: {font-family} (from design-system/ when present, brand.md Google Font when fallback). Logo: {logo URL from brand.md}. Persona: {persona}."
 - format: "presentation"
 - numCards: 8
 - exportAs: "pdf"
 ```
+
+Build the `additionalInstructions` string from the values extracted at Step 1 — design-system tokens win when present, brand.md fallback otherwise. The explicit HEX + font-family line is what makes Gamma generate a deck that matches the brand instead of defaulting to its own templates.
 
 Capture the returned `gammaUrl` and `pdfUrl`.
 
@@ -314,6 +326,8 @@ Status: Draft Sent | Sent | Failed
 Before finalizing:
 
 - [ ] Deal page parent DB matches `${BRAND}_CRM_DB` — no cross-brand contamination
+- [ ] `brands/{brand}/design-system/` was read at Step 1 when present; brand.md Colors + Google Font used as fallback when absent — never blocked on missing design-system
+- [ ] Gamma `additionalInstructions` carries explicit HEX values + font-family extracted at Step 1 (or the Google Doc fallback styles the cover/section headings to match) — never invented from memory
 - [ ] All pricing comes from `brands/{brand}/product.md` — no invented prices or tiers
 - [ ] Plan tier matches `sales.md` Default tier per persona unless user explicitly overrode
 - [ ] Add-ons resolved per `sales.md` Upsell rules — no random add-ons

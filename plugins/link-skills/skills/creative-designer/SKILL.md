@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.2 | May 12, 2026 |
+| Link | v2.5.3 | May 12, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.5.3** — May 12, 2026
+- Step 4b Image prompt guidelines — new bullet enforces injecting the brand palette into the Gemini prompt using HEX tokens from Step 1 (design-system/ first when present, brand.md Colors fallback). Phrasing rules included (ambient-mood style, not literal swatches). Same Visual consistency rule as `agents/link.md` — never hardcode brand colors from memory.
+- Step 4b Image prompt guidelines — clarifying callout added below the bullets: explains why the Pillow path uses `DejaVuSans-Bold` regardless of brand (universal rasterizer) and why colors are the lever for on-brand output here (adaptive sampling on the Gemini background).
+- Why this matters: Step 1 already read design-system, but the Gemini prompt-construction guide didn't tell the model to use it. Closes the loop so design-system actually influences final image output.
 
 **v2.5.2** — May 12, 2026
 - `add_text_overlay` — feed `side_inset` increased from `pad // 2` to `pad + pad // 2` (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram's profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at `pad // 2`. **Reason:** v2.5.0's "uniform `pad // 2` on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced — symptom was headlines hugging the canvas edge on square feed posts (worse on IG than LinkedIn because LinkedIn doesn't aggressively recrop). Mirror of content-generator v2.5.2.
@@ -384,9 +389,12 @@ Use **Python Pillow** for all text overlay and logo compositing (see Steps 2 and
 - Specify **cinematic, photorealistic, editorial photography style** for people/scenes
 - Specify **abstract, data visualization, geometric** for non-people visuals
 - Include **lighting/mood**: "dimly lit, blue screen glow, night" or "bright, clean, modern office"
+- **Inject the brand palette into the prompt** using the colors extracted at Step 1 — `design-system/` HEX tokens when present, `brand.md` Colors section when fallback. Phrase as ambient mood: "warm tones around #ec4899 / muted slate around #0f172a" or "rich teal accents (#0d9488) on a near-black background (#0a0a0a)". This is how Gemini matches the brand without ever putting the literal HEX swatches into the image. Never hardcode brand colors from memory — same Visual consistency rule as `agents/link.md`.
 - **No text, no logos, no brand name in the image** — text and logo are composited after using gateway tools
 - Always end prompt with: **"No text in the image. No logos. No watermarks."**
 - Do NOT use `continue_editing` for text — use Python Pillow (Step 2) instead
+
+> **About fonts on the Pillow path:** the text overlay uses `DejaVuSans-Bold` as a stable cross-platform rasterizer regardless of brand. The design-system font names are for Canva, HTML mockups, and any path that can actually load arbitrary fonts. The Pillow path matches the brand via *colors* (adaptive sampling on the Gemini background) — getting the brand palette into the Gemini prompt is what makes the final composite feel on-brand.
 
 **Example prompts by pattern:**
 

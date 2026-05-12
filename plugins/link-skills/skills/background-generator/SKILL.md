@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.4.1 | May 12, 2026 |
 
 **Description:** Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
 
 ### Change Log
+
+**v2.4.1** — May 12, 2026
+- Step 2 — added explicit "Read brand visual identity FIRST" block. Probes `brands/{brand}/design-system/` (preferred) then `brand.md` Colors (fallback). Mirrors the Visual consistency rule in `agents/link.md`.
+- Step 2 Prompt rules — every Gemini prompt now appends a brand-palette hint (HEX values phrased as ambient mood, e.g. "warm tones around #ec4899 with muted slate (#0f172a) shadows"). Backgrounds are now on-brand instead of generic stock-photo aesthetics. **Reason:** library was previously brand-agnostic (no color injection); content-generator's downstream Pillow overlay couldn't recover an off-brand background.
+- Quality Checklist — two new entries enforce the design-system probe and the palette-hint injection.
 
 **v2.4.0** — May 07, 2026
 - Step 1 — replaced obsolete `mcp__notion__API-query-data-source` and `mcp__notion__API-get-block-children` calls (not exposed by current Notion connector) with the canonical `notion-fetch` + `notion-search` (with `data_source_url` filter) pattern used by social-calendar
@@ -86,6 +91,12 @@ Extract all unique `ImageBrief` values (column index 8). These are the prompts.
 
 ## Step 2 — Build prompt list (20 per brand)
 
+**Read brand visual identity FIRST so every prompt is palette-aware:**
+- **brands/{brand}/design-system/** *(optional but authoritative when present)* — list its files and read the entry HTML/CSS or `tokens.json` for the primary / secondary / background HEX values.
+- **brands/{brand}/brand.md** — Colors section. Universal fallback when `design-system/` is absent. Never block on missing design-system; brand.md is always available.
+
+Same Visual consistency rule as `agents/link.md` — derive from `design-system/` (preferred) or `brand.md` (fallback), never hardcode brand colors from memory.
+
 Take up to 20 unique ImageBriefs from Step 1. If fewer than 20, create variations of existing briefs by changing:
 - Lighting (morning light, golden hour, dim ambient, bright studio)
 - Setting (office, cafe, co-working, home office, outdoor)
@@ -93,6 +104,7 @@ Take up to 20 unique ImageBriefs from Step 1. If fewer than 20, create variation
 
 **Prompt rules:**
 - Use the `ImageBrief` exactly as written in the calendar
+- **Append a brand-palette hint to every prompt** using the HEX values from the design-system read above — phrased as ambient mood, e.g. `", warm tones around #ec4899 with muted slate (#0f172a) shadows"` or `", rich teal accents (#0d9488) on a near-black background (#0a0a0a)"`. This keeps the library on-brand without baking literal HEX swatches into the image. Skip the hint only when `design-system/` AND the `brand.md` Colors section are both empty (rare — brand-setup writes brand.md Colors on every run).
 - NEVER use the word "portrait" — Gemini generates actual portrait photos
 - Every prompt must end with: "No text. No logos. No watermarks."
 
@@ -162,6 +174,8 @@ Location: brands/{brand}/backgrounds/
 - [ ] Filenames are descriptive (content-generator can pick by Topic)
 - [ ] No "portrait" in any prompt
 - [ ] All prompts end with "No text. No logos. No watermarks."
+- [ ] `brands/{brand}/design-system/` was read at Step 2 when present; brand.md Colors used as fallback when absent — never blocked on missing design-system
+- [ ] Every Gemini prompt carries a brand-palette hint (HEX values from design-system or brand.md, phrased as ambient mood) — library is on-brand
 - [ ] 6-second delay between image generation calls
 - [ ] Existing images NOT deleted (library grows)
 - [ ] Slack notification sent

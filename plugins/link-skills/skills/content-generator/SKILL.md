@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.2 | May 12, 2026 |
+| Link | v2.5.3 | May 12, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.5.3** — May 12, 2026
+- Step 4c-image Prompt rules — "Match the brand's visual style and color palette" expanded to spell out the read order (`design-system/` first when present, `brand.md` Colors fallback) AND *how* to inject palette into the Gemini prompt (HEX values phrased as ambient mood, e.g. "warm tones around #ec4899 / muted slate around #0f172a"). Same Visual consistency rule as `agents/link.md` — never hardcode brand colors from memory.
+- Step 4c-image Prompt rules — clarifying note added: Pillow text rendering uses `DejaVuSans-Bold` as a stable cross-platform rasterizer regardless of brand; design-system font names live in design-system files for the Canva / HTML mockup paths, not the Pillow path. Text colors are picked adaptively from the Gemini background, which is why getting the brand palette into the Gemini prompt at this step matters.
+- Step 4c-image image-prompt example bullet — fixed stale claim that text overlay needs space "at the bottom" (now correctly says "top or bottom per the day-of-week `text_position` from Step 4b").
 
 **v2.5.2** — May 12, 2026
 - `add_text_overlay` (Step 4d) — feed `side_inset` increased from `pad // 2` to `pad + pad // 2` (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram's profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at `pad // 2`. **Reason:** v2.5.0's "uniform `pad // 2` on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced — symptom was headlines hugging the canvas edge on square feed posts (worse on IG than LinkedIn because LinkedIn doesn't aggressively recrop).
@@ -579,7 +584,8 @@ with open('brands/{brand}/backgrounds/{descriptive_filename}.png', 'wb') as f:
 
 **Prompt rules:**
 - Always include "no text, no people" — text and logo are added in Steps 4d/4e
-- Match the brand's visual style and color palette from `brand.md`
+- Match the brand's visual style and color palette — **read order: `brands/{brand}/design-system/` first when present (extract the primary/secondary/background HEX tokens and inject them into the prompt as "warm tones around #ec4899 / muted slate around #0f172a" style guidance), `brands/{brand}/brand.md` Colors section as the fallback when design-system is absent.** Same Visual consistency rule as `agents/link.md` — never hardcode from memory.
+- Pillow text rendering in Step 4d uses `DejaVuSans-Bold` as a stable cross-platform rasterizer; the design-system font names live in the design-system files for reference (Canva / HTML mockups consume them, this image path does not). Colors on text are picked adaptively from the Gemini background, which is why getting the brand palette into the Gemini prompt at this step matters.
 - Keep it clean and uncluttered — the text overlay needs readable space at the top or bottom (per the day-of-week `text_position` from Step 4b)
 
 ### Step 4d — Apply text overlay — USE PILLOW
