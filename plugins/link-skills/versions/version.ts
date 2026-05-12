@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.6.0';
-const DEFAULT_DATE = 'May 10, 2026';
+const DEFAULT_VERSION = 'v2.6.1';
+const DEFAULT_DATE = 'May 12, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.6.1',
+    date: 'May 12, 2026',
+    changes: [
+      'content-generator v2.5.2: add_text_overlay feed side_inset bumped from pad // 2 to pad + pad // 2 (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram\'s profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at pad // 2; add_logo unchanged at uniform pad // 2 — text and logo feed insets diverge on sides by design. Reason: v2.5.0\'s "uniform pad // 2 on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced.',
+      'creative-designer v2.5.2: mirror of content-generator fix — same add_text_overlay feed side_inset bump (pad // 2 → pad + pad // 2). Layout rules + Step 3b checklist + fix table rewritten to reflect text/logo feed-side divergence.',
+      'content-generator + creative-designer: Step 4a/Step 4h tables and fix tables call out the regression risk explicitly — any future "simplification" that re-aligns feed text sides with feed logo sides will reintroduce the bug.',
+    ],
+  },
   {
     version: 'v2.6.0',
     date: 'May 10, 2026',
@@ -178,20 +187,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Step 4c-i Step C — 3 MB size check added before shutil.copytree; if exceeded, blocks copy and surfaces claude.ai/design re-export prompt',
       'brand-setup: Step 4c-ii Step C — same 3 MB size check before copy with story-specific re-export prompt',
       'plugin-update: Step 3c upload sub-flow — step 0 size check (3 MB) added before zip/upload; blocks upload and surfaces re-export prompt if limit exceeded; Case 3 reference updated to Steps 0–5',
-    ],
-  },
-  {
-    version: 'v2.3.1',
-    date: 'May 06, 2026',
-    changes: [
-      'brand-setup: compute_version_hash fixed — added __MACOSX to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched path-part check to rel.split("/"); without this fix macOS-extracted templates produce a different hash than the gateway, causing drift detection to permanently report mismatch',
-      'brand-setup: carousel + story zip creation loops use same unified IGNORE set as compute_version_hash (was using separate IGNORE_DIRS variable)',
-      'brand-setup: carousel template prompt (Step 4c-i Step A) — replaced stale Playwright offscreen DOM ID requirements with .slide CSS class convention and uploads/ slot-naming rule',
-      'brand-setup: story template prompt (Step 4c-ii Step A) — same Playwright DOM ID removal; .slide CSS class and server-side rendering convention added',
-      'brand-setup: template_list Step F calls — brand parameter documented as OPTIONAL in both carousel and story verification gates',
-      'plugin-update: compute_version_hash in Step 1h — same __MACOSX fix as brand-setup; template_list brand parameter documented as OPTIONAL',
-      'content-generator: template_list verbose response now documents entry_html field; brand parameter marked OPTIONAL; template_render updated with optional version_hash field and PNG/JPEG slots type',
-      'creative-designer: template_list entry_html added to bullet 2 and quality checklist; template_render bullet 6 updated with version_hash optional and PNG/JPEG slots',
     ],
   },
 ];

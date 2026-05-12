@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.1 | May 10, 2026 |
+| Link | v2.5.2 | May 12, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.5.2** — May 12, 2026
+- `add_text_overlay` — feed `side_inset` increased from `pad // 2` to `pad + pad // 2` (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram's profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at `pad // 2`. **Reason:** v2.5.0's "uniform `pad // 2` on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced — symptom was headlines hugging the canvas edge on square feed posts (worse on IG than LinkedIn because LinkedIn doesn't aggressively recrop). Mirror of content-generator v2.5.2.
+- `add_logo` — **unchanged.** Feed branch still uses uniform `pad // 2` on all four sides; logo padding is correct as-is. Text and logo feed insets now diverge on sides by design.
+- Layout rules + Step 3b checklist + fix table — rewritten to reflect text/logo divergence on feed sides. Removed claims that "text and logo both" use the same feed inset. Any future "simplification" that re-aligns text feed sides with logo feed sides will reintroduce the bug — see this entry.
 
 **v2.5.1** — May 10, 2026
 - Step 4b (Gemini image generation) — defensive full-frame guard added for Story/Reel prompts: if the `image_brief` / prompt does not already contain `"fills the ENTIRE frame"`, wrap it in the Story composition template before calling `gemini_generate_image`. Prevents the bottom-void bug on any image generated via creative-designer directly (not routed through content-generator).
@@ -208,9 +213,10 @@ Each folder is a self-contained React + Babel app (entry HTML + JSX + CSS + asse
 - Border radius: 8-12px for cards, 6px for buttons
 - Use subtle box shadows: `0 1px 3px rgba(0,0,0,0.1)`
 - White space is a feature — never overcrowd sections
-- **Single inset rule — Story/Reel = Meta safe zones only; Feed = uniform `pad // 2`:**
+- **Inset rule — Story/Reel = Meta safe zones only; Feed text = asymmetric (larger sides); Feed logo = uniform `pad // 2`:**
   - **9:16 Story/Reel** (text and logo both): top = `int(h * 0.14)` (~269 px on 1920) — Stories profile header; bottom = `int(h * 0.13)` (~250 px) — Reels UI stack; sides = `int(w * 0.13)` (~140 px) — Reels right-rail. Scrim fade = 0 (no `pad` anywhere in 9:16 geometry).
-  - **Feed posts (IG, FB, LinkedIn, X)** (text and logo both): top = bottom = sides = scrim fade = `pad // 2` (~32–36 px). No Meta percentages on feed; no platform UI overlays the image, so a uniform small inset is sufficient.
+  - **Feed posts (IG, FB, LinkedIn, X) — TEXT:** top = bottom = scrim_fade = `pad // 2` (~32–36 px); sides = `pad + pad // 2` (~96–108 px). Sides are intentionally larger — Instagram's profile-grid view recrops square feed posts to 4:5 portrait, trimming ~34 px per side; the extra side inset guarantees text survives the crop with visible breathing room. **Do not "simplify" to uniform `pad // 2`** — that regressed v2.4.8 hardening (see v2.5.2 changelog).
+  - **Feed posts (IG, FB, LinkedIn, X) — LOGO:** top = bottom = sides = `pad // 2` (~32–36 px). Logo is small relative to canvas, so the IG profile-grid crop doesn't impact it; uniform pad-derived inset reads as intentional corner placement. Text and logo diverge on sides by design.
 - **Text and logo always on opposite vertical ends** — never on the same row. Mon/Wed/Fri = bottom text + top-right logo; Tue/Thu/Sat = top text + bottom-left logo. Day-of-week rotation lives in content-generator Step 4b.
 - **Gradient scrim direction depends on `text_position`:** bottom-anchored text → scrim runs `scrim_top → target_h` (alpha 0→230). Top-anchored text → scrim runs `0 → text_bottom + scrim_fade` (alpha 230→0). The dark zone is always on the same end as the text.
 
@@ -436,10 +442,14 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
         side_inset   = int(target_w * 0.13)   # Reels right-rail clearance
         scrim_fade   = 0                       # no extra pad transition past text edge
     else:
-        # Feed — no platform UI overlay; uniform pad // 2 for all insets and scrim fade.
+        # Feed — asymmetric: top/bottom/scrim_fade = pad // 2; sides = pad + pad // 2.
+        # Sides need extra room: IG profile-grid view recrops square feed posts to 4:5,
+        # trimming ~34 px per side. pad // 2 (~32 px) gets entirely consumed by that crop.
+        # Logo (add_logo) stays at uniform pad // 2 — text and logo diverge on sides by design.
+        # Do NOT "simplify" sides back to pad // 2 — that regressed v2.4.8 hardening (see v2.5.2).
         top_inset    = pad // 2
         bottom_inset = pad // 2
-        side_inset   = pad // 2
+        side_inset   = pad + pad // 2          # ~9% of width; survives IG profile-grid crop
         scrim_fade   = pad // 2               # gradient transition past the text edge
 
     hs = max(36, int(target_w * 0.048))
@@ -573,7 +583,7 @@ Text colors are chosen adaptively by sampling the image brightness in the text z
 - **Dark background** (estimated post-scrim brightness < 85): white headline `#ffffff` + pink subline `#ec4899`
 - **Light background** (estimated post-scrim brightness ≥ 85): near-black headline `#0f0f0f` + dark-pink subline `#be185d`
 
-`text_align` (left/center/right) and `text_position` (top/bottom) both come from the day-of-week rotation. On 9:16 canvases Meta safe zones (14% top / 13% bottom / 13% sides) position the text and the gradient meets the text edge with no transition padding. On feed canvases a uniform `pad // 2` (~3% of width) inset surrounds the text on every side, with `pad // 2` of gradient fade past the text edge into the un-darkened image. The dark end of the scrim always sits on the same end as the text — bottom-anchored text → gradient hits `target_h`; top-anchored text → gradient starts at y=0.
+`text_align` (left/center/right) and `text_position` (top/bottom) both come from the day-of-week rotation. On 9:16 canvases Meta safe zones (14% top / 13% bottom / 13% sides) position the text and the gradient meets the text edge with no transition padding. On feed canvases the inset is **asymmetric**: top + bottom + scrim_fade are `pad // 2` (~3% of width, ~32–36 px), but sides are `pad + pad // 2` (~9% of width, ~96–108 px) so the text survives Instagram's profile-grid 4:5 recrop (~34 px side trim). `pad // 2` of gradient fade extends past the text edge into the un-darkened image. The dark end of the scrim always sits on the same end as the text — bottom-anchored text → gradient hits `target_h`; top-anchored text → gradient starts at y=0.
 
 | Format | target_w | target_h |
 |--------|----------|----------|
@@ -646,13 +656,13 @@ This is the standard final step for ALL social images.
 
 Read the final image and visually inspect it. Check every item below. Determine canvas type first: **9:16** = 1080×1920 (Story/Reel); **Feed** = all other formats.
 
-**Text — position and inset (9:16 = Meta safe zones; feed = uniform `pad // 2`):**
+**Text — position and inset (9:16 = Meta safe zones; feed = asymmetric pad-derived — larger sides):**
 - [ ] Text block is at the **top OR bottom** matching `text_position` from the day-of-week rotation — never both ends, never mid-canvas
 - [ ] Text alignment matches the day-of-week rotation: left (Mon/Thu), center (Tue/Fri), right (Wed/Sat)
 - [ ] **9:16 (text at bottom — Mon/Wed/Fri):** bottom of text block is ~250 px (13%) from canvas bottom — clears Reels UI stack
 - [ ] **9:16 (text at top — Tue/Thu/Sat):** top of text block is ~269 px (14%) from canvas top — clears Stories profile header
 - [ ] **9:16:** text stays within ~140 px (13%) side margins — clears Reels right-rail
-- [ ] **Feed:** text has `pad // 2` (~32–36 px) inset on top, bottom, AND sides — uniform around all four edges
+- [ ] **Feed:** text has `pad // 2` (~32–36 px) inset on top + bottom, and `pad + pad // 2` (~96–108 px) inset on sides — sides intentionally larger to survive IG profile-grid 4:5 recrop (~34 px side trim)
 - [ ] **Gradient scrim reaches the canvas edge on the text side** — bottom-anchored text → scrim hits `target_h`; top-anchored text → scrim starts at y=0
 
 **Text — legibility and color:**
@@ -683,7 +693,8 @@ Read the final image and visually inspect it. Check every item below. Determine 
 | **Text too close to top edge (9:16)** | Verify `top_inset = int(target_h * 0.14)` (Meta-spec — Stories profile header); re-render |
 | **Text too close to sides (9:16)** | Verify `side_inset = int(target_w * 0.13)` (Meta-spec — Reels right-rail); re-render |
 | **Gradient has visible gap at canvas edge** | Bottom text → `scrim_bottom == target_h`; top text → `scrim_top == 0`. Gradient must reach the canvas edge on the text side; re-render |
-| **Feed text doesn't match uniform `pad // 2`** | Confirm feed branch sets `top_inset = bottom_inset = side_inset = scrim_fade = pad // 2` (no `pad` left over from earlier versions); re-render |
+| **Feed text top/bottom not at `pad // 2`** | Confirm feed branch sets `top_inset = bottom_inset = scrim_fade = pad // 2`; re-render |
+| **Feed text sides too tight / clipped in IG profile grid** | Confirm feed branch sets `side_inset = pad + pad // 2` (~96–108 px). Do NOT "simplify" to `pad // 2` — that gets consumed by IG's profile-grid 4:5 recrop (~34 px side trim). See v2.5.2 changelog. Re-render. |
 | Wrong text alignment for the day | Check day-of-week and pass correct `text_align` (`'left'`/`'center'`/`'right'`) to `add_text_overlay`; re-render |
 | Wrong text color scheme | Adjust the brightness multiplier in `add_text_overlay` (change `0.40` up/down to shift the threshold); re-render |
 | Subline illegible against busy or light bg | Increase scrim max-alpha — change `230` to `245` in the gradient loop; re-render |

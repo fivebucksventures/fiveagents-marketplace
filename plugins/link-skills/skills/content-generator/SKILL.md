@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.1 | May 10, 2026 |
+| Link | v2.5.2 | May 12, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.5.2** — May 12, 2026
+- `add_text_overlay` (Step 4d) — feed `side_inset` increased from `pad // 2` to `pad + pad // 2` (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram's profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at `pad // 2`. **Reason:** v2.5.0's "uniform `pad // 2` on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced — symptom was headlines hugging the canvas edge on square feed posts (worse on IG than LinkedIn because LinkedIn doesn't aggressively recrop).
+- `add_logo` (Step 4e) — **unchanged.** Feed branch still uses uniform `pad // 2` on all four sides; logo padding is correct as-is. Text and logo feed insets now diverge on sides by design.
+- Step 4a inset table + annotations + Step 4h checklist + fix table — rewritten to reflect text/logo divergence on feed sides. Removed "logo follows the same per-canvas inset table" claim (no longer true for feed sides). Any future "simplification" that re-aligns text feed sides with logo feed sides will reintroduce the bug — see this entry.
 
 **v2.5.1** — May 10, 2026
 - Step 4c-image — defensive full-frame guard added: if a Story/Reel post's `image_brief` does not already contain `"fills the ENTIRE frame"` (i.e. was authored by an older `social-calendar` run), wrap it in the Story composition template before calling `gemini_generate_image`. Belt-and-suspenders; primary fix is in `social-calendar` v2.5.0.
@@ -292,19 +297,20 @@ If the post brief is too thin to fill all required keys, leave the template's de
 | Instagram Reel / Facebook Reel | 1080 | 1920 |
 | Instagram Story / Facebook Story | 1080 | 1920 |
 
-**Per-canvas insets — single rule: Story/Reel uses Meta safe zones only; Feed uses `pad // 2` only.**
+**Per-canvas insets — Story/Reel uses Meta safe zones only; Feed text uses asymmetric pad-derived values (larger sides); Feed logo uses uniform `pad // 2`.**
 
-`pad = int(target_w * 0.06)` (~6% of canvas width). Insets apply to text and logo identically.
+`pad = int(target_w * 0.06)` (~6% of canvas width). On 9:16 text and logo use the same Meta safe zones. On feed they diverge on **sides only** — text needs extra side clearance to survive IG profile-grid 4:5 recrop (~34 px side trim).
 
-| Canvas | Top | Bottom | Sides | Scrim fade |
-|---|---|---|---|---|
-| 9:16 Story/Reel (1080×1920) | `int(target_h * 0.14)` (~269 px) | `int(target_h * 0.13)` (~250 px) | `int(target_w * 0.13)` (~140 px) | `0` |
-| All feed formats (IG, FB, LinkedIn, X) | `pad // 2` (~32–36 px) | `pad // 2` | `pad // 2` | `pad // 2` |
+| Canvas | Element | Top | Bottom | Sides | Scrim fade |
+|---|---|---|---|---|---|
+| 9:16 Story/Reel (1080×1920) | text + logo | `int(target_h * 0.14)` (~269 px) | `int(target_h * 0.13)` (~250 px) | `int(target_w * 0.13)` (~140 px) | `0` |
+| All feed formats (IG, FB, LinkedIn, X) | **text** | `pad // 2` (~32–36 px) | `pad // 2` | **`pad + pad // 2` (~96–108 px)** | `pad // 2` |
+| All feed formats (IG, FB, LinkedIn, X) | logo | `pad // 2` | `pad // 2` | `pad // 2` | n/a |
 
 **Annotations:**
 - **Story/Reel (9:16) — Meta safe zones only.** Top 14% clears the Stories profile header; bottom 13% clears the Reels UI stack; sides 13% clear the Reels right-rail action buttons. `scrim_fade = 0` keeps the gradient flush to the safe-zone boundary with no transition padding (no `pad` anywhere in 9:16 geometry).
-- **Feed — uniform `pad // 2`.** No platform UI overlays the image; every inset and the scrim fade are identical (~32–36 px). No Meta percentages on feed.
-- **Logo follows the same per-canvas inset table.** `top_y = top_inset` for top-positioned logos; `bottom_y = h - logo_h - bottom_inset` for bottom-positioned logos. Logo and text always sit on opposite vertical ends per the Step 4b rotation.
+- **Feed text — asymmetric.** Top, bottom, and scrim_fade all `pad // 2` (~32–36 px). Sides `pad + pad // 2` (~96–108 px) — Instagram's profile-grid view recrops square feed posts to 4:5 portrait, trimming ~34 px per side; the extra side inset guarantees text survives that crop with visible breathing room. **Do not "simplify" feed text back to uniform `pad // 2`** — that regressed v2.4.8 hardening (see v2.5.2 changelog).
+- **Feed logo — uniform `pad // 2`.** All four sides ~32–36 px. Logo is small relative to canvas, so the IG profile-grid crop doesn't impact it the way it impacts text; uniform pad-derived inset reads as intentional corner placement.
 - **Gradient scrim direction depends on `text_position`.** Bottom-anchored text → scrim runs `scrim_top → target_h` (alpha 0→230, dark zone at bottom). Top-anchored text → scrim runs `0 → text_bottom + scrim_fade` (alpha 230→0, dark zone at top). The dark zone is always on the same end as the text.
 
 ### Step 4b — Day-of-week layout rotation
@@ -574,7 +580,7 @@ with open('brands/{brand}/backgrounds/{descriptive_filename}.png', 'wb') as f:
 **Prompt rules:**
 - Always include "no text, no people" — text and logo are added in Steps 4d/4e
 - Match the brand's visual style and color palette from `brand.md`
-- Keep it clean and uncluttered — the text overlay needs readable space at the bottom
+- Keep it clean and uncluttered — the text overlay needs readable space at the top or bottom (per the day-of-week `text_position` from Step 4b)
 
 ### Step 4d — Apply text overlay — USE PILLOW
 
@@ -605,10 +611,14 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
         side_inset   = int(target_w * 0.13)   # Reels right-rail clearance
         scrim_fade   = 0                       # no extra pad transition past text edge
     else:
-        # Feed — no platform UI overlay; uniform pad // 2 for all insets and scrim fade.
+        # Feed — asymmetric: top/bottom/scrim_fade = pad // 2; sides = pad + pad // 2.
+        # Sides need extra room: IG profile-grid view recrops square feed posts to 4:5,
+        # trimming ~34 px per side. pad // 2 (~32 px) gets entirely consumed by that crop.
+        # Logo (add_logo) stays at uniform pad // 2 — text and logo diverge on sides by design.
+        # Do NOT "simplify" sides back to pad // 2 — that regressed v2.4.8 hardening (see v2.5.2).
         top_inset    = pad // 2
         bottom_inset = pad // 2
-        side_inset   = pad // 2
+        side_inset   = pad + pad // 2          # ~9% of width; survives IG profile-grid crop
         scrim_fade   = pad // 2               # gradient transition past the text edge
 
     hs = max(36, int(target_w * 0.048))
@@ -814,13 +824,13 @@ Only `_final.png` (or `_final.mp4`) should remain in the output folder. Delete a
 
 For every `_final.png`, read the image file and visually inspect it before uploading to Zernio. Determine canvas type first: **9:16** = 1080×1920 (Story/Reel); **Feed** = all other formats.
 
-**Text — position and inset (9:16 = Meta safe zones; feed = uniform `pad // 2`):**
+**Text — position and inset (9:16 = Meta safe zones; feed = asymmetric pad-derived — larger sides):**
 - [ ] Text block is at the **top OR bottom** matching `text_position` from Step 4b — never both ends, never mid-canvas
 - [ ] Text alignment matches the day-of-week rotation: left (Mon/Thu), center (Tue/Fri), right (Wed/Sat)
 - [ ] **9:16 (text at bottom — Mon/Wed/Fri):** bottom of text block is ~250 px (13%) from canvas bottom — clears Reels UI stack
 - [ ] **9:16 (text at top — Tue/Thu/Sat):** top of text block is ~269 px (14%) from canvas top — clears Stories profile header
 - [ ] **9:16:** text stays within ~140 px (13%) side margins — clears Reels right-rail
-- [ ] **Feed:** text has `pad // 2` (~32–36 px) inset on top, bottom, AND sides — uniform around all four edges
+- [ ] **Feed:** text has `pad // 2` (~32–36 px) inset on top + bottom, and `pad + pad // 2` (~96–108 px) inset on sides — sides intentionally larger to survive IG profile-grid 4:5 recrop (~34 px side trim)
 - [ ] **Gradient scrim reaches the canvas edge on the text side** — bottom-anchored text → scrim hits `target_h`; top-anchored text → scrim starts at y=0
 
 **Text — legibility and color:**
@@ -851,7 +861,8 @@ For every `_final.png`, read the image file and visually inspect it before uploa
 | **Text too close to top edge (9:16)** | Verify `top_inset = int(target_h * 0.14)` (Meta-spec — Stories profile header); re-render |
 | **Text too close to sides (9:16)** | Verify `side_inset = int(target_w * 0.13)` (Meta-spec — Reels right-rail); re-render |
 | **Gradient has visible gap at canvas edge** | Bottom text → `scrim_bottom == target_h`; top text → `scrim_top == 0`. Gradient must reach the canvas edge on the text side; re-render |
-| **Feed text doesn't match uniform `pad // 2`** | Confirm feed branch sets `top_inset = bottom_inset = side_inset = scrim_fade = pad // 2` (no `pad` left over from earlier versions); re-render |
+| **Feed text top/bottom not at `pad // 2`** | Confirm feed branch sets `top_inset = bottom_inset = scrim_fade = pad // 2`; re-render |
+| **Feed text sides too tight / clipped in IG profile grid** | Confirm feed branch sets `side_inset = pad + pad // 2` (~96–108 px). Do NOT "simplify" to `pad // 2` — that gets consumed by IG's profile-grid 4:5 recrop (~34 px side trim). See v2.5.2 changelog. Re-render. |
 | Wrong text alignment for the day | Check day-of-week and pass correct `text_align` (`'left'`/`'center'`/`'right'`) to `add_text_overlay`; re-render |
 | Wrong text color scheme | Adjust the brightness multiplier in `add_text_overlay` (change `0.40` up/down to shift the threshold); re-render |
 | Subline illegible against busy or light bg | Increase scrim max-alpha — change `230` to `245` in the gradient loop; re-render |
