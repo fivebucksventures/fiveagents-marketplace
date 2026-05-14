@@ -6,11 +6,16 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.3 | May 07, 2026 |
+| Link | v2.5.0 | May 14, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.5.0** — May 14, 2026
+- Step 1d — added two new optional env vars: `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` and `${BRAND}_LATE_META_ADS_ACCOUNT_ID`. Required for the Windsor.ai fallback in `digital-marketing-analyst` and `data-analysis`; set by brand-setup v2.5.0 Step 7b Step D.
+- Step 3e — added fill handler for the two new ads account ID env vars: auto-discover via `late_list_ad_accounts` (same flow as brand-setup Step 7b Step D).
+- Step 3j — added changelog → brand-action mapping row for v2.5.0 (ads account ID env vars).
 
 **v2.4.3** — May 07, 2026
 - Step 5b email payload — added top-level `brand_name` field. Display name (e.g. `Five Agents`), read from the first `# ` heading in `brands/{brand}/brand.md`. Mirrors the same field added to brand-setup Step 10 so the server-side template renders the brand's actual name in the upgrade email title.
@@ -222,6 +227,8 @@ Read `.claude/settings.local.json` (search up from cwd). Check the `env` block:
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Keyword research |
 | `ARGIL_API_KEY` | AI avatar Reels |
 | `DEFAULT_BRAND` | Workspace default brand |
+| `{BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` | Google Ads account ID for Windsor.ai fallback in digital-marketing-analyst / data-analysis (v2.5.0) |
+| `{BRAND}_LATE_META_ADS_ACCOUNT_ID` | Meta Ads account ID for Windsor.ai fallback in digital-marketing-analyst / data-analysis (v2.5.0) |
 
 **Auto-bootstrapped (no user action required at setup; created on first run of the relevant skill):**
 | Env var | Bootstrapped by | Required since |
@@ -355,8 +362,8 @@ Using the data collected in Step 0, build a version table:
 | content-creation | v2.2.15 | ✅ yes |
 | social-calendar | v2.2.15 | ✅ yes |
 | background-generator | v2.2.15 | ✅ yes |
-| digital-marketing-analyst | v2.2.13 | — no |
-| data-analysis | v2.2.13 | — no |
+| digital-marketing-analyst | v2.3.0 | ✅ yes |
+| data-analysis | v2.3.0 | ✅ yes |
 | social-publisher | v2.2.5 | — no |
 | research-strategy | v2.2.5 | — no |
 | campaign-presenter | v2.2.5 | — no |
@@ -568,6 +575,15 @@ For missing `{BRAND}_LATE_FB/IG/LI`: re-run `late_list_profiles` + `late_list_ac
 
 For missing `{BRAND}_NOTION_DB`: ask the user if they want to bootstrap now (calls `notion-create-database` per `social-calendar` Step 3a) or defer to first social-calendar run.
 
+For missing `{BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` or `{BRAND}_LATE_META_ADS_ACCOUNT_ID`: auto-discover via the gateway — no user input needed:
+```
+Use gateway MCP tool `late_list_accounts`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+→ Find entry where platform is "googleads" or "google" → save _id as ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID
+→ Find entry where platform is "metaads" or "facebook" → save _id as ${BRAND}_LATE_META_ADS_ACCOUNT_ID
+```
+These are SocialAccount IDs (the Zernio-side account object `_id`), which is what `late_get_ads_timeline` and `late_list_ad_campaigns` require as `account_id`. Only save the vars for platforms that are returned. If `LATE_API_KEY` is not set (Zernio not configured), skip silently and note: "Windsor.ai fallback ads account IDs not set — configure Zernio first."
+
 After updating `.claude/settings.local.json`, also store any external API keys in the gateway vault via `fiveagents_store_credential` (mapping per `brand-setup` Step 7b vault table).
 
 For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB`):
@@ -761,6 +777,7 @@ For each skill/agent flagged as changed in Step 1j, read its `### Change Log` bu
 | `investor-update-writer introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/investors.md` exists. If not → ask if brand has raised external capital; if yes → run brand-setup Step 5j |
 | `competitor-monitor introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/competitors.md` has the new `monitor_urls`/`track_pages`/`exec_team` fields per competitor. If not → run brand-setup Step 5l (extension) |
 | `meeting-analyzer introduced (link-skills v2.4.0)` | ⏭ Optional — ask user if they want operations.md set up. If yes → brand-setup Step 5k |
+| `digital-marketing-analyst v2.3.0 / data-analysis v2.3.0 — Windsor.ai fallback via Zernio (v2.5.0)` | ✅ Check `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` and `${BRAND}_LATE_META_ADS_ACCOUNT_ID` in env. If missing → run Step 3e auto-discover via `late_list_ad_accounts` |
 
 For changelog entries not in this table, apply judgment: if the change touches a per-brand configuration file (`brand.md`, `funnel.md`, `.claude/settings.local.json`, `CLAUDE.md`) → flag for review. If it is a skill-internal logic change → no brand action needed.
 

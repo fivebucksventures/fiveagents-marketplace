@@ -8,11 +8,15 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.13 | May 05, 2026 |
+| Link | v2.3.0 | May 14, 2026 |
 
 **Description:** Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand
 
 ### Change Log
+
+**v2.3.0** — May 14, 2026
+- Windsor fallback in Step 1a: if Windsor.ai errors or returns empty for Google Ads or Meta Ads, fall back to Zernio `late_get_ads_timeline` + `late_list_ad_campaigns`. GA4 has no fallback (Windsor-only) — noted in Data Gaps.
+- Step 7 (new): after delivering the report, optionally act on findings via Zernio ads tools — pause underperforming campaigns/ad sets, drill into ad-level analytics, audit conversion tracking, boost top posts.
 
 **v2.2.13** — May 05, 2026
 - Step 1a — Windsor.ai is default path; Meta Ads MCP is opt-in with automatic fallback
@@ -63,7 +67,7 @@ Before starting, confirm these inputs with the user:
 
 | Input | Required | Notes |
 |-------|----------|-------|
-| Data source | Yes | Windsor.ai (Google Ads, GA4), Meta Ads MCP (Facebook + Instagram), email metrics, lead data, or raw numbers pasted by user |
+| Data source | Yes | Windsor.ai (Google Ads, GA4, Meta Ads) — primary. Zernio ads fallback if Windsor.ai unavailable (Google Ads + Meta Ads only; GA4 Windsor-only). Or email metrics, lead data, raw numbers pasted by user. |
 | Time period | Yes | e.g., last 30 days, Q1 2026, week of March 10 |
 | Goal / benchmark | Yes | What were we trying to achieve? What's the target KPI? Read from `brands/{brand}/funnel.md` if available. |
 | Persona / campaign | Optional | Which campaign or audience segment does this data relate to? |
@@ -136,6 +140,33 @@ List the Meta Ads MCP's available tools at runtime and pick the one that returns
 **GA4 data reliability:** Only use data from 2026-03-08 onwards (tracking bug before that date).
 **Paid traffic segments:** Filter `google / cpc` for Google Ads sessions; filter `meta / paid_social` for Meta paid sessions.
 
+**Windsor fallback — Google Ads and Meta Ads:**
+
+If Windsor.ai `get_data` errors **or** returns 0 rows, fall back to Zernio before asking the user for data:
+
+```
+Google Ads fallback:
+  late_get_ads_timeline  (accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID, platform: "google", fromDate/toDate)
+  late_list_ad_campaigns (accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID, platform: "google")
+
+Meta Ads fallback:
+  late_get_ads_timeline  (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook", fromDate/toDate)
+  late_list_ad_campaigns (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook")
+
+Field mapping (Zernio → Windsor):
+  spend → cost/spend · ctr, cpc, cpm, clicks, impressions, reach → direct
+  conversions → conversions (Meta only; 0 for Google via Zernio)
+  costPerConversion → cpa
+  actions["link_click"] → actions_landing_page_view (Meta)
+  actions["video_view"] → actions_video_view (Meta)
+  actions["offsite_conversion.fb_pixel_*"] → brand-specific actions_* (Meta)
+  campaignName → campaign · status → campaign_effective_status
+```
+
+Note in Data Gaps: "Zernio fallback used — adset-level breakdown and GA4 sessions not available."
+
+⚠️ **GA4 is Windsor-only — no Zernio fallback.** If Windsor is unavailable, GA4 session data cannot be retrieved. Add to Data Gaps: "GA4 unavailable — Windsor.ai offline; no fallback source for session data."
+
 If Windsor.ai is not connected (which would mean brand-setup wasn't completed), and the user hasn't provided their own data, ask:
 > "I need data to analyze. Either (1) complete brand-setup so Windsor.ai is connected for Google Ads, GA4, and Meta Ads, or (2) paste your data here as CSV, table, or numbers."
 
@@ -194,6 +225,21 @@ For each insight, provide one specific, actionable recommendation:
 
 ### Step 6: Format the report
 Structure the output clearly using the output format below.
+
+### Step 7: Optional — Act on findings via Zernio Ads
+
+After delivering the report, offer to apply recommendations directly when the user confirms:
+
+| Finding | Action | Tool |
+|---|---|---|
+| Campaign wasting spend (high cost, 0 conv) | Pause campaign | `late_update_ad_campaign_status` |
+| Multiple underperforming campaigns | Bulk pause | `late_bulk_update_ad_campaign_status` |
+| Ad set audience fatigue (frequency > 2.5) | Pause ad set | `late_update_ad_set_status` |
+| Drill-down needed on specific ad | Ad-level analytics | `late_get_ad_analytics` (fromDate/toDate = report period) |
+| Conversion tracking gaps flagged | Audit tracking | `late_list_conversion_destinations` · `late_get_tracking_tag_stats` |
+| Top organic post worth promoting | Boost post | `late_boost_post` |
+
+Always confirm with the user before pausing or modifying campaigns. Read-only actions (analytics, tracking audit) can run immediately.
 
 ---
 

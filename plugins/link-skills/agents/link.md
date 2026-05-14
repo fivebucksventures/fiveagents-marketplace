@@ -7,11 +7,17 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.4 | May 12, 2026 |
+| Link | v2.6.3 | May 14, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.6.3** — May 14, 2026
+- Zernio ads management: gateway now exposes ~35 new `late_*` ads tools (campaign/ad-set/ad CRUD, audiences, conversions, tracking tags, boost post, CTWA, targeting research). Tools & Integrations → Zernio API section expanded with full tool list grouped by category.
+- `digital-marketing-analyst` Deps: added `Gateway: Zernio (ads)` — Windsor fallback for Google Ads + Meta Ads data pull; Phase 4 ads actions (pause campaigns/ad sets, duplicate winners, boost post, CTWA, conversion audit).
+- `data-analysis` Deps: added `Gateway: Zernio (ads) (opt)` — same Windsor fallback + optional Step 7 act-on-findings.
+- GA4 remains Windsor-only on both skills — Zernio fallback covers paid ads only, not session analytics.
 
 **v2.4.4** — May 12, 2026
 - Skills table — design-system audit. Added `design-system/ (opt — ...)` to four Deps rows that were missing it: `campaign-presenter` (informs Canva brand-kit selection + slide visual choices), `background-generator` (informs Gemini prompt palette), `proposal-generator` (informs Gamma deck visual identity), `investor-update-writer` (same — and that row also gains the new Gamma MCP dep + Google Drive fallback note).
@@ -124,9 +130,9 @@ The **Deps** column lists every external resource the skill needs to actually ru
 | `content-creation` | Marketing | Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy | Files: brand.md, audience.md, product.md, competitors.md, design-system/ (opt), social-{carousel,story}-template/ (opt — drives `_copy.json` shape) |
 | `creative-designer` | Marketing | Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding | Gateway: Gemini, Argil, Zernio, templates · Files: brand.md, audience.md, design-system/ (opt — falls back to brand.md colors/fonts), social-{carousel,story}-template/ (opt — falls back to Gemini + Pillow), avatars.md (opt — only for Reel/Argil video path) |
 | `social-publisher` | Marketing | Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio | MCP: Slack · Gateway: Zernio · Files: brand.md · Env: `${BRAND}_LATE_FB`, `${BRAND}_LATE_IG`, `${BRAND}_LATE_LI` (per-platform; only required for platforms the brand publishes to) |
-| `data-analysis` | Marketing | Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis | MCP: Windsor.ai · Files: brand.md, funnel.md |
+| `data-analysis` | Marketing | Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis | MCP: Windsor.ai · Gateway: Zernio (ads) (opt — fallback data pull + act-on-findings) · Files: brand.md, funnel.md |
 | `campaign-presenter` | Marketing | Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks | MCP: Canva · Files: brand.md, audience.md, product.md, competitors.md, design-system/ (opt — informs Canva brand-kit selection + slide visual choices when present, brand.md fallback otherwise) |
-| `digital-marketing-analyst` | Marketing | Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs | MCP: Windsor.ai, Slack, Gmail (opt — fallback when fiveagents_send_email returns 403), Meta Ads MCP (opt — Windsor covers Meta when absent) · Gateway: email · Files: brand.md, funnel.md |
+| `digital-marketing-analyst` | Marketing | Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs | MCP: Windsor.ai, Slack, Gmail (opt — fallback when fiveagents_send_email returns 403), Meta Ads MCP (opt — Windsor covers Meta when absent) · Gateway: email, Zernio (ads) (opt — Windsor fallback data pull; Phase 4 ads actions) · Files: brand.md, funnel.md |
 | `social-calendar` | Marketing | Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule | MCP: Notion, Slack · Files: brand.md, audience.md, product.md, competitors.md · Env: `${BRAND}_NOTION_DB` |
 | `content-generator` | Marketing | Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack | MCP: Notion, Slack · Gateway: Gemini, Argil, Zernio, templates · Files: brand.md, audience.md, product.md, design-system/ (opt), social-{carousel,story}-template/ (opt) · Env: `${BRAND}_NOTION_DB`, `${BRAND}_LATE_FB/IG/LI` |
 | `background-generator` | Marketing | Generate 20 background images per brand for Reel video production. Run manually or schedule externally | MCP: Notion · Gateway: Gemini · Files: brand.md, design-system/ (opt — informs Gemini prompt palette when present, brand.md fallback otherwise) · Env: `${BRAND}_NOTION_DB` |
@@ -178,7 +184,15 @@ All external API calls go through the fiveagents-gateway remote MCP server (`htt
 
 - **Gemini API** — image generation → `gemini_generate_image` / `gemini_generate_text`
 - **Argil API** — AI avatar video → `argil_create_video` / `argil_render_video` / `argil_get_video` / `argil_list_avatars` / `argil_list_voices`
-- **Zernio API** — social publishing → `late_presign_upload` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post` / `late_list_profiles` / `late_list_accounts`
+- **Zernio API** — social publishing + ads management
+  - *Publishing:* `late_presign_upload` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post` / `late_list_profiles` / `late_list_accounts`
+  - *Ads — accounts & campaigns:* `late_list_ad_accounts` / `late_list_ad_campaigns` / `late_update_ad_campaign` / `late_update_ad_campaign_status` / `late_bulk_update_ad_campaign_status` / `late_duplicate_ad_campaign` / `late_update_ad_set` / `late_update_ad_set_status`
+  - *Ads — individual ads:* `late_create_ad` / `late_get_ad` / `late_list_ads` / `late_update_ad` / `late_delete_ad`
+  - *Ads — analytics:* `late_get_ad_analytics` / `late_get_ads_timeline` / `late_get_ad_tree` / `late_get_ad_comments` / `late_list_tiktok_business_centers`
+  - *Ads — audiences:* `late_create_ad_audience` / `late_list_ad_audiences` / `late_get_ad_audience` / `late_delete_ad_audience` / `late_add_users_to_ad_audience`
+  - *Ads — conversions:* `late_create_conversion_destination` / `late_list_conversion_destinations` / `late_get_conversion_destination` / `late_update_conversion_destination` / `late_delete_conversion_destination` / `late_send_conversions` / `late_get_conversion_metrics` / `late_list_conversion_associations` / `late_add_conversion_associations` / `late_remove_conversion_associations`
+  - *Ads — tracking tags:* `late_create_tracking_tag` / `late_list_tracking_tags` / `late_get_tracking_tag` / `late_update_tracking_tag` / `late_delete_tracking_tag` / `late_get_tracking_tag_stats` / `late_list_tracking_tag_shared_accounts` / `late_add_tracking_tag_shared_account` / `late_remove_tracking_tag_shared_account`
+  - *Ads — targeting & other:* `late_search_ad_interests` / `late_search_ad_targeting_locations` / `late_boost_post` / `late_create_ctwa_ad`
 - **DataforSEO API** — keywords → `dataforseo_search_volume` / `dataforseo_keyword_suggestions`
 - **FiveAgents** — `fiveagents_log_run` / `fiveagents_store_credential` / `fiveagents_send_email`
 - **Image processing** — Python Pillow (local) for text overlay and logo compositing; media uploaded via `requests.put` to presigned S3 URL

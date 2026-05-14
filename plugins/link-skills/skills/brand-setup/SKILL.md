@@ -6,11 +6,15 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.3 | May 07, 2026 |
+| Link | v2.5.0 | May 14, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.5.0** — May 14, 2026
+- Step 7b Zernio setup Step D — after discovering social account IDs, also call `late_list_ad_accounts` to discover Google Ads and Meta Ads ad account IDs; save as `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` and `${BRAND}_LATE_META_ADS_ACCOUNT_ID` in `.claude/settings.local.json`. Required by the Windsor.ai fallback in `digital-marketing-analyst` and `data-analysis`.
+- CLAUDE.md template (Step 9b) — Account IDs section extended with Google Ads and Meta Ads account ID vars.
 
 **v2.4.3** — May 07, 2026
 - Step 10 email payload — added top-level `brand_name` field. Display name (e.g. `Five Agents`), read from the first `# ` heading in `brands/{brand}/brand.md`. Lets the server-side template render the brand's actual name in the email title instead of the slug.
@@ -1689,6 +1693,7 @@ After the user confirms they've connected their platforms, use the gateway to di
    - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
    - profile_id: "<profile _id from step 1>"
    → Returns list of connected accounts with `_id`, `platform`, `username`.
+
 ```
 
 Show the user what was found:
@@ -1696,18 +1701,24 @@ Show the user what was found:
 > - Facebook: @{username} (ID: {_id})
 > - Instagram: @{username} (ID: {_id})
 > - LinkedIn: {displayName} (ID: {_id})
+> - Google Ads: {platform} (SocialAccount ID: {_id})
+> - Meta Ads: {platform} (SocialAccount ID: {_id})
 
-Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator and social-publisher skills need these):
+The `late_list_accounts` response includes all connected SocialAccount objects. Look for entries where `platform` is `"googleads"` or `"google"` for Google Ads, and `"metaads"` or `"facebook"` for Meta Ads. The `_id` on each is the **SocialAccount ID** used by `late_get_ads_timeline`, `late_list_ad_campaigns`, and other ads tools.
+
+Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator and social-publisher skills need the social IDs; `digital-marketing-analyst` and `data-analysis` need the ads SocialAccount IDs for the Windsor.ai fallback):
 
 ```
-{BRAND}_LATE_FB   → Facebook account _id from late_list_accounts
-{BRAND}_LATE_IG   → Instagram account _id from late_list_accounts
-{BRAND}_LATE_LI   → LinkedIn account _id from late_list_accounts
+{BRAND}_LATE_FB                    → Facebook _id from late_list_accounts (platform: facebook)
+{BRAND}_LATE_IG                    → Instagram _id from late_list_accounts (platform: instagram)
+{BRAND}_LATE_LI                    → LinkedIn _id from late_list_accounts (platform: linkedin)
+{BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → Google Ads _id from late_list_accounts (platform: googleads or google)
+{BRAND}_LATE_META_ADS_ACCOUNT_ID   → Meta Ads _id from late_list_accounts (platform: metaads or facebook)
 ```
 
-Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`
+Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`, `NPCOFFICE_LATE_GOOGLE_ADS_ACCOUNT_ID`, `NPCOFFICE_LATE_META_ADS_ACCOUNT_ID`
 
-Only create env vars for platforms that were found. If a platform isn't connected, skip it.
+Only create env vars for platforms that were found. If a platform isn't connected to Zernio, skip that env var — the skill will note the gap if Windsor.ai fallback is triggered.
 
 Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 
@@ -2378,6 +2389,8 @@ Read from env vars after credential loading:
 - Facebook:  `{BRAND}_LATE_FB`
 - Instagram: `{BRAND}_LATE_IG`
 - LinkedIn:  `{BRAND}_LATE_LI`
+- Google Ads account (Windsor.ai fallback): `{BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID`
+- Meta Ads account (Windsor.ai fallback):   `{BRAND}_LATE_META_ADS_ACCOUNT_ID`
 
 ---
 ```

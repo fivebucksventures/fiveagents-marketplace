@@ -8,11 +8,15 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.13 | May 05, 2026 |
+| Link | v2.3.0 | May 14, 2026 |
 
 **Description:** Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs for any active brand
 
 ### Change Log
+
+**v2.3.0** — May 14, 2026
+- Windsor fallback: if Windsor.ai errors or returns 0 rows, fall back to Zernio `late_get_ads_timeline` + `late_list_ad_campaigns` for Google Ads and Meta Ads data (same field mapping). GA4 marked unavailable when Windsor is down.
+- Phase 4 — Ads Actions: new section after Phase 3 (Email Stitcher). After analysis runs, the skill can now act on flags — pause wasting campaigns/ad sets, duplicate winners, expand audiences, boost posts, create CTWA ads, audit conversion tracking.
 
 **v2.2.13** — May 05, 2026
 - Windsor.ai (source: "facebook") documented as default; Meta Ads MCP is opt-in alternative
@@ -105,7 +109,46 @@ Windsor returns named fields directly — no column mapping needed:
 #### Date validation
 Check `max(date)` from the Windsor response to confirm the data covers the expected report date.
 
+#### Windsor fallback — Google Ads
+
+If Windsor.ai `get_data` errors **or** returns 0 rows for the target date, fall back to Zernio:
+
+```
+Log: "Windsor.ai unavailable — falling back to Zernio for Google Ads"
+
+1. Call late_get_ads_timeline:
+   - accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID
+   - fromDate: day_before_yesterday (YYYY-MM-DD)
+   - toDate: yesterday (YYYY-MM-DD)
+   - platform: "google"
+   → Returns daily rows: { date, spend, impressions, clicks, ctr, cpc, cpm, conversions, costPerConversion, reach }
+
+2. Call late_list_ad_campaigns:
+   - accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID
+   - platform: "google"
+   → Returns campaigns with AdMetrics: { campaignName, status, spend, clicks, impressions, ctr, cpc, conversions, costPerConversion }
+
+Field mapping — Zernio → Windsor schema:
+  spend            → cost            (already in account's local currency)
+  ctr              → ctr             (direct — both are %)
+  cpc              → cpc             (direct)
+  cpm              → cpm             (direct)
+  clicks           → clicks          (direct)
+  impressions      → impressions     (direct)
+  conversions      → conversions     (Meta-only in Zernio; Google returns 0 — flag as "conversions unavailable via Zernio fallback")
+  costPerConversion → cpa            (direct)
+  campaignName     → campaign
+  status           → campaign_status
+
+Set in intermediate JSON: "data_source": "zernio_fallback"
+Set in email flags.notes: "⚠️ Windsor.ai unavailable — Google Ads data sourced from Zernio (conversion counts unavailable)"
+```
+
+⚠️ **If `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` is not set:** skip fallback and set `all_campaigns_paused: true` with note "Google Ads data unavailable — Windsor.ai offline and no Zernio ads account ID configured."
+
 ### Step 2 — Pull GA4 Data
+
+⚠️ **GA4 is Windsor-only — no Zernio fallback.** Zernio does not expose GA4 session data. If Windsor.ai is unavailable, set `ga4.sessions_total: null` and add `"GA4 unavailable — Windsor.ai offline; no fallback source"` to `ga4.funnel_flags`. Do not attempt to substitute GA4 data from any other source.
 
 ⚠️ **Data reliability note:** GA4 data before **2026-03-08** was affected by a tracking bug. Always use Mar 8 as the earliest start date.
 
@@ -321,6 +364,48 @@ At runtime, list the Meta Ads MCP's available tools and pick the one that return
 - **Drill-down:** ad_set, ad, lp_views (landing page views), video_views, conversions, frequency, cpm, cpc
 
 **Runtime fallback:** if the MCP errors (auth, rate limit, listing failure), fall back to the Windsor.ai path above using the same field map. Windsor is always connected with Meta Ads per brand-setup Step 7c, so the fallback is guaranteed to work — log a warning to memory but do not fail the run.
+
+#### Windsor fallback — Meta Ads
+
+If Windsor.ai `get_data` with `source: "facebook"` errors **or** returns 0 rows for the target date, fall back to Zernio:
+
+```
+Log: "Windsor.ai unavailable — falling back to Zernio for Meta Ads"
+
+1. Call late_get_ads_timeline:
+   - accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID
+   - fromDate: day_before_yesterday (YYYY-MM-DD)
+   - toDate: yesterday (YYYY-MM-DD)
+   - platform: "facebook"
+   → Returns daily rows: { date, spend, impressions, clicks, ctr, cpc, cpm, reach, conversions, costPerConversion, actions, actionValues, purchaseValue, roas }
+
+2. Call late_list_ad_campaigns:
+   - accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID
+   - platform: "facebook"
+   → Returns campaigns with AdMetrics (same fields as above) + { campaignName, status, currency, adCount, budget }
+
+Field mapping — Zernio → Windsor schema:
+  spend                              → spend                 (native currency — same as Windsor)
+  ctr, cpc, cpm, clicks, impressions, reach → direct map
+  actions["link_click"]              → actions_landing_page_view
+  actions["video_view"]              → actions_video_view
+  actions["offsite_conversion.fb_pixel_purchase"] → actions_omni_purchase   (e-commerce)
+  actions["lead"] or actions["offsite_conversion.fb_pixel_lead"] → actions_lead (lead-gen)
+  actions["complete_registration"]   → actions_complete_registration (SaaS)
+  costPerConversion                  → cost_per_action_type_<event>
+  purchaseValue, roas                → available as bonus fields (not in Windsor schema)
+  campaignName                       → campaign
+  status                             → campaign_effective_status
+
+Note: adset-level breakdown (adset_name, adset_id) is NOT available from late_list_ad_campaigns alone.
+Use late_get_ad_tree (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID) for campaign→adset→ad hierarchy if needed.
+The ad_sets[] array in the intermediate JSON will be empty when using Zernio fallback without late_get_ad_tree.
+
+Set in intermediate JSON: "source": "zernio_fallback"
+Set in email flags.notes: "⚠️ Windsor.ai unavailable — Meta Ads data sourced from Zernio (ad-set breakdown requires additional call)"
+```
+
+⚠️ **If `${BRAND}_LATE_META_ADS_ACCOUNT_ID` is not set:** skip fallback and set `no_active_campaigns: true` with note "Meta Ads data unavailable — Windsor.ai offline and no Zernio ads account ID configured."
 
 #### Common to both paths
 
@@ -588,12 +673,15 @@ Use Windsor.ai MCP tool `get_data`:
 
 Filter results for the target week range. Also pull prior week for WoW comparison.
 
+**Windsor fallback — weekly Google Ads:** if Windsor errors or returns 0 rows for the target week, call `late_get_ads_timeline` (platform: "google", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (platform: "google"). Apply same field mapping as the daily fallback. Set `"data_source": "zernio_fallback"` in the weekly JSON. GA4 has no fallback — mark as unavailable.
+
 ### Step 1b — Pull Weekly Meta Ads Data
 
 **Branch on `META_ADS_SOURCE`** — same rule as Phase 2 Step 1 in the daily flow:
 
 - **Default (env var unset)** — Pull via **Windsor.ai** with `source: "facebook"` using the field set documented in Phase 2 Step 1 (campaign / `adset_name` / `ad_name` / `clicks` / `impressions` / `ctr` / `spend` / `reach` / `frequency` / `cpm` / `cpc` / `actions_landing_page_view` / `actions_video_view` / brand-specific `actions_*` conversion field). `date_preset: "last_30dT"`. Pull the target week plus the prior week for WoW comparison.
 - **Opt-in (`META_ADS_SOURCE=meta_ads_mcp`)** — Pull via the **Meta Ads MCP** custom connector (`https://mcp.facebook.com/ads`). Request campaign-level fields (campaign, clicks, impressions, ctr, spend, reach) plus drill-down (ad_set, ad, lp_views, conversions, cpm, frequency) for the target week range, plus the prior week for WoW comparison. On MCP error, fall back to the Windsor path.
+- **Windsor/MCP both unavailable** — Fall back to Zernio: `late_get_ads_timeline` (platform: "facebook", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (platform: "facebook"). Apply same field mapping as daily Phase 2 fallback. Set `"source": "zernio_fallback"` in weekly JSON.
 
 Filter for the target week. Convert USD spend to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`. Include WoW comparison from prior week.
 
@@ -682,6 +770,76 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 - Brand-specific known issues should be documented in `brands/{brand}/funnel.md` notes section.
 - If one platform has no data yet, still send email with available data. Note the gap.
 - Future data sources to add: TikTok Ads (when an official MCP becomes available)
+
+---
+
+---
+
+## Phase 4 — Ads Actions (optional, after analysis)
+
+After the daily or weekly brief is sent, the skill can act on the flags it just raised. This phase runs when:
+- The user explicitly asks to apply a recommendation (e.g. "pause that campaign", "boost this post"), **or**
+- The skill is invoked with `--auto-optimize` (reserved for future automation)
+
+**Autonomy rule:** Always confirm before taking destructive actions (pause, delete, status changes). Read-only actions (analytics drill-down, targeting research, comments) run immediately.
+
+### Step 1 — Resolve Zernio ad accounts
+
+If not already cached in `brands/{brand}/ads.md`, call:
+
+```
+late_list_ad_accounts
+```
+
+to discover all connected Zernio ad accounts (Meta, Google, TikTok, LinkedIn) for the brand. Store the relevant account IDs for use in subsequent steps.
+
+### Step 2 — Apply flags as actions
+
+Based on `flags.urgent` and `flags.optimize` from the analysis, offer these actions:
+
+| Situation | Action | Tool |
+|---|---|---|
+| Campaign wasting spend (high cost, 0 conv) | Pause campaign | `late_update_ad_campaign_status` |
+| Multiple bad campaigns | Bulk pause | `late_bulk_update_ad_campaign_status` |
+| Ad set audience fatigue (frequency > 2.5) | Pause ad set | `late_update_ad_set_status` |
+| Campaign budget needs adjustment | Update budget | `late_update_ad_campaign` |
+| Winning ad to duplicate | Duplicate | `late_duplicate_ad_campaign` |
+| Ad creative comments review (dark posts) | Fetch comments | `late_get_ad_comments` |
+| Drill-down on specific ad performance | Ad-level analytics | `late_get_ad_analytics` (fromDate/toDate = report period) |
+
+### Step 3 — Targeting research (when user asks to expand or change targeting)
+
+```
+late_search_ad_interests       — find interest targeting options by keyword
+late_search_ad_targeting_locations — find location targeting by name/country
+```
+
+### Step 4 — Boost post (when analysis identifies a top organic post worth promoting)
+
+```
+late_boost_post
+```
+
+Confirm with user: post ID, target audience, budget, duration.
+
+### Step 5 — CTWA ad (when brand has WhatsApp and user requests a Click-to-WhatsApp campaign)
+
+```
+late_create_ctwa_ad
+```
+
+Confirm with user: ad creative, WhatsApp number, target audience.
+
+### Step 6 — Conversion tracking audit (when user asks to check or set up tracking)
+
+```
+late_list_conversion_destinations   — list existing pixels / conversion rules
+late_create_conversion_destination  — create a new conversion destination
+late_list_tracking_tags             — list platform measurement tags (Meta Pixel, etc.)
+late_get_tracking_tag_stats         — check tag health and firing status
+late_create_tracking_tag            — create a new tracking tag
+late_send_conversions               — relay server-side conversion events to platform APIs
+```
 
 ---
 
