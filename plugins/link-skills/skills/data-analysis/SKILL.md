@@ -8,11 +8,16 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 14, 2026 |
+| Link | v2.3.1 | May 15, 2026 |
 
 **Description:** Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand
 
 ### Change Log
+
+**v2.3.1** — May 15, 2026
+- Step 1a Windsor fallback — Google Ads Zernio fallback now passes **both** `account_id=${BRAND}_LATE_GOOGLE_ADS` and `ad_account_id=${BRAND}_LATE_GOOGLE_ADS_CID`. Passing only the SocialAccount ID returned empty results (the existing bug). Env-var gate added: if either var is missing, the Google Ads Zernio fallback is skipped and noted in Data Gaps.
+- Step 1a now includes a **LinkedIn Ads** path (opt-in — only when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set). Windsor primary (`source: "linkedin"`, fields incl. `lead_form_opens` / `lead_form_completions`); Zernio fallback uses the same two-ID pattern as Google Ads (`platform: "linkedin"`). Field map covers `externalWebsiteConversions` → `conversions` and `qualifiedLeads` → `qualified_leads`.
+- 429 rate-limit handling — note in Data Gaps "&lt;Platform&gt; rate-limited — retry after Xs" and continue with whatever Windsor or other-platform data is available; don't block the run.
 
 **v2.3.0** — May 14, 2026
 - Windsor fallback in Step 1a: if Windsor.ai errors or returns empty for Google Ads or Meta Ads, fall back to Zernio `late_get_ads_timeline` + `late_list_ad_campaigns`. GA4 has no fallback (Windsor-only) — noted in Data Gaps.
@@ -88,7 +93,7 @@ If data is incomplete or missing, flag what's needed before proceeding.
 
 ### Step 1a: Pull data from Windsor.ai or Meta Ads MCP (if applicable)
 
-**Windsor.ai is the universal source** for Google Ads, GA4, **and** Meta Ads (Facebook + Instagram) — every brand has all three connected per brand-setup. The Meta Ads MCP at `https://mcp.facebook.com/ads` is an optional opt-in alternative for Meta data only; it is in limited rollout and most accounts won't have it.
+**Windsor.ai is the universal source** for Google Ads, GA4, **and** Meta Ads (Facebook + Instagram) — every brand has all three connected per brand-setup. The Meta Ads MCP at `https://mcp.facebook.com/ads` is an optional opt-in alternative for Meta data only; it is in limited rollout and most accounts won't have it. **LinkedIn Ads** is opt-in per brand (only pulled when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set) — see the LinkedIn Ads block below.
 
 Branch on the `META_ADS_SOURCE` env var (saved by brand-setup, loaded into `os.environ` by the `CLAUDE.md` credential loader):
 
@@ -135,35 +140,66 @@ Windsor field map for canonical Meta dimensions: `ad_set` → `adset_name`/`adse
 
 List the Meta Ads MCP's available tools at runtime and pick the one that returns campaign-level insights for the requested date range. Typical fields: `campaign`, `clicks`, `impressions`, `ctr`, `spend`, `reach`. Drill-down via Meta's Marketing API: `ad_set`, `ad`, `lp_views`, `video_views`, `conversions`, `frequency`, `cpm`, `cpc`. On MCP error, fall back to the Windsor path above.
 
-**Currency:** Meta `spend` is USD on both paths — convert to the brand's local currency using exchange rate from `brands/{brand}/brand.md`. Google Ads `cost` is already in the account's local currency.
+**LinkedIn Ads — opt-in per brand (only when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set):**
+
+LinkedIn Ads is **not pulled by default**. The skill only fetches LinkedIn data when both env vars are present — otherwise it silently skips LinkedIn analysis. When set, the primary source is Windsor.ai; the fallback is Zernio (see the Windsor fallback section below).
+
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "linkedin"
+- date_preset: "last_NdT" (match user's requested period)
+- fields: [
+    "date",
+    "campaign", "campaign_status",
+    "clicks", "impressions", "ctr", "cost", "cpm", "cpc",
+    "conversions", "cpa",
+    "lead_form_opens", "lead_form_completions"
+  ]
+```
+
+LinkedIn-specific field notes: `cost` is in the account's local currency (already in the LinkedIn ad account's billing currency — same as Google Ads, no USD conversion needed). LinkedIn-native conversion events surface as `externalWebsiteConversions` / `qualifiedLeads` in the underlying API; Windsor exposes them under `conversions` / `qualified_leads` — confirm the exact field names at query time via `get_fields` if a column comes back null.
+
+**Currency:** Meta `spend` is USD on both paths — convert to the brand's local currency using exchange rate from `brands/{brand}/brand.md`. Google Ads `cost` and LinkedIn Ads `cost` are already in the account's local currency.
 **Data lag:** Windsor.ai connectors (Google Ads, GA4, Facebook) and the Meta Ads MCP are all near-real-time. No lag adjustments needed.
 **GA4 data reliability:** Only use data from 2026-03-08 onwards (tracking bug before that date).
 **Paid traffic segments:** Filter `google / cpc` for Google Ads sessions; filter `meta / paid_social` for Meta paid sessions.
 
-**Windsor fallback — Google Ads and Meta Ads:**
+**Windsor fallback — Google Ads, Meta Ads, and LinkedIn Ads:**
 
 If Windsor.ai `get_data` errors **or** returns 0 rows, fall back to Zernio before asking the user for data:
 
 ```
-Google Ads fallback:
-  late_get_ads_timeline  (accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID, platform: "google", fromDate/toDate)
-  late_list_ad_campaigns (accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID, platform: "google")
+Google Ads fallback (REQUIRES BOTH env vars — account_id + ad_account_id):
+  late_get_ads_timeline  (account_id: ${BRAND}_LATE_GOOGLE_ADS, ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID, platform: "google", fromDate/toDate)
+  late_list_ad_campaigns (account_id: ${BRAND}_LATE_GOOGLE_ADS, ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID, platform: "google")
 
 Meta Ads fallback:
   late_get_ads_timeline  (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook", fromDate/toDate)
   late_list_ad_campaigns (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook")
 
+LinkedIn Ads fallback (REQUIRES BOTH env vars — account_id + ad_account_id; opt-in per brand):
+  late_get_ads_timeline  (account_id: ${BRAND}_LATE_LINKEDIN_ADS, ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID, platform: "linkedin", fromDate/toDate)
+  late_list_ad_campaigns (account_id: ${BRAND}_LATE_LINKEDIN_ADS, ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID, platform: "linkedin")
+
 Field mapping (Zernio → Windsor):
   spend → cost/spend · ctr, cpc, cpm, clicks, impressions, reach → direct
-  conversions → conversions (Meta only; 0 for Google via Zernio)
+  conversions → conversions (Meta + LinkedIn; 0 for Google via Zernio)
   costPerConversion → cpa
   actions["link_click"] → actions_landing_page_view (Meta)
   actions["video_view"] → actions_video_view (Meta)
   actions["offsite_conversion.fb_pixel_*"] → brand-specific actions_* (Meta)
+  externalWebsiteConversions → conversions (LinkedIn)
+  qualifiedLeads → qualified_leads (LinkedIn)
   campaignName → campaign · status → campaign_effective_status
 ```
 
 Note in Data Gaps: "Zernio fallback used — adset-level breakdown and GA4 sessions not available."
+
+⚠️ **Google Ads env var gate:** the Google Ads fallback requires **both** `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID). If either is missing, skip the Google Ads Zernio fallback and note in Data Gaps: "Google Ads Zernio fallback skipped — `${BRAND}_LATE_GOOGLE_ADS` / `${BRAND}_LATE_GOOGLE_ADS_CID` not configured. Run brand-setup Step 7b Step D or plugin-update Step 3e."
+
+⚠️ **LinkedIn Ads env var gate:** the LinkedIn Ads fallback requires **both** `${BRAND}_LATE_LINKEDIN_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_LATE_LINKEDIN_ADS_CID` (LinkedIn sponsored account ID). LinkedIn Ads is opt-in — if neither var is set, silently skip LinkedIn analysis (the brand likely does not run LinkedIn Ads). If one is set but not the other, note in Data Gaps: "LinkedIn Ads Zernio fallback skipped — partial env var configuration. Run brand-setup Step 7b Step D or plugin-update Step 3e."
+
+⚠️ **Rate-limit handling:** if Zernio returns a 429 with `retryDelay`, note in Data Gaps "<Platform> rate-limited — retry after Xs" and continue with whatever Windsor or other-platform data is available. Do not block the run waiting for the retry window.
 
 ⚠️ **GA4 is Windsor-only — no Zernio fallback.** If Windsor is unavailable, GA4 session data cannot be retrieved. Add to Data Gaps: "GA4 unavailable — Windsor.ai offline; no fallback source for session data."
 

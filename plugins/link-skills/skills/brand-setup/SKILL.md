@@ -6,11 +6,16 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.0 | May 14, 2026 |
+| Link | v2.5.1 | May 15, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.5.1** — May 15, 2026
+- Step 7b Zernio setup Step D — Google Ads now needs **two** env vars: `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID, 10-digit). Zernio's Google Ads tools take both `account_id` AND `ad_account_id` — passing only the SocialAccount ID returned empty results. The legacy single var `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` is now renamed by plugin-update Step 3e. Customer ID is resolved via `late_list_ad_accounts`; on 429 / empty response, prompts the user for the dashboard ID (strips dashes).
+- Step 7b Step D extended with **LinkedIn Ads** discovery (opt-in per brand). New env var pair `${BRAND}_LATE_LINKEDIN_ADS` (Zernio SocialAccount `_id`, `platform: "linkedinads"` or `"linkedin_ads"` — distinct from organic LinkedIn `${BRAND}_LATE_LI`) + `${BRAND}_LATE_LINKEDIN_ADS_CID` (LinkedIn sponsored account ID, numeric). Same two-ID pattern as Google Ads. Steps 4–5 skipped silently when no LinkedIn Ads entry is present in `late_list_accounts`.
+- CLAUDE.md template Account IDs section extended with the four new vars (`_LATE_GOOGLE_ADS`, `_LATE_GOOGLE_ADS_CID`, `_LATE_LINKEDIN_ADS`, `_LATE_LINKEDIN_ADS_CID`). Step D body notes LinkedIn `cost` is in the ad account's local currency, same convention as Google Ads.
 
 **v2.5.0** — May 14, 2026
 - Step 7b Zernio setup Step D — after discovering social account IDs, also call `late_list_ad_accounts` to discover Google Ads and Meta Ads ad account IDs; save as `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` and `${BRAND}_LATE_META_ADS_ACCOUNT_ID` in `.claude/settings.local.json`. Required by the Windsor.ai fallback in `digital-marketing-analyst` and `data-analysis`.
@@ -1703,22 +1708,65 @@ Show the user what was found:
 > - LinkedIn: {displayName} (ID: {_id})
 > - Google Ads: {platform} (SocialAccount ID: {_id})
 > - Meta Ads: {platform} (SocialAccount ID: {_id})
+> - LinkedIn Ads (if connected): {platform} (SocialAccount ID: {_id})
 
-The `late_list_accounts` response includes all connected SocialAccount objects. Look for entries where `platform` is `"googleads"` or `"google"` for Google Ads, and `"metaads"` or `"facebook"` for Meta Ads. The `_id` on each is the **SocialAccount ID** used by `late_get_ads_timeline`, `late_list_ad_campaigns`, and other ads tools.
+The `late_list_accounts` response includes all connected SocialAccount objects. Look for entries where `platform` is `"googleads"` or `"google"` for Google Ads, and `"metaads"` or `"facebook"` for Meta Ads. The `_id` on each is the **SocialAccount ID** (the Zernio-internal object ID).
 
-Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator and social-publisher skills need the social IDs; `digital-marketing-analyst` and `data-analysis` need the ads SocialAccount IDs for the Windsor.ai fallback):
+**Google Ads needs two IDs.** Zernio's `late_get_ads_timeline` / `late_list_ad_campaigns` calls take both `account_id` (Zernio SocialAccount `_id`) **and** `ad_account_id` (the actual Google Ads customer ID — a 10-digit number). Passing only the SocialAccount ID returns empty results. Resolve the customer ID after saving the SocialAccount ID:
+
+```
+3. Use gateway MCP tool `late_list_ad_accounts`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - account_id: <Google Ads SocialAccount _id from step 2>
+   → Returns ad accounts visible under that Google Ads login.
+
+3a. If accounts are returned → extract the numeric customer ID from the first entry. Save as ${BRAND}_LATE_GOOGLE_ADS_CID.
+3b. If the response is empty OR a 429 rate-limit error is returned → ask the user:
+    > "What is your Google Ads customer ID? You can find it in the top-right corner
+    > of your Google Ads account (format: XXX-XXX-XXXX)."
+    Strip dashes before saving — store only the digits.
+```
+
+**LinkedIn Ads needs two IDs (same pattern as Google Ads).** Per the Zernio LinkedIn Ads docs, `late_get_ads_timeline` / `late_list_ad_campaigns` for LinkedIn require both `account_id` (Zernio SocialAccount `_id` for the LinkedIn Ads entry) **and** `ad_account_id` (LinkedIn's numeric sponsored account ID, e.g. `517258773`). The LinkedIn Ads SocialAccount is a separate `late_list_accounts` entry from organic LinkedIn — do not reuse `{BRAND}_LATE_LI` (that is the organic LinkedIn page/profile ID for publishing).
+
+```
+4. From the same `late_list_accounts` response, find the LinkedIn Ads entry — `platform` is
+   "linkedinads" or "linkedin_ads" (distinct from the organic "linkedin" entry saved as
+   {BRAND}_LATE_LI). Save its _id as ${BRAND}_LATE_LINKEDIN_ADS.
+
+5. Use gateway MCP tool `late_list_ad_accounts`:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - account_id: <LinkedIn Ads SocialAccount _id from step 4>
+   → Returns LinkedIn sponsored ad accounts visible under that LinkedIn login.
+
+5a. If accounts are returned → extract the numeric sponsored account ID (the `urn:li:sponsoredAccount:<id>`
+    digits) from the first entry. Save as ${BRAND}_LATE_LINKEDIN_ADS_CID.
+5b. If the response is empty OR a 429 rate-limit error is returned → ask the user:
+    > "What is your LinkedIn sponsored account ID? Open Campaign Manager → look at the URL or
+    > top-left account picker — it's a numeric ID (e.g. 517258773)."
+    Save the digits only.
+```
+
+Skip Steps 4–5 entirely if no LinkedIn Ads entry is found in `late_list_accounts` — most brands do not run LinkedIn Ads, and the analyst skills will silently skip LinkedIn analysis when these vars are unset.
+
+Meta Ads only needs the single SocialAccount ID (`{BRAND}_LATE_META_ADS_ACCOUNT_ID`) — its Zernio calls already work with just that.
+
+Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator and social-publisher skills need the social IDs; `digital-marketing-analyst` and `data-analysis` need the ads IDs for the Windsor.ai fallback):
 
 ```
 {BRAND}_LATE_FB                    → Facebook _id from late_list_accounts (platform: facebook)
 {BRAND}_LATE_IG                    → Instagram _id from late_list_accounts (platform: instagram)
-{BRAND}_LATE_LI                    → LinkedIn _id from late_list_accounts (platform: linkedin)
-{BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → Google Ads _id from late_list_accounts (platform: googleads or google)
+{BRAND}_LATE_LI                    → LinkedIn _id from late_list_accounts (platform: linkedin) — organic publishing only
+{BRAND}_LATE_GOOGLE_ADS            → Google Ads SocialAccount _id from late_list_accounts (platform: googleads or google)
+{BRAND}_LATE_GOOGLE_ADS_CID        → Google Ads customer ID (10-digit, no dashes) from late_list_ad_accounts or user input
 {BRAND}_LATE_META_ADS_ACCOUNT_ID   → Meta Ads _id from late_list_accounts (platform: metaads or facebook)
+{BRAND}_LATE_LINKEDIN_ADS          → LinkedIn Ads SocialAccount _id from late_list_accounts (platform: linkedinads or linkedin_ads) — distinct from {BRAND}_LATE_LI
+{BRAND}_LATE_LINKEDIN_ADS_CID      → LinkedIn sponsored account ID (numeric) from late_list_ad_accounts or user input
 ```
 
-Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`, `NPCOFFICE_LATE_GOOGLE_ADS_ACCOUNT_ID`, `NPCOFFICE_LATE_META_ADS_ACCOUNT_ID`
+Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`, `NPCOFFICE_LATE_GOOGLE_ADS`, `NPCOFFICE_LATE_GOOGLE_ADS_CID`, `NPCOFFICE_LATE_META_ADS_ACCOUNT_ID`, `NPCOFFICE_LATE_LINKEDIN_ADS`, `NPCOFFICE_LATE_LINKEDIN_ADS_CID`
 
-Only create env vars for platforms that were found. If a platform isn't connected to Zernio, skip that env var — the skill will note the gap if Windsor.ai fallback is triggered.
+Only create env vars for platforms that were found. If a platform isn't connected to Zernio, skip that env var — the skill will note the gap if Windsor.ai fallback is triggered. For Google Ads and LinkedIn Ads, **both** vars (`_LATE_GOOGLE_ADS` + `_LATE_GOOGLE_ADS_CID`, `_LATE_LINKEDIN_ADS` + `_LATE_LINKEDIN_ADS_CID`) must be set for the fallback to work — if the customer/sponsored-account ID can't be obtained, save the SocialAccount ID alone and note the gap.
 
 Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 
@@ -2388,9 +2436,12 @@ These values are hardcoded here at brand-setup time so any session reading `CLAU
 Read from env vars after credential loading:
 - Facebook:  `{BRAND}_LATE_FB`
 - Instagram: `{BRAND}_LATE_IG`
-- LinkedIn:  `{BRAND}_LATE_LI`
-- Google Ads account (Windsor.ai fallback): `{BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID`
-- Meta Ads account (Windsor.ai fallback):   `{BRAND}_LATE_META_ADS_ACCOUNT_ID`
+- LinkedIn (organic publishing): `{BRAND}_LATE_LI`
+- Google Ads Zernio account (Windsor.ai fallback):    `{BRAND}_LATE_GOOGLE_ADS`
+- Google Ads customer ID (Windsor.ai fallback):       `{BRAND}_LATE_GOOGLE_ADS_CID`
+- Meta Ads account (Windsor.ai fallback):             `{BRAND}_LATE_META_ADS_ACCOUNT_ID`
+- LinkedIn Ads Zernio account (Windsor.ai fallback):  `{BRAND}_LATE_LINKEDIN_ADS`
+- LinkedIn sponsored account ID (Windsor.ai fallback):`{BRAND}_LATE_LINKEDIN_ADS_CID`
 
 ---
 ```

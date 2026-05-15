@@ -8,11 +8,19 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 14, 2026 |
+| Link | v2.3.1 | May 15, 2026 |
 
-**Description:** Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs for any active brand
+**Description:** Daily and weekly paid ads analysis — Google Ads, Meta Ads, LinkedIn Ads (opt), GA4 funnel analysis with structured JSON email briefs for any active brand
 
 ### Change Log
+
+**v2.3.1** — May 15, 2026
+- Phase 1 Step 1 Google Ads Zernio fallback — now passes **both** `account_id=${BRAND}_LATE_GOOGLE_ADS` and `ad_account_id=${BRAND}_LATE_GOOGLE_ADS_CID`. Passing only the SocialAccount ID returned empty results (the existing bug). Env-var gate updated: if either is missing, set `all_campaigns_paused: true` with a clear "run brand-setup Step 7b Step D or plugin-update Step 3e" note.
+- **New Phase 2.5 — LinkedIn Ads Data Pull** (`linkedin-data-pull`, optional). Runs only when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are both set. Windsor primary (`source: "linkedin"`, fields incl. `lead_form_opens` / `lead_form_completions`); Zernio fallback with same two-ID pattern (`platform: "linkedin"`). Dedicated JSON shape (`tmp/linkedin-{date}.json` with `linkedin_ads` block + LinkedIn-specific CTR/CPC/CPM/lead-form benchmarks).
+- Daily Brief Architecture table extended with the optional 4th `linkedin-data-pull` cron job. Phase 3 Step 1 (Email Stitcher) optionally loads `tmp/linkedin-{date}.json`; absent file is silent (no retry, no warning) — opt-in per brand.
+- Weekly Workflow — new Step 1d (Pull Weekly LinkedIn Ads Data, optional). Weekly job table extended with `linkedin-weekly-data-pull` cron. Weekly Google Ads fallback line clarified — explicitly passes both `account_id` + `ad_account_id` (was ambiguous; relied on "same as daily" which itself was wrong before this fix).
+- Slack DM template includes a conditional LinkedIn line; omit when LinkedIn JSON absent.
+- 429 rate-limit handling — note in `flags.notes` "&lt;Platform&gt; rate-limited via Zernio — retry after Xs" and continue with available data; don't block the run.
 
 **v2.3.0** — May 14, 2026
 - Windsor fallback: if Windsor.ai errors or returns 0 rows, fall back to Zernio `late_get_ads_timeline` + `late_list_ad_campaigns` for Google Ads and Meta Ads data (same field mapping). GA4 marked unavailable when Windsor is down.
@@ -48,17 +56,18 @@ You are a senior Digital Marketing Expert with deep expertise in Google Ads, Fac
 
 ## Daily Brief Architecture
 
-The daily brief runs as **3 separate cron jobs** to stay within the 5-minute execution limit:
+The daily brief runs as **3 cron jobs by default** (plus an optional 4th for LinkedIn Ads) to stay within the 5-minute execution limit:
 
 | Job | Cron | What it does | Output |
 |---|---|---|---|
 | `gads-data-pull` | cron schedule daily | Google Ads + GA4 pull + analysis | `tmp/gads-{YYYY-MM-DD}.json` |
 | `meta-data-pull` | cron schedule daily | Meta Ads pull + analysis | `tmp/meta-{YYYY-MM-DD}.json` |
-| `paid-ads-email-sender` | cron schedule + 15min daily | Reads both JSONs, builds JSON payload, sends via Postmark | Email to $REPORT_EMAIL |
+| `linkedin-data-pull` *(optional — only when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set)* | cron schedule daily | LinkedIn Ads pull + analysis | `tmp/linkedin-{YYYY-MM-DD}.json` |
+| `paid-ads-email-sender` | cron schedule + 15min daily | Reads all available JSONs, builds JSON payload, sends via Postmark | Email to $REPORT_EMAIL |
 
-Jobs 1 & 2 run in parallel. Job 3 waits 15 minutes to ensure both files exist before sending.
+Data-pull jobs run in parallel. The email sender waits 15 minutes to ensure files exist before sending; LinkedIn data is included only if the file exists, otherwise the email omits the LinkedIn section.
 
-The **weekly brief** runs as the same 3-job pattern (Saturdays) — see Weekly Workflow section.
+The **weekly brief** runs as the same job pattern (Saturdays — 3 required + 1 optional LinkedIn) — see Weekly Workflow section.
 
 ### Email rendering
 The agent sends **structured JSON** (not HTML) as `html_body` to `fiveagents_send_email`. The fiveagents.io server renders the JSON into styled HTML using a dedicated template (`paid-ads-brief.ts`) matched by the `tag` parameter. The agent's job is to build the correct JSON structure — all styling, tables, and layout are handled server-side.
@@ -117,16 +126,20 @@ If Windsor.ai `get_data` errors **or** returns 0 rows for the target date, fall 
 Log: "Windsor.ai unavailable — falling back to Zernio for Google Ads"
 
 1. Call late_get_ads_timeline:
-   - accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID
+   - account_id: ${BRAND}_LATE_GOOGLE_ADS
+   - ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID
    - fromDate: day_before_yesterday (YYYY-MM-DD)
    - toDate: yesterday (YYYY-MM-DD)
    - platform: "google"
    → Returns daily rows: { date, spend, impressions, clicks, ctr, cpc, cpm, conversions, costPerConversion, reach }
 
 2. Call late_list_ad_campaigns:
-   - accountId: ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID
+   - account_id: ${BRAND}_LATE_GOOGLE_ADS
+   - ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID
    - platform: "google"
    → Returns campaigns with AdMetrics: { campaignName, status, spend, clicks, impressions, ctr, cpc, conversions, costPerConversion }
+
+⚠️ Both `account_id` (Zernio SocialAccount `_id`) and `ad_account_id` (Google Ads customer ID, 10-digit) are required. Passing only `account_id` returns empty results.
 
 Field mapping — Zernio → Windsor schema:
   spend            → cost            (already in account's local currency)
@@ -144,7 +157,9 @@ Set in intermediate JSON: "data_source": "zernio_fallback"
 Set in email flags.notes: "⚠️ Windsor.ai unavailable — Google Ads data sourced from Zernio (conversion counts unavailable)"
 ```
 
-⚠️ **If `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` is not set:** skip fallback and set `all_campaigns_paused: true` with note "Google Ads data unavailable — Windsor.ai offline and no Zernio ads account ID configured."
+⚠️ **If either `${BRAND}_LATE_GOOGLE_ADS` or `${BRAND}_LATE_GOOGLE_ADS_CID` is not set:** skip the fallback and set `all_campaigns_paused: true` with note "Google Ads data unavailable — Windsor.ai offline and Zernio Google Ads env vars (`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID`) not configured. Run brand-setup Step 7b Step D or plugin-update Step 3e."
+
+⚠️ **If Zernio returns 429 with `retryDelay`:** note in `flags.notes` "⚠️ Google Ads rate-limited via Zernio — retry after Xs" and continue with whatever Windsor or other-platform data is available. Do not block the run waiting for the retry window.
 
 ### Step 2 — Pull GA4 Data
 
@@ -507,6 +522,136 @@ After saving, log to `memory/YYYY-MM-DD.md`:
 
 ---
 
+## Phase 2.5 — LinkedIn Ads Data Pull (`linkedin-data-pull`, optional)
+
+**Runs only when both `${BRAND}_LATE_LINKEDIN_ADS` and `${BRAND}_LATE_LINKEDIN_ADS_CID` are set.** If either is missing, skip this phase silently — the brand likely does not run LinkedIn Ads. The Email Stitcher (Phase 3) tolerates an absent `tmp/linkedin-{YYYY-MM-DD}.json`.
+
+### Step 1 — Pull LinkedIn Ads Data
+
+Pull LinkedIn Ads data via **Windsor.ai MCP** connector.
+
+```
+Use Windsor.ai MCP tool `get_data`:
+- source: "linkedin"
+- date_preset: "last_30dT"
+- fields: [
+    "date",
+    "campaign", "campaign_status",
+    "clicks", "impressions", "ctr", "cost", "cpm", "cpc",
+    "conversions", "cpa",
+    "lead_form_opens", "lead_form_completions"
+  ]
+```
+
+Pull data for **two dates** — yesterday + the day before for DoD comparison.
+
+⚠️ **Known issues:**
+- `cost` is returned in the LinkedIn ad account's local currency (same convention as Google Ads — no USD conversion needed)
+- LinkedIn-native conversion events (`externalWebsiteConversions`, `qualifiedLeads` in the underlying API) surface in Windsor as `conversions` / `qualified_leads` — confirm field names at query time via `get_fields` if anything returns null
+- LinkedIn Ads data is near-real-time — no lag adjustments
+
+#### Windsor fallback — LinkedIn Ads
+
+If Windsor.ai `get_data` with `source: "linkedin"` errors **or** returns 0 rows for the target date, fall back to Zernio:
+
+```
+Log: "Windsor.ai unavailable — falling back to Zernio for LinkedIn Ads"
+
+1. Call late_get_ads_timeline:
+   - account_id: ${BRAND}_LATE_LINKEDIN_ADS
+   - ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID
+   - fromDate: day_before_yesterday (YYYY-MM-DD)
+   - toDate: yesterday (YYYY-MM-DD)
+   - platform: "linkedin"
+   → Returns daily rows: { date, spend, impressions, clicks, ctr, cpc, cpm, conversions, costPerConversion, externalWebsiteConversions, qualifiedLeads, costInLocalCurrency }
+
+2. Call late_list_ad_campaigns:
+   - account_id: ${BRAND}_LATE_LINKEDIN_ADS
+   - ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID
+   - platform: "linkedin"
+   → Returns campaigns with AdMetrics + { campaignName, status, currency, budget }
+
+Field mapping — Zernio → Windsor schema:
+  spend / costInLocalCurrency        → cost                  (native currency)
+  ctr, cpc, cpm, clicks, impressions → direct
+  externalWebsiteConversions         → conversions
+  qualifiedLeads                     → qualified_leads
+  costPerConversion                  → cpa
+  campaignName                       → campaign
+  status                             → campaign_status
+
+Set in intermediate JSON: "source": "zernio_fallback"
+Set in email flags.notes: "⚠️ Windsor.ai unavailable — LinkedIn Ads data sourced from Zernio"
+```
+
+⚠️ Both `account_id` (Zernio SocialAccount `_id`) and `ad_account_id` (LinkedIn sponsored account ID, numeric — e.g. `517258773`) are required. Passing only `account_id` returns empty results.
+
+⚠️ **If either `${BRAND}_LATE_LINKEDIN_ADS` or `${BRAND}_LATE_LINKEDIN_ADS_CID` is not set:** do not run this phase at all. LinkedIn Ads is opt-in per brand — most brands skip it.
+
+⚠️ **If Zernio returns 429 with `retryDelay`:** note in `flags.notes` "⚠️ LinkedIn Ads rate-limited via Zernio — retry after Xs" and continue. Do not block waiting for the retry window.
+
+### Step 2 — Analyze LinkedIn Ads
+
+LinkedIn CTR benchmarks (B2B / sponsored content):
+| Metric | Watch For |
+|---|---|
+| CTR | < 0.4% = low; > 0.65% = strong |
+| CPC | LinkedIn CPCs run 3–5× Google Search — flag spikes > 25% DoD |
+| CPM | $30–$80 typical for B2B; spikes > 30% DoD = auction pressure |
+| Lead form completion rate | < 10% on opened forms = friction; > 25% = strong |
+| Conversion Rate | Drop > 15% vs 7-day avg |
+
+Compute DoD deltas (same format: ▲/▼/—).
+
+### Step 3 — Save Intermediate JSON
+
+Save to `tmp/linkedin-{YYYY-MM-DD}.json` where the date is **yesterday's date**.
+
+```json
+{
+  "report_date": "YYYY-MM-DD",
+  "generated_at": "ISO timestamp",
+  "linkedin_ads": {
+    "source": "windsor | zernio_fallback",
+    "no_active_campaigns": false,
+    "account_totals": {
+      "spend_local": 0.0,
+      "spend_sgd": 0.0,
+      "clicks": 0,
+      "impressions": 0,
+      "ctr_pct": 0.0,
+      "conversions": 0,
+      "qualified_leads": 0,
+      "cpa_sgd": 0.0
+    },
+    "account_dod": { "spend": "▲ +5%", "clicks": "▼ -8%", "ctr": "—", "cpa": "—" },
+    "campaigns": [
+      {
+        "name": "", "impr": 0, "clicks": 0, "ctr_pct": 0.0,
+        "spend_local": 0.0, "conversions": 0, "qualified_leads": 0, "dod": ""
+      }
+    ],
+    "flags": {
+      "urgent": ["flag text"],
+      "optimize": ["flag text"],
+      "monitoring": ["flag text"]
+    }
+  }
+}
+```
+
+`spend_local` is in the LinkedIn ad account's billing currency (LinkedIn `cost` is not USD-normalized). Use the brand's exchange rate from `brands/{brand}/brand.md` to compute `spend_sgd` (or whatever the brand's reporting currency is).
+
+After saving, log to `memory/YYYY-MM-DD.md`:
+```markdown
+## linkedin-data-pull — [ISO timestamp]
+- Report date: [date]
+- LinkedIn Ads: Spend [currency] [x] / [clicks] clicks / [conversions] conv / [qualified_leads] QLs
+- Saved: tmp/linkedin-[date].json
+```
+
+---
+
 ## Phase 3 — Email Stitcher (`paid-ads-email-sender`)
 
 Runs 15 minutes after Phase 1 & 2 start.
@@ -514,10 +659,13 @@ Runs 15 minutes after Phase 1 & 2 start.
 ### Step 1 — Load Intermediate Files
 
 Determine yesterday's date. Look for:
-- `tmp/gads-{YYYY-MM-DD}.json`
-- `tmp/meta-{YYYY-MM-DD}.json`
+- `tmp/gads-{YYYY-MM-DD}.json` (required)
+- `tmp/meta-{YYYY-MM-DD}.json` (required)
+- `tmp/linkedin-{YYYY-MM-DD}.json` (optional — present only when the brand runs LinkedIn Ads)
 
-**If one or both files are missing:** Wait 2 minutes and retry once. If still missing after retry, send email anyway with a note: `⚠️ [Google Ads / Meta Ads] data unavailable — data pull job did not complete in time.` Use an empty/paused placeholder section for the missing platform.
+**If one or both required files are missing:** Wait 2 minutes and retry once. If still missing after retry, send email anyway with a note: `⚠️ [Google Ads / Meta Ads] data unavailable — data pull job did not complete in time.` Use an empty/paused placeholder section for the missing platform.
+
+**The LinkedIn file is opt-in.** If it is absent, send the email without a LinkedIn section — do **not** retry, wait, or emit a warning. Its presence/absence determines whether the LinkedIn block renders. If it is present, include the `linkedin_ads` block in the email payload alongside `google_ads` and `meta_ads`.
 
 ### Step 2 — Build Email JSON Payload
 
@@ -564,9 +712,19 @@ Build the JSON payload from the intermediate files. The structure matches `fivea
     "funnel": {},
     "funnel_flags": []
   },
+  "linkedin_ads": {
+    "source": "windsor | zernio_fallback",
+    "no_active_campaigns": false,
+    "account_totals": { "spend_local": 0, "spend_sgd": 0, "clicks": 0, "impressions": 0, "ctr_pct": 0, "conversions": 0, "qualified_leads": 0, "cpa_sgd": 0 },
+    "account_dod": { "spend": "", "clicks": "", "ctr": "", "cpa": "" },
+    "campaigns": [{ "name": "", "impr": 0, "clicks": 0, "ctr_pct": 0, "spend_local": 0, "conversions": 0, "qualified_leads": 0, "dod": "" }],
+    "flags": { "urgent": [], "optimize": [], "monitoring": [] }
+  },
   "top_recommendation": "Single most impactful action — name the specific campaign/ad set."
 }
 ```
+
+⚠️ **The `linkedin_ads` block is included only when `tmp/linkedin-{YYYY-MM-DD}.json` exists.** Omit the entire key when the LinkedIn JSON is absent (opt-in per brand); the server-side template renders the LinkedIn section conditionally on the key's presence.
 
 **Analysis guidelines** (apply when writing flags and top_recommendation):
 - Do NOT flag signup form unless 3+ consecutive days of data show >80% abandonment.
@@ -612,10 +770,13 @@ Send a DM to the user (user ID: `$SLACK_NOTIFY_USER`) via Slack MCP with a brief
 📊 [{brand}] Daily Brief Sent — [DD Mon YYYY]
 • Google Ads: [currency] [x] spend / [clicks] clicks / [conv] conv
 • Meta Ads: [currency] [x] spend / [clicks] clicks / [reach] reach
+• LinkedIn Ads (if present): [currency] [x] spend / [clicks] clicks / [QLs] qualified leads
 • GA4: [paid_search] paid search / [meta] meta sessions / [trials] trials
 • 🔴 Top flag: [most urgent flag]
 • 💡 Top rec: [one-line recommendation]
 ```
+
+Omit the LinkedIn line if `tmp/linkedin-{YYYY-MM-DD}.json` is absent.
 
 Use `slack_send_message` with `channel_id: "$SLACK_NOTIFY_USER"`.
 
@@ -629,6 +790,7 @@ Append to `memory/YYYY-MM-DD.md`:
 - Report period: [date]
 - Google Ads: [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x]
 - Meta Ads: [status] / Spend [currency] [x] (USD [x]) / [clicks] clicks / [reach] reach
+- LinkedIn Ads (if present): [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / [QLs] qualified leads
 - GA4: [paid_search_sessions] paid search sessions / [meta_sessions] meta sessions / [trials] trials / [paid] paid
 - Key flags: [top 2-3 urgent]
 - Top recommendation: [the one action]
@@ -636,21 +798,24 @@ Append to `memory/YYYY-MM-DD.md`:
 - Gmail message_id: [id]
 ```
 
+Omit the LinkedIn line if `tmp/linkedin-{YYYY-MM-DD}.json` is absent.
+
 ---
 
 ## Weekly Workflow
 
-The weekly brief uses the same 3-job architecture as the daily brief:
+The weekly brief uses the same job architecture as the daily brief, with an optional LinkedIn job:
 
 | Job | Cron | What it does | Output |
 |---|---|---|---|
 | `gads-weekly-data-pull` | Sat cron schedule | Google Ads + GA4 weekly pull + analysis | `tmp/gads-weekly-{week_end}.json` |
 | `meta-weekly-data-pull` | Sat cron schedule | Meta Ads weekly pull + analysis | `tmp/meta-weekly-{week_end}.json` |
-| `paid-ads-weekly-email-sender` | Sat cron schedule + 15min | Reads both JSONs, builds JSON payload, sends via Postmark | Email to $REPORT_EMAIL |
+| `linkedin-weekly-data-pull` *(optional — only when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set)* | Sat cron schedule | LinkedIn Ads weekly pull + analysis | `tmp/linkedin-weekly-{week_end}.json` |
+| `paid-ads-weekly-email-sender` | Sat cron schedule + 15min | Reads all available JSONs, builds JSON payload, sends via Postmark | Email to $REPORT_EMAIL |
 
-**JSON schema:** same as daily — use `wow` key instead of `dod` in all campaign/ad/keyword rows. Add `week_start` and `week_end` fields at root level.
+**JSON schema:** same as daily — use `wow` key instead of `dod` in all campaign/ad/keyword rows. Add `week_start` and `week_end` fields at root level. The LinkedIn weekly JSON follows the same shape as the daily `linkedin_ads` block.
 
-Run this workflow when triggered by `gads-weekly-data-pull` or `meta-weekly-data-pull` (Saturdays at cron schedule).
+Run this workflow when triggered by `gads-weekly-data-pull`, `meta-weekly-data-pull`, or `linkedin-weekly-data-pull` (Saturdays at cron schedule). The LinkedIn weekly job only runs for brands that have both LinkedIn env vars set.
 
 **Week definition:** Sunday–Saturday. On Saturday morning, report covers the full past week (last Sunday to yesterday/Friday).
 
@@ -673,7 +838,7 @@ Use Windsor.ai MCP tool `get_data`:
 
 Filter results for the target week range. Also pull prior week for WoW comparison.
 
-**Windsor fallback — weekly Google Ads:** if Windsor errors or returns 0 rows for the target week, call `late_get_ads_timeline` (platform: "google", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (platform: "google"). Apply same field mapping as the daily fallback. Set `"data_source": "zernio_fallback"` in the weekly JSON. GA4 has no fallback — mark as unavailable.
+**Windsor fallback — weekly Google Ads:** if Windsor errors or returns 0 rows for the target week, call `late_get_ads_timeline` (account_id: `${BRAND}_LATE_GOOGLE_ADS`, ad_account_id: `${BRAND}_LATE_GOOGLE_ADS_CID`, platform: "google", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (same `account_id` / `ad_account_id` / `platform`). **Both** env vars are required — passing only `account_id` returns empty results. Apply the same field mapping as the daily fallback. Set `"data_source": "zernio_fallback"` in the weekly JSON. GA4 has no fallback — mark as unavailable.
 
 ### Step 1b — Pull Weekly Meta Ads Data
 
@@ -695,6 +860,16 @@ Use Windsor.ai MCP tool `get_data`:
 ```
 
 Filter for the target week range.
+
+### Step 1d — Pull Weekly LinkedIn Ads Data (optional)
+
+**Runs only when both `${BRAND}_LATE_LINKEDIN_ADS` and `${BRAND}_LATE_LINKEDIN_ADS_CID` are set.** Skip the step entirely when either is missing.
+
+Pull via **Windsor.ai** with `source: "linkedin"` using the field set from Phase 2.5 Step 1 (`date` / `campaign` / `campaign_status` / `clicks` / `impressions` / `ctr` / `cost` / `cpm` / `cpc` / `conversions` / `cpa` / `lead_form_opens` / `lead_form_completions`). `date_preset: "last_30dT"`. Pull the target week plus the prior week for WoW comparison.
+
+**Windsor fallback — weekly LinkedIn Ads:** if Windsor errors or returns 0 rows, call `late_get_ads_timeline` (account_id: `${BRAND}_LATE_LINKEDIN_ADS`, ad_account_id: `${BRAND}_LATE_LINKEDIN_ADS_CID`, platform: "linkedin", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (same IDs and platform). Both env vars are required — passing only `account_id` returns empty results. Apply the same field mapping as the daily Phase 2.5 fallback. Set `"source": "zernio_fallback"` in the weekly LinkedIn JSON.
+
+Filter for the target week. Include WoW comparison from prior week. LinkedIn `cost` is already in the ad account's local currency.
 
 ### Step 2 — Analyze Weekly Performance
 
@@ -737,10 +912,13 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 📊 [{brand}] Weekly Brief Sent — Week of [DD Mon YYYY]
 • Google Ads: [currency] [x] spend / [clicks] clicks / [conv] conv / WoW: [+/-x%] spend
 • Meta Ads: [currency] [x] spend / [clicks] clicks / [reach] reach / WoW: [+/-x%] spend
+• LinkedIn Ads (if present): [currency] [x] spend / [clicks] clicks / [QLs] qualified leads / WoW: [+/-x%] spend
 • GA4: [sessions] sessions / [trials] trials
 • 🔴 Top flag: [most urgent flag]
 • 💡 Top rec for next week: [one-line recommendation]
 ```
+
+Omit the LinkedIn line if `tmp/linkedin-weekly-{week_end}.json` is absent.
 
 ### Step 7 — Log to Memory
 
@@ -750,6 +928,7 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 - Report period: [week_start] to [week_end]
 - Google Ads: [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x] / WoW: [+/-x%]
 - Meta Ads: [status] / Spend [currency] [x] (USD [x]) / [clicks] clicks / [reach] reach / WoW: [+/-x%]
+- LinkedIn Ads (if present): [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / [QLs] qualified leads / WoW: [+/-x%]
 - GA4: [sessions] sessions / [trials] trials / [paid] paid
 - WoW: Spend [+/-x%] / Conv [+/-x%] / CPA [+/-x%]
 - Key flags: [top 2-3]
@@ -757,6 +936,8 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 - Email sent: $REPORT_EMAIL
 - Gmail message_id: [id]
 ```
+
+Omit the LinkedIn line if `tmp/linkedin-weekly-{week_end}.json` is absent.
 
 ---
 

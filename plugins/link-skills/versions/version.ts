@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.6.3';
-const DEFAULT_DATE = 'May 14, 2026';
+const DEFAULT_VERSION = 'v2.6.4';
+const DEFAULT_DATE = 'May 15, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.6.4',
+    date: 'May 15, 2026',
+    changes: [
+      'data-analysis v2.3.1 + digital-marketing-analyst v2.3.1: Google Ads Zernio fallback now passes BOTH account_id (Zernio SocialAccount _id) AND ad_account_id (Google Ads customer ID, 10-digit). Passing only the SocialAccount ID was returning empty results — this is a bug fix for the Windsor.ai → Zernio fallback path.',
+      'data-analysis v2.3.1 + digital-marketing-analyst v2.3.1: NEW LinkedIn Ads support (opt-in per brand). Windsor.ai primary (source: linkedin, fields incl. lead_form_opens / lead_form_completions); Zernio fallback uses same two-ID pattern (account_id + ad_account_id) as Google Ads. data-analysis adds the LinkedIn block to Step 1a; digital-marketing-analyst adds NEW Phase 2.5 (linkedin-data-pull cron) + weekly Step 1d, plus conditional load in Phase 3 Email Stitcher and conditional Slack DM line. Skipped silently when ${BRAND}_LATE_LINKEDIN_ADS / _CID env vars are absent.',
+      'brand-setup v2.5.1: Step 7b Step D Google Ads env var renamed from ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → ${BRAND}_LATE_GOOGLE_ADS (Zernio SocialAccount _id) + new ${BRAND}_LATE_GOOGLE_ADS_CID (Google Ads customer ID via late_list_ad_accounts; on 429 / empty, prompts user). LinkedIn Ads discovery added: new ${BRAND}_LATE_LINKEDIN_ADS + ${BRAND}_LATE_LINKEDIN_ADS_CID pair, same two-ID pattern, distinct from organic ${BRAND}_LATE_LI. CLAUDE.md Account IDs section extended.',
+      'plugin-update v2.5.1: Step 3e auto-discover restructured into 4 sub-steps (SocialAccount IDs → Google Ads customer ID → LinkedIn sponsored account ID → legacy rename handler that auto-migrates ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → ${BRAND}_LATE_GOOGLE_ADS). Step 1d env vars table and Step 3j checklist row both extended with the new pair.',
+      'agents/link.md v2.6.4: data-analysis + digital-marketing-analyst rows in the Skills table gained Env: deps blocks listing the Zernio fallback env-var pairs (Google Ads + Meta Ads + LinkedIn Ads). digital-marketing-analyst "Use For" updated from "Google Ads, Meta Ads, GA4" → "Google Ads, Meta Ads, LinkedIn Ads (opt), GA4". brand-setup Step 8d-iv parses Deps to compute agent_readiness matrix — without these declarations, the readiness email understated actual env-var dependencies.',
+    ],
+  },
   {
     version: 'v2.6.3',
     date: 'May 14, 2026',
