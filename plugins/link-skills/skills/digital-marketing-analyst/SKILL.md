@@ -8,11 +8,19 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.2 | May 16, 2026 |
+| Link | v2.3.3 | May 16, 2026 |
 
 **Description:** Daily and weekly paid ads analysis — Google Ads, Meta Ads, LinkedIn Ads (opt), GA4 funnel analysis with structured JSON email briefs for any active brand
 
 ### Change Log
+
+**v2.3.3** — May 16, 2026
+- Bug fix (silent-failure): Zernio tool params standardized to snake_case (`date_from`/`date_to`, `account_id`) across `late_get_ads_timeline`, `late_get_ad_tree`, `late_get_ad_analytics`. Old `fromDate`/`toDate`/`accountId` were silently returning empty/wrong data.
+- `late_get_ad_tree` added as the recommended path for Campaign → Ad Group → Ad hierarchy in both Google and Meta Zernio fallbacks (date-filterable; paginated 20/page default, max 100). `late_list_ad_campaigns` clearly flagged as **lifetime-only** (no date filter) — use only for campaign metadata.
+- Google Ads Zernio quirks documented: conversions always 0 (source proxy from brand's primary GA4 event in `funnel.md`); `adSets[]` IS the ad-groups array; keywords not available at any level; no currency field — assume account default. Meta `late_get_ad_tree` returns 0 metrics for paused campaigns regardless of date.
+- Critical template gotcha: `meta_ads.no_active_campaigns: true` skips the entire Meta summary box — always set `false`; use the new `all_campaigns_paused` field for pause state instead.
+- Payload schema additions: new Meta fields (`all_campaigns_paused`, `last_spend_date`, `days_dark`, `lp_views`/`leads`/`video_views` in account_totals, `spend_*_lifetime` + `note` on campaign rows for lifetime data, `spend_usd: null` for Zernio source); new Google Ads `conversions_note`; richer GA4 funnel block (`click_to_session_google_pct` / `click_to_session_meta_pct` plus per-stage event counts keyed off brand `funnel.md`).
+- Brand-agnostic refactor: removed FA-specific `2026-03-08` GA4 tracking-bug date (now read from `brands/{brand}/funnel.md` `ga4_clean_data_start` if set); replaced hardcoded `trials` KPI in Slack/log/`combined_summary` templates with generic `primary_conversions` driven by the brand's primary conversion event; removed "signup form" assumption from analysis guidelines.
 
 **v2.3.2** — May 16, 2026
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
@@ -33,16 +41,6 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 - Windsor.ai (source: "facebook") documented as default; Meta Ads MCP is opt-in alternative
 - Windsor field set verified — 741 fields; corrected false "campaign-level only" claims
 - meta_ads JSON block — added required "source" field ("windsor" | "meta_ads_mcp")
-
-**v2.2.11** — May 04, 2026
-- Phase 2 daily Meta pull + Weekly Step 1b migrated to Meta Ads MCP
-- ad_set / ad / lp_views / video_views / conversions / cpm fields added
-
-**v2.2.8** — April 28, 2026
-- date_preset changed from "last_30d" to "last_30dT" — fixes missing data for current UTC day
-- Removed outdated ~12-day Windsor data lag warnings
-- Fixed invalid GA4 fields — removed "source" and "medium"
-- fiveagents_log_run metrics block rewritten with real data placeholders
 
 # SKILL.md — Digital Marketing Analyst
 
@@ -125,36 +123,44 @@ If Windsor.ai `get_data` errors **or** returns 0 rows for the target date, fall 
 ```
 Log: "Windsor.ai unavailable — falling back to Zernio for Google Ads"
 
-1. Call late_get_ads_timeline:
+1. Call late_get_ads_timeline (for daily account totals — date-filterable):
    - account_id: ${BRAND}_LATE_GOOGLE_ADS
    - ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID
-   - fromDate: day_before_yesterday (YYYY-MM-DD)
-   - toDate: yesterday (YYYY-MM-DD)
+   - date_from: day_before_yesterday (YYYY-MM-DD)
+   - date_to: yesterday (YYYY-MM-DD)
    - platform: "google"
    → Returns daily rows: { date, spend, impressions, clicks, ctr, cpc, cpm, conversions, costPerConversion, reach }
 
-2. Call late_list_ad_campaigns:
+2. Call late_get_ad_tree (for Campaign → Ad Group → Ad hierarchy — date-filterable):
+   - account_id: ${BRAND}_LATE_GOOGLE_ADS
+   - ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID
+   - date_from / date_to: same as timeline
+   - platform: "google"
+   - limit: 100 (default 20 — paginate via `page` if > 20 campaigns)
+   → Returns nested Campaign → adSets → ads hierarchy with rolled-up metrics for the period.
+     In Google's response, the `adSets[]` array IS the ad-groups array — Zernio's schema labels them "adSets" but the data is ad-group level. Map `response.campaigns[].adSets[]` → `ad_groups[]` in the intermediate JSON.
+
+3. Optionally call late_list_ad_campaigns for campaign metadata only (objective, status, name):
    - account_id: ${BRAND}_LATE_GOOGLE_ADS
    - ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID
    - platform: "google"
-   → Returns campaigns with AdMetrics: { campaignName, status, spend, clicks, impressions, ctr, cpc, conversions, costPerConversion }
+   ⚠️ This tool has NO date_from/date_to params — metrics returned are lifetime totals since campaign creation. Use ad_tree for date-filtered metrics; use list_ad_campaigns only for campaign-level metadata.
 
 ⚠️ Both `account_id` (Zernio SocialAccount `_id`) and `ad_account_id` (Google Ads customer ID, 10-digit) are required. Passing only `account_id` returns empty results.
 
 Field mapping — Zernio → Windsor schema:
-  spend            → cost            (already in account's local currency)
-  ctr              → ctr             (direct — both are %)
-  cpc              → cpc             (direct)
-  cpm              → cpm             (direct)
-  clicks           → clicks          (direct)
-  impressions      → impressions     (direct)
-  conversions      → conversions     (Meta-only in Zernio; Google returns 0 — flag as "conversions unavailable via Zernio fallback")
-  costPerConversion → cpa            (direct)
-  campaignName     → campaign
-  status           → campaign_status
+  spend             → cost            (no currency field in Google Ads response — assume the account's default currency as configured in Zernio; the brand's reporting currency is in `brands/{brand}/brand.md`)
+  ctr, cpc, cpm     → direct
+  clicks, impressions → direct
+  conversions       → conversions     (⚠️ Google Ads Zernio always returns 0 — conversion tracking is not wired to Zernio. Source the proxy conversion count from GA4 using the brand's primary conversion event defined in `brands/{brand}/funnel.md` — do NOT hardcode an event name, each brand has different key events.)
+  costPerConversion → cpa
+  campaignName      → campaign
+  status            → campaign_status
+  adSets[].adSetName → ad_groups[].name (the `adSets` label in the response is Zernio's naming — Google's actual hierarchy is ad-groups)
+  keywords          → NOT available at any level via Zernio — omit keywords table
 
 Set in intermediate JSON: "data_source": "zernio_fallback"
-Set in email flags.notes: "⚠️ Windsor.ai unavailable — Google Ads data sourced from Zernio (conversion counts unavailable)"
+Set in email flags.notes: "⚠️ Windsor.ai unavailable — Google Ads data sourced from Zernio (conversions sourced from GA4)"
 ```
 
 ⚠️ **If either `${BRAND}_LATE_GOOGLE_ADS` or `${BRAND}_LATE_GOOGLE_ADS_CID` is not set:** skip the fallback and set `all_campaigns_paused: true` with note "Google Ads data unavailable — Windsor.ai offline and Zernio Google Ads env vars (`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID`) not configured. Run brand-setup Step 7b Step D or plugin-update Step 3e."
@@ -165,7 +171,7 @@ Set in email flags.notes: "⚠️ Windsor.ai unavailable — Google Ads data sou
 
 ⚠️ **GA4 is Windsor-only — no Zernio fallback.** Zernio does not expose GA4 session data. If Windsor.ai is unavailable, set `ga4.sessions_total: null` and add `"GA4 unavailable — Windsor.ai offline; no fallback source"` to `ga4.funnel_flags`. Do not attempt to substitute GA4 data from any other source.
 
-⚠️ **Data reliability note:** GA4 data before **2026-03-08** was affected by a tracking bug. Always use Mar 8 as the earliest start date.
+⚠️ **Data reliability note:** Check `brands/{brand}/funnel.md` for a `ga4_clean_data_start` date — if the brand had a tracking bug or instrumentation gap, clamp the earliest start date to that value. Skip the check if the brand's funnel.md doesn't set one.
 
 Pull GA4 data via **Windsor.ai MCP** connector:
 
@@ -314,7 +320,7 @@ After saving, log to `memory/YYYY-MM-DD.md`:
 ## gads-data-pull — [ISO timestamp]
 - Report date: [date]
 - Google Ads: Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x]
-- GA4: [sessions] paid search sessions / [trials] trials
+- GA4: [sessions] paid search sessions / [primary_conv_count] [primary_conv_label]   ← read primary conversion event + display label from brands/{brand}/funnel.md
 - Saved: tmp/gads-[date].json
 ```
 
@@ -387,40 +393,55 @@ If Windsor.ai `get_data` with `source: "facebook"` errors **or** returns 0 rows 
 ```
 Log: "Windsor.ai unavailable — falling back to Zernio for Meta Ads"
 
-1. Call late_get_ads_timeline:
-   - accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID
-   - fromDate: day_before_yesterday (YYYY-MM-DD)
-   - toDate: yesterday (YYYY-MM-DD)
+1. Call late_get_ads_timeline (the ONLY reliable date-filtered source for Meta account totals):
+   - account_id: ${BRAND}_LATE_META_ADS_ACCOUNT_ID
+   - date_from: day_before_yesterday (YYYY-MM-DD)
+   - date_to: yesterday (YYYY-MM-DD)
    - platform: "facebook"
-   → Returns daily rows: { date, spend, impressions, clicks, ctr, cpc, cpm, reach, conversions, costPerConversion, actions, actionValues, purchaseValue, roas }
+   → Returns one row per calendar day with: { date, spend, impressions, clicks, ctr, cpc, cpm, reach, conversions, costPerConversion, actions, actionValues, purchaseValue, roas }
+   → Sum all rows for period totals. Zero rows are returned for days with no spend — that is valid data.
 
-2. Call late_list_ad_campaigns:
-   - accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID
+2. Call late_list_ad_campaigns for campaign metadata only (names, IDs, objective, status):
+   - account_id: ${BRAND}_LATE_META_ADS_ACCOUNT_ID
    - platform: "facebook"
-   → Returns campaigns with AdMetrics (same fields as above) + { campaignName, status, currency, adCount, budget }
+   - limit: 100 (default 20)
+   ⚠️ This tool has NO date_from/date_to params — `metrics.spend` etc. are LIFETIME totals since campaign creation, not the report period. Do NOT use these as MTD/daily spend. In the payload, label them `spend_sgd_lifetime` (etc.) and add a `note` field so the dashboard knows the scope.
+
+3. Optionally call late_get_ad_tree for Campaign → Ad Set → Ad hierarchy (date-filterable but with caveats):
+   - account_id: ${BRAND}_LATE_META_ADS_ACCOUNT_ID
+   - date_from / date_to: same as timeline
+   - platform: "facebook"
+   - limit: 100 (default 20 — paginate if > 20 campaigns)
+   ⚠️ Returns zero metrics for paused campaigns regardless of date range. If a brand has all campaigns paused but you still need the hierarchy for the email, the ad-set / ad arrays will be empty — that is expected.
 
 Field mapping — Zernio → Windsor schema:
   spend                              → spend                 (native currency — same as Windsor)
   ctr, cpc, cpm, clicks, impressions, reach → direct map
-  actions["link_click"]              → actions_landing_page_view
+  actions["landing_page_view"]       → actions_landing_page_view
+  actions["link_click"]              → link_clicks (raw)
   actions["video_view"]              → actions_video_view
-  actions["offsite_conversion.fb_pixel_purchase"] → actions_omni_purchase   (e-commerce)
-  actions["lead"] or actions["offsite_conversion.fb_pixel_lead"] → actions_lead (lead-gen)
+  actions["lead"]                    → actions_lead (lead-gen)
+  actions["offsite_conversion.fb_pixel_purchase"] → actions_omni_purchase (e-commerce)
+  actions["offsite_conversion.fb_pixel_lead"]     → actions_lead (alt lead-gen path)
   actions["complete_registration"]   → actions_complete_registration (SaaS)
   costPerConversion                  → cost_per_action_type_<event>
-  purchaseValue, roas                → available as bonus fields (not in Windsor schema)
+  purchaseValue, roas                → bonus fields (not in Windsor schema)
   campaignName                       → campaign
   status                             → campaign_effective_status
 
-Note: adset-level breakdown (adset_name, adset_id) is NOT available from late_list_ad_campaigns alone.
-Use late_get_ad_tree (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID) for campaign→adset→ad hierarchy if needed.
-The ad_sets[] array in the intermediate JSON will be empty when using Zernio fallback without late_get_ad_tree.
+Compute account totals from the timeline rows:
+  account_totals.spend_sgd  = sum(rows[].spend)        // payload field is named `spend_sgd` per template contract; value is in the account's reporting currency
+  account_totals.lp_views   = sum(rows[].actions.landing_page_view)
+  account_totals.leads      = sum(rows[].actions.lead)
+  account_totals.video_views = sum(rows[].actions.video_view)
+  last_spend_date           = max(date) where spend > 0
+  days_dark                 = today − last_spend_date (in days)
 
 Set in intermediate JSON: "source": "zernio_fallback"
-Set in email flags.notes: "⚠️ Windsor.ai unavailable — Meta Ads data sourced from Zernio (ad-set breakdown requires additional call)"
+Set in email flags.notes: "⚠️ Windsor.ai unavailable — Meta Ads data sourced from Zernio (campaign metrics are lifetime; ad-set MTD breakdown not available via timeline)"
 ```
 
-⚠️ **If `${BRAND}_LATE_META_ADS_ACCOUNT_ID` is not set:** skip fallback and set `no_active_campaigns: true` with note "Meta Ads data unavailable — Windsor.ai offline and no Zernio ads account ID configured."
+⚠️ **If `${BRAND}_LATE_META_ADS_ACCOUNT_ID` is not set:** skip fallback and set `all_campaigns_paused: true` (NOT `no_active_campaigns: true` — see template gotcha in Phase 3 Step 2) with note "Meta Ads data unavailable — Windsor.ai offline and no Zernio ads account ID configured."
 
 #### Common to both paths
 
@@ -557,18 +578,20 @@ If Windsor.ai `get_data` with `source: "linkedin"` errors **or** returns 0 rows 
 ```
 Log: "Windsor.ai unavailable — falling back to Zernio for LinkedIn Ads"
 
-1. Call late_get_ads_timeline:
+1. Call late_get_ads_timeline (date-filterable account totals):
    - account_id: ${BRAND}_LATE_LINKEDIN_ADS
    - ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID
-   - fromDate: day_before_yesterday (YYYY-MM-DD)
-   - toDate: yesterday (YYYY-MM-DD)
+   - date_from: day_before_yesterday (YYYY-MM-DD)
+   - date_to: yesterday (YYYY-MM-DD)
    - platform: "linkedin"
    → Returns daily rows: { date, spend, impressions, clicks, ctr, cpc, cpm, conversions, costPerConversion, externalWebsiteConversions, qualifiedLeads, costInLocalCurrency }
 
-2. Call late_list_ad_campaigns:
+2. Call late_list_ad_campaigns for campaign metadata (lifetime metrics — no date filter):
    - account_id: ${BRAND}_LATE_LINKEDIN_ADS
    - ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID
    - platform: "linkedin"
+   - limit: 100
+   ⚠️ No date_from/date_to params — `metrics.spend` is LIFETIME since campaign creation. Use timeline for date-filtered totals; use this tool only for campaign-level metadata (names, status, budget).
    → Returns campaigns with AdMetrics + { campaignName, status, currency, budget }
 
 Field mapping — Zernio → Windsor schema:
@@ -673,6 +696,8 @@ Email title: **"📊 Paid Ads Daily Brief — [DD Mon YYYY]"**
 
 ⚠️ **Do NOT generate HTML.** Build a JSON object with the data below. The server-side template (`paid-ads-brief.ts`) handles all rendering, styling, tables, and layout.
 
+⚠️ **CRITICAL template gotcha — `no_active_campaigns`:** Setting `meta_ads.no_active_campaigns: true` causes the template to skip rendering the entire Meta summary box. Set it to `true` ONLY if there are literally zero campaigns in the account (account is empty). For "all campaigns currently paused but campaigns exist", set `no_active_campaigns: false` and use the separate `all_campaigns_paused: true` field to convey pause state. Same applies to LinkedIn.
+
 Build the JSON payload from the intermediate files. The structure matches `fiveagents_log_run` metrics with these additional top-level fields:
 
 ```json
@@ -684,11 +709,21 @@ Build the JSON payload from the intermediate files. The structure matches `fivea
   "currency": "<read from brands/{brand}/brand.md — e.g. Rp, SGD, USD>",
   "generated_at": "ISO timestamp",
   "google_ads": {
+    "source": "windsor | zernio_fallback",
     "all_campaigns_paused": false,
-    "account_totals": { "spend_sgd": 0, "clicks": 0, "impressions": 0, "ctr_pct": 0, "conversions": 0, "cpa_sgd": 0 },
+    "account_totals": {
+      "spend_sgd": 0,
+      "clicks": 0,
+      "impressions": 0,
+      "ctr_pct": 0,
+      "cpc_sgd": 0,
+      "conversions": 0,
+      "cpa_sgd": null,
+      "conversions_note": "Sourced from GA4 — primary conversion event defined in brands/{brand}/funnel.md. Google Ads conversion tracking is not wired to Zernio (returns 0)."
+    },
     "account_dod": { "spend": "▲ +5%", "clicks": "▼ -8%", "conv": "—", "ctr": "—", "cpa": "—", "impressions": "—" },
-    "campaigns": [{ "name": "", "status": "", "spend_sgd": 0, "clicks": 0, "impr": 0, "ctr_pct": 0, "conv": 0, "cpa_sgd": 0, "dod": "" }],
-    "ad_groups": [{ "name": "", "campaign": "", "status": "", "clicks": 0, "impr": 0, "ctr_pct": 0, "cost_sgd": 0, "dod": "" }],
+    "campaigns": [{ "name": "", "status": "active | paused", "spend_sgd": 0, "clicks": 0, "impr": 0, "ctr_pct": 0, "cpc_sgd": 0, "conv": 0, "cpa_sgd": null, "dod": "" }],
+    "ad_groups": [{ "name": "", "campaign": "", "status": "", "clicks": 0, "impr": 0, "ctr_pct": 0, "cpc_sgd": 0, "cost_sgd": 0, "dod": "" }],
     "ads": [{ "headline_1": "", "campaign": "", "ad_group": "", "clicks": 0, "impr": 0, "ctr_pct": 0, "cost_sgd": 0, "conv": 0, "dod": "" }],
     "keywords": [{ "keyword": "", "campaign": "", "clicks": 0, "ctr_pct": 0, "cost_sgd": 0, "conv": 0, "dod": "" }],
     "flags": { "urgent": [], "optimize": [], "monitoring": [] },
@@ -696,20 +731,61 @@ Build the JSON payload from the intermediate files. The structure matches `fivea
     "top_recommendation": ""
   },
   "meta_ads": {
-    "source": "meta_ads_mcp | windsor",
+    "source": "meta_ads_mcp | windsor | zernio_fallback",
     "no_active_campaigns": false,
-    "account_totals": { "spend_sgd": 0, "clicks": 0, "impressions": 0, "ctr_pct": 0, "reach": 0, "cpa_sgd": 0 },
+    "all_campaigns_paused": false,
+    "last_spend_date": "YYYY-MM-DD",
+    "days_dark": 0,
+    "account_totals": {
+      "spend_sgd": 0,
+      "spend_usd": null,
+      "clicks": 0,
+      "impressions": 0,
+      "ctr_pct": 0,
+      "cpc_sgd": 0,
+      "reach": 0,
+      "lp_views": 0,
+      "leads": 0,
+      "video_views": 0,
+      "cpa_sgd": null
+    },
     "account_dod": { "spend": "", "clicks": "", "reach": "", "ctr": "", "impressions": "" },
-    "campaigns": [{ "name": "", "impr": 0, "clicks": 0, "ctr_pct": 0, "spend_sgd": 0, "reach": 0, "dod": "" }],
+    "campaigns": [
+      {
+        "name": "",
+        "status": "active | paused",
+        "objective": "",
+        "optimization": "",
+        "spend_sgd_lifetime": 0,
+        "impressions_lifetime": 0,
+        "clicks_lifetime": 0,
+        "lp_views_lifetime": 0,
+        "leads_lifetime": 0,
+        "note": "Lifetime since campaign start — late_list_ad_campaigns is not date-filterable. For period totals use account_totals (from late_get_ads_timeline)."
+      }
+    ],
     "ad_sets": [],
     "ads": [],
     "flags": { "urgent": [], "optimize": [], "monitoring": [] }
   },
   "ga4": {
+    "date": "YYYY-MM-DD",
+    "period": "YYYY-MM-DD to YYYY-MM-DD",
     "sessions_total": 0,
     "paid_search_sessions": 0,
     "meta_sessions": 0,
-    "funnel": {},
+    "other_sessions": 0,
+    "funnel": {
+      "clicks_gads": 0,
+      "ga4_sessions_cpc": 0,
+      "click_to_session_google_pct": 0,
+      "clicks_meta": 0,
+      "ga4_sessions_meta": 0,
+      "click_to_session_meta_pct": 0
+      // Then add one key per funnel stage defined in brands/{brand}/funnel.md
+      // (event counts) plus one *_rate_pct per stage transition (computed rates).
+      // Do NOT hardcode event names here — each brand has different key events.
+    },
     "funnel_flags": []
   },
   "linkedin_ads": {
@@ -727,7 +803,7 @@ Build the JSON payload from the intermediate files. The structure matches `fivea
 ⚠️ **The `linkedin_ads` block is included only when `tmp/linkedin-{YYYY-MM-DD}.json` exists.** Omit the entire key when the LinkedIn JSON is absent (opt-in per brand); the server-side template renders the LinkedIn section conditionally on the key's presence.
 
 **Analysis guidelines** (apply when writing flags and top_recommendation):
-- Do NOT flag signup form unless 3+ consecutive days of data show >80% abandonment.
+- Do NOT flag a funnel-stage anomaly on a single day's data — require 3+ consecutive days before raising the flag. (Applies to any stage defined in `brands/{brand}/funnel.md`, not a specific signup form.)
 - On Day 1–3 of Meta: focus on learning phase signals.
 - On Google Ads paused days: recommendation should focus on Meta or pre-reactivation prep.
 - Tone: direct, expert, no fluff. Name specific campaigns.
@@ -771,7 +847,7 @@ Send a DM to the user (user ID: `$SLACK_NOTIFY_USER`) via Slack MCP with a brief
 • Google Ads: [currency] [x] spend / [clicks] clicks / [conv] conv
 • Meta Ads: [currency] [x] spend / [clicks] clicks / [reach] reach
 • LinkedIn Ads (if present): [currency] [x] spend / [clicks] clicks / [QLs] qualified leads
-• GA4: [paid_search] paid search / [meta] meta sessions / [trials] trials
+• GA4: [paid_search] paid search / [meta] meta sessions / [primary_conv_count] [primary_conv_label]   ← read from brands/{brand}/funnel.md
 • 🔴 Top flag: [most urgent flag]
 • 💡 Top rec: [one-line recommendation]
 ```
@@ -791,7 +867,7 @@ Append to `memory/YYYY-MM-DD.md`:
 - Google Ads: [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x]
 - Meta Ads: [status] / Spend [currency] [x] (USD [x]) / [clicks] clicks / [reach] reach
 - LinkedIn Ads (if present): [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / [QLs] qualified leads
-- GA4: [paid_search_sessions] paid search sessions / [meta_sessions] meta sessions / [trials] trials / [paid] paid
+- GA4: [paid_search_sessions] paid search sessions / [meta_sessions] meta sessions / [primary_conv_count] [primary_conv_label] / [secondary_conv_count] [secondary_conv_label]   ← read primary/secondary conversion events + labels from brands/{brand}/funnel.md; omit secondary if the brand only defines one
 - Key flags: [top 2-3 urgent]
 - Top recommendation: [the one action]
 - Email sent: $REPORT_EMAIL
@@ -819,7 +895,7 @@ Run this workflow when triggered by `gads-weekly-data-pull`, `meta-weekly-data-p
 
 **Week definition:** Sunday–Saturday. On Saturday morning, report covers the full past week (last Sunday to yesterday/Friday).
 
-⚠️ **Data reliability:** Do not include any data before 2026-03-08. If week_start falls before Mar 8, use Mar 8 as the start date.
+⚠️ **Data reliability:** If `brands/{brand}/funnel.md` defines a `ga4_clean_data_start` date and `week_start` falls before it, clamp `week_start` to that date. Skip the check if the brand's funnel.md doesn't set one.
 
 ⚠️ **Never fall back to a prior week's data.** If Google Ads Sheets or Meta API return zero for this week's date range, report both as "No Active Campaigns" for the week — do not substitute data from a previous week. Both platforms must cover the **same date range**. Zero spend for the week is valid data.
 
@@ -838,7 +914,7 @@ Use Windsor.ai MCP tool `get_data`:
 
 Filter results for the target week range. Also pull prior week for WoW comparison.
 
-**Windsor fallback — weekly Google Ads:** if Windsor errors or returns 0 rows for the target week, call `late_get_ads_timeline` (account_id: `${BRAND}_LATE_GOOGLE_ADS`, ad_account_id: `${BRAND}_LATE_GOOGLE_ADS_CID`, platform: "google", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (same `account_id` / `ad_account_id` / `platform`). **Both** env vars are required — passing only `account_id` returns empty results. Apply the same field mapping as the daily fallback. Set `"data_source": "zernio_fallback"` in the weekly JSON. GA4 has no fallback — mark as unavailable.
+**Windsor fallback — weekly Google Ads:** if Windsor errors or returns 0 rows for the target week, call `late_get_ads_timeline` (account_id: `${BRAND}_LATE_GOOGLE_ADS`, ad_account_id: `${BRAND}_LATE_GOOGLE_ADS_CID`, platform: "google", `date_from`: week_start, `date_to`: week_end + prior week) + `late_get_ad_tree` (same IDs + `date_from`/`date_to`, platform: "google", limit: 100 — paginate if needed) for campaign → ad-group hierarchy. Use `late_list_ad_campaigns` only for campaign metadata (its metrics are lifetime — no date filter). **Both** env vars are required — passing only `account_id` returns empty results. Apply the same field mapping as the daily fallback (including `adSets[]` → ad-groups, conversions sourced from GA4 since Zernio returns 0). Set `"data_source": "zernio_fallback"` in the weekly JSON. GA4 has no fallback — mark as unavailable.
 
 ### Step 1b — Pull Weekly Meta Ads Data
 
@@ -846,7 +922,7 @@ Filter results for the target week range. Also pull prior week for WoW compariso
 
 - **Default (env var unset)** — Pull via **Windsor.ai** with `source: "facebook"` using the field set documented in Phase 2 Step 1 (campaign / `adset_name` / `ad_name` / `clicks` / `impressions` / `ctr` / `spend` / `reach` / `frequency` / `cpm` / `cpc` / `actions_landing_page_view` / `actions_video_view` / brand-specific `actions_*` conversion field). `date_preset: "last_30dT"`. Pull the target week plus the prior week for WoW comparison.
 - **Opt-in (`META_ADS_SOURCE=meta_ads_mcp`)** — Pull via the **Meta Ads MCP** custom connector (`https://mcp.facebook.com/ads`). Request campaign-level fields (campaign, clicks, impressions, ctr, spend, reach) plus drill-down (ad_set, ad, lp_views, conversions, cpm, frequency) for the target week range, plus the prior week for WoW comparison. On MCP error, fall back to the Windsor path.
-- **Windsor/MCP both unavailable** — Fall back to Zernio: `late_get_ads_timeline` (platform: "facebook", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (platform: "facebook"). Apply same field mapping as daily Phase 2 fallback. Set `"source": "zernio_fallback"` in weekly JSON.
+- **Windsor/MCP both unavailable** — Fall back to Zernio: `late_get_ads_timeline` (account_id: `${BRAND}_LATE_META_ADS_ACCOUNT_ID`, platform: "facebook", `date_from`: week_start, `date_to`: week_end + prior week) is the ONLY reliable date-filtered source. Use `late_list_ad_campaigns` only for campaign metadata (its metrics are lifetime — no date filter; label as `spend_sgd_lifetime` in the payload with a `note` field). Apply same field mapping as daily Phase 2 fallback. Set `"source": "zernio_fallback"` in weekly JSON.
 
 Filter for the target week. Convert USD spend to the brand's local currency using the exchange rate from `brands/{brand}/brand.md`. Include WoW comparison from prior week.
 
@@ -867,7 +943,7 @@ Filter for the target week range.
 
 Pull via **Windsor.ai** with `source: "linkedin"` using the field set from Phase 2.5 Step 1 (`date` / `campaign` / `campaign_status` / `clicks` / `impressions` / `ctr` / `cost` / `cpm` / `cpc` / `conversions` / `cpa` / `lead_form_opens` / `lead_form_completions`). `date_preset: "last_30dT"`. Pull the target week plus the prior week for WoW comparison.
 
-**Windsor fallback — weekly LinkedIn Ads:** if Windsor errors or returns 0 rows, call `late_get_ads_timeline` (account_id: `${BRAND}_LATE_LINKEDIN_ADS`, ad_account_id: `${BRAND}_LATE_LINKEDIN_ADS_CID`, platform: "linkedin", fromDate: week_start, toDate: week_end + prior week) + `late_list_ad_campaigns` (same IDs and platform). Both env vars are required — passing only `account_id` returns empty results. Apply the same field mapping as the daily Phase 2.5 fallback. Set `"source": "zernio_fallback"` in the weekly LinkedIn JSON.
+**Windsor fallback — weekly LinkedIn Ads:** if Windsor errors or returns 0 rows, call `late_get_ads_timeline` (account_id: `${BRAND}_LATE_LINKEDIN_ADS`, ad_account_id: `${BRAND}_LATE_LINKEDIN_ADS_CID`, platform: "linkedin", `date_from`: week_start, `date_to`: week_end + prior week) for date-filtered totals + `late_list_ad_campaigns` (same IDs and platform) for campaign metadata only (its metrics are lifetime — no date filter). Both env vars are required — passing only `account_id` returns empty results. Apply the same field mapping as the daily Phase 2.5 fallback. Set `"source": "zernio_fallback"` in the weekly LinkedIn JSON.
 
 Filter for the target week. Include WoW comparison from prior week. LinkedIn `cost` is already in the ad account's local currency.
 
@@ -913,7 +989,7 @@ DM the user (`$SLACK_NOTIFY_USER`) via Slack MCP:
 • Google Ads: [currency] [x] spend / [clicks] clicks / [conv] conv / WoW: [+/-x%] spend
 • Meta Ads: [currency] [x] spend / [clicks] clicks / [reach] reach / WoW: [+/-x%] spend
 • LinkedIn Ads (if present): [currency] [x] spend / [clicks] clicks / [QLs] qualified leads / WoW: [+/-x%] spend
-• GA4: [sessions] sessions / [trials] trials
+• GA4: [sessions] sessions / [primary_conv_count] [primary_conv_label]   ← read from brands/{brand}/funnel.md
 • 🔴 Top flag: [most urgent flag]
 • 💡 Top rec for next week: [one-line recommendation]
 ```
@@ -929,7 +1005,7 @@ Omit the LinkedIn line if `tmp/linkedin-weekly-{week_end}.json` is absent.
 - Google Ads: [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / CPA [currency] [x] / WoW: [+/-x%]
 - Meta Ads: [status] / Spend [currency] [x] (USD [x]) / [clicks] clicks / [reach] reach / WoW: [+/-x%]
 - LinkedIn Ads (if present): [status] / Spend [currency] [x] / [clicks] clicks / [conv] conv / [QLs] qualified leads / WoW: [+/-x%]
-- GA4: [sessions] sessions / [trials] trials / [paid] paid
+- GA4: [sessions] sessions / [primary_conv_count] [primary_conv_label] / [secondary_conv_count] [secondary_conv_label]   ← read primary/secondary conversion events + labels from brands/{brand}/funnel.md; omit secondary if the brand only defines one
 - WoW: Spend [+/-x%] / Conv [+/-x%] / CPA [+/-x%]
 - Key flags: [top 2-3]
 - Top recommendation for next week: [the one action]
@@ -947,7 +1023,7 @@ Omit the LinkedIn line if `tmp/linkedin-weekly-{week_end}.json` is absent.
 - **Email sending:** Use `fiveagents_send_email` (Postmark, requires Basic/Active maintenance plan). Falls back to `gmail_create_draft` if client has no maintenance plan (403).
 - **Data lag:** Windsor.ai (Google Ads, GA4, Meta) and the Meta Ads MCP are all near-real-time — no significant lag. For Windsor calls, always use `last_30dT` (not `last_30d`) so today's UTC data is included. Report on yesterday's date; today may be partial.
 - **Currency:** Google Ads cost is in the account's local currency. Meta Ads spend is USD — convert using the exchange rate from `brands/{brand}/brand.md`.
-- GA4 clean data start: **2026-03-08** — never pull or compare pre-Mar 8 data.
+- GA4 clean data start: read `ga4_clean_data_start` from `brands/{brand}/funnel.md` if set (e.g. when a tracking bug or migration left pre-cutoff data unreliable). If the brand defines one, never pull or compare pre-cutoff data; otherwise no clamp.
 - Brand-specific known issues should be documented in `brands/{brand}/funnel.md` notes section.
 - If one platform has no data yet, still send email with available data. Note the gap.
 - Future data sources to add: TikTok Ads (when an official MCP becomes available)
@@ -986,7 +1062,7 @@ Based on `flags.urgent` and `flags.optimize` from the analysis, offer these acti
 | Campaign budget needs adjustment | Update budget | `late_update_ad_campaign` |
 | Winning ad to duplicate | Duplicate | `late_duplicate_ad_campaign` |
 | Ad creative comments review (dark posts) | Fetch comments | `late_get_ad_comments` |
-| Drill-down on specific ad performance | Ad-level analytics | `late_get_ad_analytics` (fromDate/toDate = report period) |
+| Drill-down on specific ad performance | Ad-level analytics | `late_get_ad_analytics` (date_from/date_to = report period) |
 
 ### Step 3 — Targeting research (when user asks to expand or change targeting)
 
@@ -1104,9 +1180,11 @@ Use gateway MCP tool `fiveagents_log_run`:
       { "stage": "GA4 Sessions (Meta)", "volume": <actual meta ga4 sessions>, "rate": <click_to_session>, "cost_per": null, "benchmark": 0.8, "status": "<status>" }
     ],
     "combined_summary": {
-      "google_ads": { "spend": <actual>, "clicks": <actual>, "lp_views": null, "ga4_sessions": <actual cpc sessions>, "trials": <actual or 0>, "cpa": <actual or null>, "status": "<Active|Paused|No Data>" },
-      "meta_ads": { "spend": <actual>, "clicks": <actual>, "lp_views": null, "ga4_sessions": <actual meta sessions>, "trials": <actual or 0>, "cpa": null, "status": "<Active|Paused|No Data>" },
-      "total": { "spend": <sum of both platforms in local currency>, "clicks": <sum>, "lp_views": null, "ga4_sessions": <sum>, "trials": <sum> }
+      "primary_conversion_event": "<brand's primary GA4 conversion event name from brands/{brand}/funnel.md — e.g. 'calendly_booked', 'purchase', 'sign_up'>",
+      "primary_conversion_label": "<short display label for the dashboard — e.g. 'bookings', 'purchases', 'trials'>",
+      "google_ads": { "spend": <actual>, "clicks": <actual>, "lp_views": null, "ga4_sessions": <actual cpc sessions>, "primary_conversions": <count for the brand's primary event, or 0>, "cpa": <actual or null>, "status": "<Active|Paused|No Data>" },
+      "meta_ads":   { "spend": <actual>, "clicks": <actual>, "lp_views": null, "ga4_sessions": <actual meta sessions>, "primary_conversions": <count for the brand's primary event, or 0>, "cpa": null, "status": "<Active|Paused|No Data>" },
+      "total":      { "spend": <sum of both platforms in local currency>, "clicks": <sum>, "lp_views": null, "ga4_sessions": <sum>, "primary_conversions": <sum> }
     },
     "flags": { "urgent": ["<actual flag text>"], "optimize": ["<actual flag text>"], "monitoring": ["<actual flag text>"] },
     "top_recommendation": "<actual recommendation — name the specific campaign>",

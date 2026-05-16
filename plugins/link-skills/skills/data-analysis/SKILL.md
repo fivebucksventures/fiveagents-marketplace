@@ -8,11 +8,17 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.2 | May 16, 2026 |
+| Link | v2.3.3 | May 16, 2026 |
 
 **Description:** Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand
 
 ### Change Log
+
+**v2.3.3** — May 16, 2026
+- Bug fix (silent-failure): Zernio Windsor-fallback tool params standardized to snake_case (`date_from`/`date_to`, `account_id`) across `late_get_ads_timeline`, `late_get_ad_tree`, `late_list_ad_campaigns`, `late_get_ad_analytics`. Old `fromDate`/`toDate`/`accountId` were silently returning empty results.
+- Tool reference expanded: `late_get_ad_tree` documented as the recommended path for Campaign → Ad Group/Set → Ad hierarchy in Google + Meta fallbacks (date-filterable, paginated 20/page default, max 100). `late_list_ad_campaigns` flagged as **lifetime-only** (no date filter) — campaign metadata only.
+- Field mapping cleanup: documented Google Ads quirks (conversions always 0 — source proxy from brand's primary GA4 event; `adSets[]` IS ad-groups; keywords unavailable) and Meta Ads quirks (`late_get_ad_tree` returns 0 for paused campaigns).
+- Brand-agnostic refactor: removed FA-specific `2026-03-08` GA4 tracking-bug date (now read from `brands/{brand}/funnel.md` `ga4_clean_data_start` if set); Google Ads conversion-proxy guidance references the brand's primary funnel event (no hardcoded event name).
 
 **v2.3.2** — May 16, 2026
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
@@ -29,12 +35,6 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 **v2.2.13** — May 05, 2026
 - Step 1a — Windsor.ai is default path; Meta Ads MCP is opt-in with automatic fallback
 - Windsor field map and conversion-event guidance added; corrected capability claims
-
-**v2.2.11** — May 04, 2026
-- Step 1a split — Windsor.ai block for Google Ads + GA4; separate Meta Ads MCP block for Facebook + Instagram
-
-**v2.2.8** — April 28, 2026
-- date_preset → last_30dT; GA4 invalid field corrections; per-connector field reference table added
 
 # Data Analysis Skill
 
@@ -161,7 +161,7 @@ LinkedIn-specific field notes: `cost` is in the account's local currency (alread
 
 **Currency:** Meta `spend` is USD on both paths — convert to the brand's local currency using exchange rate from `brands/{brand}/brand.md`. Google Ads `cost` and LinkedIn Ads `cost` are already in the account's local currency.
 **Data lag:** Windsor.ai connectors (Google Ads, GA4, Facebook) and the Meta Ads MCP are all near-real-time. No lag adjustments needed.
-**GA4 data reliability:** Only use data from 2026-03-08 onwards (tracking bug before that date).
+**GA4 data reliability:** Check `brands/{brand}/funnel.md` for a `ga4_clean_data_start` date — if set, clamp the earliest start date to that value (covers per-brand tracking bugs or instrumentation gaps). Skip the check if the brand's funnel.md doesn't define one.
 **Paid traffic segments:** Filter `google / cpc` for Google Ads sessions; filter `meta / paid_social` for Meta paid sessions.
 
 **Windsor fallback — Google Ads, Meta Ads, and LinkedIn Ads:**
@@ -169,28 +169,39 @@ LinkedIn-specific field notes: `cost` is in the account's local currency (alread
 If Windsor.ai `get_data` errors **or** returns 0 rows, fall back to Zernio before asking the user for data:
 
 ```
+Param-name reference (live-tested against Zernio MCP schema):
+  - All three tools use snake_case: account_id, ad_account_id, date_from, date_to (NOT accountId / fromDate / toDate)
+  - late_get_ads_timeline and late_get_ad_tree accept date_from / date_to — date-filterable
+  - late_list_ad_campaigns has NO date_from / date_to params — metrics returned are LIFETIME since campaign creation
+  - late_get_ad_tree and late_list_ad_campaigns default limit=20 (max 100); paginate when needed
+  - late_get_ad_tree returns zero metrics for paused campaigns regardless of date range
+
 Google Ads fallback (REQUIRES BOTH env vars — account_id + ad_account_id):
-  late_get_ads_timeline  (account_id: ${BRAND}_LATE_GOOGLE_ADS, ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID, platform: "google", fromDate/toDate)
-  late_list_ad_campaigns (account_id: ${BRAND}_LATE_GOOGLE_ADS, ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID, platform: "google")
+  late_get_ads_timeline  (account_id: ${BRAND}_LATE_GOOGLE_ADS, ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID, platform: "google", date_from, date_to)
+  late_get_ad_tree       (same IDs + date_from/date_to, platform: "google", limit: 100) — for Campaign → Ad Group → Ad hierarchy. In Google's response the `adSets[]` array IS the ad-groups array (Zernio's schema label is "adSets" but the data is ad-group level).
+  late_list_ad_campaigns (same IDs, platform: "google") — campaign metadata only (objective, status, name). Metrics are LIFETIME — do not use as period totals.
 
 Meta Ads fallback:
-  late_get_ads_timeline  (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook", fromDate/toDate)
-  late_list_ad_campaigns (accountId: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook")
+  late_get_ads_timeline  (account_id: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook", date_from, date_to) — the ONLY reliable date-filtered source for Meta account totals
+  late_get_ad_tree       (account_id, platform: "facebook", date_from, date_to, limit: 100) — campaign→adset→ad hierarchy (but returns 0 metrics for paused campaigns)
+  late_list_ad_campaigns (account_id, platform: "facebook") — campaign metadata only (names, IDs, objective, status). Metrics are LIFETIME — label as `spend_*_lifetime` in any payload.
 
 LinkedIn Ads fallback (REQUIRES BOTH env vars — account_id + ad_account_id; opt-in per brand):
-  late_get_ads_timeline  (account_id: ${BRAND}_LATE_LINKEDIN_ADS, ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID, platform: "linkedin", fromDate/toDate)
-  late_list_ad_campaigns (account_id: ${BRAND}_LATE_LINKEDIN_ADS, ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID, platform: "linkedin")
+  late_get_ads_timeline  (account_id: ${BRAND}_LATE_LINKEDIN_ADS, ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID, platform: "linkedin", date_from, date_to)
+  late_list_ad_campaigns (same IDs, platform: "linkedin") — campaign metadata only; metrics LIFETIME
 
 Field mapping (Zernio → Windsor):
   spend → cost/spend · ctr, cpc, cpm, clicks, impressions, reach → direct
-  conversions → conversions (Meta + LinkedIn; 0 for Google via Zernio)
+  conversions → conversions (Meta + LinkedIn; ⚠️ Google returns 0 — source the proxy conversion count from GA4 using the brand's primary conversion event defined in `brands/{brand}/funnel.md`. Do NOT hardcode an event name — each brand has different key events.)
   costPerConversion → cpa
-  actions["link_click"] → actions_landing_page_view (Meta)
+  actions["landing_page_view"] → actions_landing_page_view (Meta)
   actions["video_view"] → actions_video_view (Meta)
-  actions["offsite_conversion.fb_pixel_*"] → brand-specific actions_* (Meta)
+  actions["lead"] / actions["offsite_conversion.fb_pixel_*"] → brand-specific actions_* (Meta — pull the broad set when funnel.md doesn't pin a specific event)
   externalWebsiteConversions → conversions (LinkedIn)
   qualifiedLeads → qualified_leads (LinkedIn)
   campaignName → campaign · status → campaign_effective_status
+  adSets[].adSetName → ad_groups[].name (Google) / ad_sets[].name (Meta)
+  keywords → NOT available at any level via Zernio — omit keywords table
 ```
 
 Note in Data Gaps: "Zernio fallback used — adset-level breakdown and GA4 sessions not available."
@@ -271,7 +282,7 @@ After delivering the report, offer to apply recommendations directly when the us
 | Campaign wasting spend (high cost, 0 conv) | Pause campaign | `late_update_ad_campaign_status` |
 | Multiple underperforming campaigns | Bulk pause | `late_bulk_update_ad_campaign_status` |
 | Ad set audience fatigue (frequency > 2.5) | Pause ad set | `late_update_ad_set_status` |
-| Drill-down needed on specific ad | Ad-level analytics | `late_get_ad_analytics` (fromDate/toDate = report period) |
+| Drill-down needed on specific ad | Ad-level analytics | `late_get_ad_analytics` (date_from/date_to = report period) |
 | Conversion tracking gaps flagged | Audit tracking | `late_list_conversion_destinations` · `late_get_tracking_tag_stats` |
 | Top organic post worth promoting | Boost post | `late_boost_post` |
 

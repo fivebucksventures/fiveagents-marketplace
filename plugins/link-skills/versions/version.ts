@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.6.5';
+const DEFAULT_VERSION = 'v2.6.6';
 const DEFAULT_DATE = 'May 16, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,16 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.6.6',
+    date: 'May 16, 2026',
+    changes: [
+      'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: silent-failure bug fix — Zernio tool params standardized to snake_case (date_from/date_to, account_id) across late_get_ads_timeline, late_get_ad_tree, late_list_ad_campaigns, late_get_ad_analytics. Old fromDate/toDate/accountId were silently returning empty/wrong data. Verified against live MCP schema.',
+      'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: late_get_ad_tree documented as the recommended path for Campaign → Ad Group/Set → Ad hierarchy in Google + Meta Zernio fallbacks (date-filterable, paginated 20/page default, max 100). late_list_ad_campaigns clearly flagged as lifetime-only (no date filter) — campaign metadata only. Google Ads adSets[] response field is actually ad-groups (Zernio naming quirk).',
+      'digital-marketing-analyst v2.3.3: critical template gotcha documented — meta_ads.no_active_campaigns: true skips the entire Meta summary box. Always set false; use new all_campaigns_paused field for pause state. Payload schema additions: Meta last_spend_date / days_dark / lp_views / leads / video_views / spend_*_lifetime + note on lifetime campaign rows / spend_usd: null for Zernio source; Google Ads conversions_note; richer GA4 funnel block (click_to_session_*_pct + per-stage event counts keyed off brand funnel.md).',
+      'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: brand-agnostic refactor — removed Five Agents-specific 2026-03-08 GA4 tracking-bug date (now read from brands/{brand}/funnel.md ga4_clean_data_start if set). Removed hardcoded trials KPI from Slack/log/combined_summary templates (now primary_conversions driven by brand\'s primary conversion event + primary_conversion_event / primary_conversion_label companion fields). Removed signup form assumption from analysis guidelines. Google Ads Zernio quirks: conversions always 0 — source proxy from brand\'s primary GA4 event in funnel.md (no hardcoded event name).',
+    ],
+  },
   {
     version: 'v2.6.5',
     date: 'May 16, 2026',
@@ -161,17 +171,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Step 8d-iv — clarified that connected_tools[] derivation reads agents/link.md Deps as the single source of truth (no per-agent table here).',
       'brand-setup: Step 8d-i translation table — added "PayPal MCP → PayPal (revenue)" row to match link.md\'s expanded Deps vocabulary (financial-reporter now lists PayPal opt).',
       'plugin-update: Step 5b email payload — added top-level brand_name field, mirrors the same field added to brand-setup Step 10 so the upgrade email title also renders the display name.',
-    ],
-  },
-  {
-    version: 'v2.4.2',
-    date: 'May 07, 2026',
-    changes: [
-      'brand-setup: Step 8d agent_readiness[] schema — JSON example in 8d-iii and Step 10 email payload brought into sync; added `name` (renamed from `agent`), `category`, `status_label`, and `connected_tools[]` fields. Step 10 was lagging the 8d-iii schema after v2.4.1.',
-      'brand-setup: Step 8d-ii / 8d-iii / Step 10 Slack DM — dropped "run on schedule starting today" framing in favor of "configured and available to run" / "configured and ready to run". Three call-sites were contradicting each other after v2.4.1.',
-      'brand-setup: Step 8d-iv (NEW) — derivation rule for connected_tools[]: pull each agent\'s MCP:/Gateway: tokens from agents/link.md Deps column, translate via 8d-i, preserve (opt) markers. Replaces a duplicate per-agent mapping table that would have drifted from link.md. Keeps agents/link.md as the single source of truth (matching its own v2.4.1 claim).',
-      'plugin-update: Step 4b — references brand-setup Step 8d-iv derivation rule for connected_tools[] (pulled from agents/link.md Deps + 8d-i translation) instead of a separate mapping table.',
-      'plugin-update: Step 5b Slack DM "no fixes needed" line synchronized with brand-setup Step 10 — "configured and ready to run" instead of "ready to run on schedule".',
     ],
   },
 ];
