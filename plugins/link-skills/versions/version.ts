@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.6.4';
-const DEFAULT_DATE = 'May 15, 2026';
+const DEFAULT_VERSION = 'v2.6.5';
+const DEFAULT_DATE = 'May 16, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.6.5',
+    date: 'May 16, 2026',
+    changes: [
+      'agents/link.md v2.6.5: change log trimmed to the last 5 entries per Step 3c policy. Oldest entry (v2.4.1) removed.',
+      'brand-setup v2.5.2 + content-generator v2.5.4 + creative-designer v2.5.4 + data-analysis v2.3.2 + digital-marketing-analyst v2.3.2 + plugin-update v2.5.2: change log history trimmed across SKILL.md files — housekeeping pass to keep file-level history compact. No functional change.',
+    ],
+  },
   {
     version: 'v2.6.4',
     date: 'May 15, 2026',
@@ -164,55 +172,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup: Step 8d-iv (NEW) — derivation rule for connected_tools[]: pull each agent\'s MCP:/Gateway: tokens from agents/link.md Deps column, translate via 8d-i, preserve (opt) markers. Replaces a duplicate per-agent mapping table that would have drifted from link.md. Keeps agents/link.md as the single source of truth (matching its own v2.4.1 claim).',
       'plugin-update: Step 4b — references brand-setup Step 8d-iv derivation rule for connected_tools[] (pulled from agents/link.md Deps + 8d-i translation) instead of a separate mapping table.',
       'plugin-update: Step 5b Slack DM "no fixes needed" line synchronized with brand-setup Step 10 — "configured and ready to run" instead of "ready to run on schedule".',
-    ],
-  },
-  {
-    version: 'v2.4.1',
-    date: 'May 07, 2026',
-    changes: [
-      'agents/link.md: Skills table extended with Area (Marketing/Sales/Customer Success/Finance/Strategy/Productivity/Setup) and Deps columns — single source-of-truth for the agent readiness matrix that brand-setup Step 8d and plugin-update Step 4b compute. Added prefix notation guide (MCP: / Gateway: / Files: / Env: with (opt) marker) and per-skill dep mappings for all 22 entries.',
-      'brand-setup: Step 2 prereqs table — added 6 business-ops MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma) so users see what they\'ll be asked to connect upfront',
-      'brand-setup: Step 3 directory tree + Step 9b Workspace Structure — added 5 v2.4.0 brand-context files (sales/CS/finance/investors/operations) with skip annotations for the conditional ones',
-      'brand-setup: Step 7c — added "Business-operations MCPs" walkthrough block with explicit per-MCP prompts (each names dependent skill + skip impact). Closes the gap where Step 8c-bis would probe MCPs the user was never asked to connect.',
-      'brand-setup: Steps 5g/5h/5i/5j/5k — added "Read existing context first" mapping table at the top of each new sub-step. Lists which existing brand files (brand.md, audience.md, product.md, etc.) to pre-fill from, so the agent never asks for info already on disk.',
-      'brand-setup: Step 8d (NEW) — Agent Readiness Summary. Translation table (technical → business labels), status rules (Ready / Works with limitations / Not ready / You skipped), display format with worked example, structured save schema for Step 10. Owners get the business answer ("which agents will run on my brand starting today"), not the engineering answer ("which connections passed").',
-      'brand-setup: Step 10 email payload — restructured around agent_readiness[] + readiness_summary as primary blocks; demoted connections[] and files[] to diagnostic detail. Slack DM leads with readiness counts + top 3 fixes instead of integration count. Requires server-side template update at fiveagents/src/lib/email/templates/brand-setup.ts (handed off via JSON instruction spec).',
-      'plugin-update: Step 1e — added MCP probe rows for PostHog, Gamma, Meta Ads MCP (optional). Now matches every connector validated by brand-setup Step 8c-bis.',
-      'plugin-update: Step 2 gap report example — expanded to surface business-ops MCPs and the 5 v2.4.0 brand-context files',
-      'plugin-update: Step 3a — added top-of-section pre-fill rule + per-bullet pre-fill summaries for the 5 v2.4.0 files. In plugin-update context the v2.0 source files are essentially guaranteed to exist, so pre-fill is mandatory; agent reads existing brand files and drafts answers instead of asking from scratch.',
-      'plugin-update: Step 3f — rewrote MCP gap-fill flow with explicit per-MCP walkthrough prompts for all 14 MCPs (was only Windsor + Playwright). Closes the gap where business-ops MCPs flagged in Step 1e were silently skipped during interactive fill.',
-      'plugin-update: Step 3g — fixed CLAUDE.md re-embed bug. Previous version only refreshed the version stamp comment, leaving the embedded agents/link.md body unchanged after a git pull. New logic strips link.md frontmatter, builds a full BEGIN/END block (stamp + body), and atomically replaces everything between the markers using re.sub with re.DOTALL + lambda replacement (avoids backslash interpretation). Added post-write verification: grep CLAUDE.md for a string unique to the new version.',
-      'plugin-update: Step 4b (NEW) + Step 5b — Agent Readiness Summary using brand-setup Step 8d spec; same readiness-first email + Slack format. Inputs come from Step 1 audit overlaid with Step 3 fix outcomes, so the matrix reflects post-fix state.',
-    ],
-  },
-  {
-    version: 'v2.4.0',
-    date: 'May 07, 2026',
-    changes: [
-      '10 new business-operations skills shipped: apollo-lead-prospector, outreach-sequencer, proposal-generator (sales pipeline); customer-onboarder, churn-predictor (retention); invoice-collector, financial-reporter (back-office); competitor-monitor, investor-update-writer (strategy); meeting-analyzer (productivity)',
-      'agents/link.md: rewritten from "marketing agent" → "business operations agent"; added 5 new context-file rows (sales.md, customer-success.md, finance.md, investors.md, operations.md); added 4 new skill chains (Sales pipeline, Customer retention, Monthly close, Strategic intelligence); added Apollo.io / Calendly / Stripe / Xero / Gamma MCP rows',
-      'brand-setup: Step 5 expanded with 6 new sub-steps (5g sales, 5h customer-success, 5i finance, 5j investors, 5k operations, 5l competitors.md extension verification); Step 7 documents 7 new auto-bootstrapped Notion DB env vars; Step 8 adds probes for Apollo/Calendly/Stripe/Xero; Step 10 files[] block expanded',
-      'brand-setup: full UX intro audit — added top-level "What this skill does" overview with 10-step time-budget table, plus per-step intro paragraphs across all 10 main steps and the 6 new sub-steps',
-      'plugin-update: Step 1a/1d/1e/1j extended to detect new context files, env vars, MCPs, and skill versions; Step 3a/3e/3j extended with fill handlers and changelog → brand-action mappings for all 10 new skills; conditional consent gates added for investors.md and operations.md',
-      'plugin-update: matching UX intro audit — top-level overview + per-step intros for all 6 steps with time estimates',
-      'commit-to-git workflow: Step 4a hardened with env-var-first DB resolution (`AGENTS_LIBRARY_DB`) + fuzzy name search fallback + auto-persist of resolved ID — survives Notion DB renames and workspace moves',
-      'commit-to-git skill + workflow: moved out of plugins/link-skills/ into the new gitignored /admin-skills/ + /workflow/ folders at repo root — release tooling separated from the marketplace plugin',
-      'creative-designer: fixed is_vertical edge case where IG portrait 4:5 (1080×1350) was incorrectly receiving 9:16 safe zones; replaced with `is_story_reel = (target_h / target_w) >= 1.7`',
-      'social-calendar + content-generator + background-generator: normalized Notion MCP tool prefix from legacy `mcp__notion__notion-*` to canonical `mcp__claude_ai_Notion__notion-*`; replaced obsolete `API-update-a-block` / `API-query-data-source` calls with current connector tools',
-      'docs/metrics-spec.md: sanitized real campaign data, real spend numbers, and real competitive positioning from example payloads (Acme-style placeholders); plugin.json: replaced real Slack user ID example with generic format',
-    ],
-  },
-  {
-    version: 'v2.3.7',
-    date: 'May 07, 2026',
-    changes: [
-      'content-generator: Step 4a safe zone table — added note clarifying Top 14% column applies to logo placement only, not text (add_text_overlay has no top constraint)',
-      'content-generator + creative-designer: add_logo positions dict — added # NEVER USE comments on bottom-right and bottom-left entries; text always occupies the bottom zone so these positions are forbidden',
-      'creative-designer: frontmatter description — removed stale "with Nano Banana Pro" (Nano Banana replaced by Gemini in v2.2.2)',
-      'creative-designer: add_text_overlay prose note — clarified 18% safe-zone offset applies to 9:16 only; feed canvases use flat 60 px buffer instead',
-      'creative-designer/style-guide.md — replaced "Nano Banana" brand name with "Claude\'s continue_editing" in two Don\'t rules (more durable phrasing)',
-      'link.md: skills table — removed stale "with Nano Banana Pro" from creative-designer description row',
-      'commit-to-git workflow — Step 3b: added "already bumped this session" rule (do not re-increment if maintenance sections were updated in the current session); Step 5a: added branch to use highest existing version instead of incrementing again',
     ],
   },
 ];

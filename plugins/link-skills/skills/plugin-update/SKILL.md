@@ -6,11 +6,14 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.1 | May 15, 2026 |
+| Link | v2.5.2 | May 16, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.5.2** — May 16, 2026
+- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 **v2.5.1** — May 15, 2026
 - Step 1d optional env vars table — Google Ads row split: the single v2.5.0 `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` is now the pair `${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (Zernio Google Ads tools need both `account_id` and `ad_account_id` or they return empty results; the legacy var is auto-migrated by Step 3e's rename handler). Added a new LinkedIn Ads row (`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID`) marked optional per brand.
@@ -38,32 +41,6 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 - **Step 3g — fixed CLAUDE.md re-embed bug.** Previous version only refreshed the `<!-- link.md version: ... -->` stamp comment, leaving the embedded `agents/link.md` body unchanged. After a `git pull` that brought new content (e.g. v2.4.0's 10 business-ops skills), CLAUDE.md would stamp `v2.4.0` while its embedded body still described v2.3.x. New logic strips link.md's frontmatter, builds a full BEGIN/END block (stamp + body), and atomically replaces everything between the markers. Added post-write verification: grep for a string unique to the new version (e.g. `apollo-lead-prospector` after a v2.4.0 upgrade) to confirm the body was actually swapped.
 - **Step 4b (NEW) — Agent Readiness Summary** using the canonical spec from brand-setup Step 8d. Same translation table, status rules, display format. Inputs come from Step 1 audit overlaid with Step 3 fix outcomes, so the matrix reflects post-fix state.
 - Step 5b — email payload + Slack DM use the same readiness-first format as brand-setup Step 10. Top 3 fixes inline, full list in email.
-
-**v2.4.0** — May 07, 2026
-- Step 1a — added 5 new brand context file rows: sales.md, customer-success.md, finance.md, investors.md, operations.md
-- Step 1d — added 7 new auto-bootstrapped Notion DB env vars (${BRAND}_CRM_DB, ${BRAND}_CUSTOMER_DB, ${BRAND}_INVOICE_TRACKER_DB, ${BRAND}_REPORTS_DB, ${BRAND}_COMPETITOR_DB, ${BRAND}_MEETINGS_DB, ${BRAND}_ACTIONS_DB)
-- Step 1e — added MCP probe rows for Apollo.io, Calendly, Stripe, Xero (used by new business-operations skills)
-- Step 1j — added 10 new skill rows in version-audit table: apollo-lead-prospector, outreach-sequencer, proposal-generator, customer-onboarder, churn-predictor, invoice-collector, financial-reporter, competitor-monitor, investor-update-writer, meeting-analyzer
-- Step 3a — added fill handlers for 5 new context files + competitors.md extension (each delegates to the matching brand-setup Step 5g–5l sub-step)
-- Step 3e — handled new DB env vars (mostly "auto-bootstrapped, no action")
-- Step 3j — added 10 new changelog → brand-action mappings for the new skills
-- UX intro audit — added top-level "What this skill does" overview + per-step intro paragraphs across all 6 steps; conversational tone, time estimates per step
-
-**v2.3.2** — May 06, 2026
-- Step 3c upload sub-flow — added step 0 size check (3 MB) before zip/upload; if local template exceeds limit, blocks upload and surfaces ready-to-paste claude.ai/design re-export prompt; Case 3 reference updated to Steps 0–5
-
-**v2.3.1** — May 06, 2026
-- Step 1h `compute_version_hash` — fixed: added `__MACOSX` to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched directory check to `rel.split("/")` (matches canonical gateway algorithm — without this fix hash drift detection always mismatches macOS-extracted templates)
-- Step 1h `template_list` call — brand parameter documented as OPTIONAL
-
-**v2.3.0** — May 06, 2026
-- New skill introduced — audits brand folder, env vars, MCP connectors, Claude Code settings, Notion DB
-- Step 0 — version gap detection using skill/agent maintenance sections; brand.md Plugin Version tracking
-- Step 1h — template upload status check via template_list + local version_hash comparison
-- Step 1j — skill/agent version audit: reads all maintenance sections, builds version delta table
-- Step 3c — 4 remediation cases for template gaps (missing, not uploaded, hash drift, remote only)
-- Step 3j — changelog-driven brand action mapping: maps skill changelog entries to required brand actions
-- Step 5 — writes current plugin version to brand.md `## Plugin Version` after completion
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 

@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.3 | May 12, 2026 |
+| Link | v2.5.4 | May 16, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.5.4** — May 16, 2026
+- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 **v2.5.3** — May 12, 2026
 - Step 4c-image Prompt rules — "Match the brand's visual style and color palette" expanded to spell out the read order (`design-system/` first when present, `brand.md` Colors fallback) AND *how* to inject palette into the Gemini prompt (HEX values phrased as ambient mood, e.g. "warm tones around #ec4899 / muted slate around #0f172a"). Same Visual consistency rule as `agents/link.md` — never hardcode brand colors from memory.
@@ -43,84 +46,6 @@ allowed-tools: Read, Grep, Glob, Bash
 - Step 4a safe-zone table — updated to reflect the new 13% / `pad // 2` values; rationale rewritten to cite Meta's "central 1080×1420" rule for 9:16 and the asymmetric (smaller bottom, larger sides) feed inset.
 - Step 4b text-position note + Step 4d code comments updated to match.
 - Step 4h checklist + fix table — pixel/percentage references updated; added a "feed text drifts above natural edge / has too much bottom buffer" row that points to `pad // 2`.
-
-**v2.4.7** — May 08, 2026
-- `add_text_overlay` (Step 4d) — geometry fix: text bottom now anchored directly via `text_y = (target_h - safe_bottom_px) - block_h`; the previous `scrim_h = block_h + 2*pad` framing left an extra `pad` of empty gradient below text on every canvas. Feed text now sits exactly `pad` above the natural edge as intended; 9:16 text sits exactly at the 18% safe-zone boundary.
-- `add_text_overlay` (Step 4d) — brightness sample now reads the actual text zone (`text_y` to `text_bottom`) instead of the upper half of the old `scrim_h` slot.
-- `add_text_overlay` (Step 4d) — runtime asserts added: `text_y + block_h == target_h - safe_bottom_px`, `scrim_top + pad == text_y`, `scrim_bottom == target_h`, `text_y >= 0`. Crashes loudly on geometry regression instead of silently shipping a misplaced text block.
-- `add_logo` (Step 4e) — runtime asserts added: cropped logo has non-zero dimensions; resize aspect-ratio matches cropped aspect within 1%. Catches anyone who reorders the crop/resize sequence and re-introduces the v2.4.5 distortion.
-- Step 4h fix table — replaced "Headline cut off at bottom of scrim" (stale wording from the old `scrim_h` geometry) with "Headline clipped at top of canvas" pointing to the actual failure mode under the new geometry.
-
-**v2.4.6** — May 08, 2026
-- `add_logo` (Step 4e) — fixed logo aspect-ratio distortion. `logo.crop(logo.getbbox())` now runs BEFORE `logo_w`/`logo_h` are computed, so the resize target is derived from the cleaned (cropped) logo bounds instead of the original padded ones. Previously the resize calc used padded proportions but the crop-then-resize sequence applied them to a different aspect ratio, stretching the mark.
-- Step 4h fix table — updated the "Logo visually offset" row (the manual crop is now automatic) and added a "Logo aspect ratio looks distorted" row pointing to the crop-order requirement.
-
-**v2.4.5** — May 08, 2026
-- `add_text_overlay` (Step 4d) — gradient now runs to `target_h` on every canvas (was `target_h - safe_bottom_px`); decoupled `text_bottom` anchors text above the inset — eliminates raw-image gap below the scrim on FB/IG Story and feed
-- `add_text_overlay` (Step 4d) — feed text inset corrected to `pad` on bottom and sides (was 60 / max(pad,60), mislabeled as "safe zone"); 9:16 18%/13% unchanged
-- `add_text_overlay` (Step 4d) — scrim max-alpha 200→230 + brightness threshold 0.45→0.40 to match; improves subline legibility on busy and light backgrounds
-- `add_logo` (Step 4e) — flat margin = `max(int(w * 0.03), 30)` on every canvas; removed 9:16 safe-zone offsets that floated logo 269 px / 140 px from corners; dropped `bottom-right`/`bottom-left` dict entries (already marked NEVER USE)
-- Step 4a — safe-zone table rewritten: 9:16 row reflects platform UI; feed row labeled as design inset (not a platform safe zone); logo flat-margin and gradient-to-canvas-bottom rules added
-- Step 4b — clarified `text_position` 18% offset applies to 9:16 only; feed uses `pad` inset for tile-view readability
-- Step 4h — visual verification rewritten: feed `pad` inset, gradient-reaches-canvas-bottom, logo-anchored-to-corner; fix table updated for the four new symptoms
-
-**v2.4.0** — May 07, 2026
-- Notion MCP tool prefix normalized — `mcp__notion__notion-*` → `mcp__claude_ai_Notion__notion-*` (matches the actual registered tool names)
-- Step 6 (status update) — replaced obsolete `mcp__notion__API-update-a-block` call (block-level update not exposed by current Notion connector) with `notion-update-page` using `command: "update_content"` for targeted search-and-replace on the calendar page's markdown table
-
-**v2.3.8** — May 07, 2026
-- `add_text_overlay` + `add_logo` — replaced `is_vertical = target_h > target_w` with `is_story_reel = (target_h / target_w) >= 1.7`; fixes IG portrait 4:5 (1080×1350) incorrectly receiving 9:16 safe zones instead of flat 60px feed buffer
-- Step 4a safe zone note — updated to reference the ratio threshold (9:16 = 1.78, IG portrait 4:5 = 1.25)
-
-**v2.3.7** — May 07, 2026
-- Step 4a safe zone table — added clarifying note: the "Top" column for 9:16 applies to logo placement only; `add_text_overlay` has no top constraint (text is always bottom)
-- `add_logo` positions dict — added `# NEVER USE` comments on `bottom-right` and `bottom-left` entries (text occupies bottom zone)
-
-**v2.3.6** — May 07, 2026
-- Visual verification (Step 4h) — full rewrite: added safe zone checks per canvas type (9:16 vs feed), text alignment check, logo-always-top check, logo/text separate-zone check, adaptive color scheme check; fix table updated to match all implemented rules
-
-**v2.3.5** — May 07, 2026
-- `add_text_overlay` (Step 4d) + `add_logo` (Step 4e) — feed post safe zones: `safe_bottom_px = 60`, `safe_side_px = max(pad, 60)`, `feed_margin = max(margin, 60)` for all non-9:16 canvases; was 0/pad/margin
-- Step 4a — added per-platform safe zone reference table (6 canvas types with px values and reasoning)
-
-**v2.3.4** — May 07, 2026
-- `add_text_overlay` (Step 4d) — adaptive text color: samples image brightness in the text zone before scrim is applied; dark backgrounds → white + pink `#ec4899`; light backgrounds → near-black + dark-pink `#be185d`; `ImageStat` added to PIL import
-- Visual verification checklist (Step 4h) — added text color contrast check
-
-**v2.3.3** — May 07, 2026
-- Step 4a — added 9:16 safe zone reference note (top 14%, bottom 18%, sides 13%)
-- `add_text_overlay` (Step 4d) — restored left/center/right `text_align` rotation (was center-only since v2.2.14); text position always bottom; safe zones enforced: bottom 18% (~346 px), sides 13% (~140 px) for 9:16 canvas
-- `add_logo` (Step 4e) — logo positions now respect 9:16 safe zone margins: top 14%, bottom 18%, sides 13%; non-9:16 canvases unchanged
-- Rotation table (Step 4b) restored to left/center/right `text_align` with `text_position` always bottom; quality checklist updated to match
-
-**v2.3.1** — May 06, 2026
-- Step 4c-template Step 1 — `template_list` brand parameter documented as OPTIONAL; verbose response now includes `entry_html` field (root HTML filename, e.g. `"index.html"`)
-- Step 4c-template Step 5 — `template_render` call updated: `version_hash` optional pinning field added; `slots` type now accepts PNG or JPEG (was PNG-only, which bloated file sizes for Gemini photo output)
-
-**v2.3.0** — May 06, 2026
-- Step 4c-template — migrated from Playwright to gateway template_render MCP tool; no local browser required
-- _copy.json shell_path now resolved via template_list then passed to template_render as template_id
-
-**v2.2.15** — May 05, 2026
-- Step 4c-template — Playwright render via stable offscreen DOM IDs (#export-cover, #export-s2…)
-- Notion calendar schema gained Direction column (now 11 columns)
-- Step 3b — generate structured _copy.json for template-path posts
-- design-system/ MANDATORY → OPTIONAL — fallback to brand.md
-
-**v2.2.14** — May 05, 2026
-- text_align fixed to "center"; text_position alternates top/bottom by day-of-week
-- Complete Pillow text overlay — textwrap, textbbox pixel measurement, gradient scrim
-- Step 4h — mandatory visual verification before Zernio publish
-
-**v2.2.10** — May 04, 2026
-- Step 4c-template — renders via Playwright for IG/FB Carousel/Story when templates installed
-- Step 2 reads design-system/ + detects optional templates
-
-**v2.2.9** — April 30, 2026
-- Removed pre-stored background lookup — all images now generated fresh via Gemini
-
-**v2.2.5** — April 26, 2026
-- Added "Before Executing" section — reads agents/link.md before starting
 
 # SKILL.md — Content Generator
 

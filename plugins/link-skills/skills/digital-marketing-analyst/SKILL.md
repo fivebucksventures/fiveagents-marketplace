@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.1 | May 15, 2026 |
+| Link | v2.3.2 | May 16, 2026 |
 
 **Description:** Daily and weekly paid ads analysis — Google Ads, Meta Ads, LinkedIn Ads (opt), GA4 funnel analysis with structured JSON email briefs for any active brand
 
 ### Change Log
+
+**v2.3.2** — May 16, 2026
+- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 **v2.3.1** — May 15, 2026
 - Phase 1 Step 1 Google Ads Zernio fallback — now passes **both** `account_id=${BRAND}_LATE_GOOGLE_ADS` and `ad_account_id=${BRAND}_LATE_GOOGLE_ADS_CID`. Passing only the SocialAccount ID returned empty results (the existing bug). Env-var gate updated: if either is missing, set `all_campaigns_paused: true` with a clear "run brand-setup Step 7b Step D or plugin-update Step 3e" note.
@@ -40,9 +43,6 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 - Removed outdated ~12-day Windsor data lag warnings
 - Fixed invalid GA4 fields — removed "source" and "medium"
 - fiveagents_log_run metrics block rewritten with real data placeholders
-
-**v2.2.5** — April 26, 2026
-- Added "Before Executing" section — reads agents/link.md before starting
 
 # SKILL.md — Digital Marketing Analyst
 

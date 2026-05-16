@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.3 | May 12, 2026 |
+| Link | v2.5.4 | May 16, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.5.4** — May 16, 2026
+- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 **v2.5.3** — May 12, 2026
 - Step 4b Image prompt guidelines — new bullet enforces injecting the brand palette into the Gemini prompt using HEX tokens from Step 1 (design-system/ first when present, brand.md Colors fallback). Phrasing rules included (ambient-mood style, not literal swatches). Same Visual consistency rule as `agents/link.md` — never hardcode brand colors from memory.
@@ -43,80 +46,6 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
   - **9:16:** `0.18` → `0.13` (now matches Meta's published safe zone — 250 px on 1920 canvas — instead of the previous conservative 346 px). Text bottom moves down by 96 px.
   - **Feed:** `pad` → `pad // 2` (~32–36 px instead of ~65–72 px). Text bottom moves down by 32–36 px on every feed canvas. Side inset stays at `pad` (still survives IG profile-grid 3:4 cropping ~34 px side trim).
 - Layout rules section + Step 2 narrative + Step 3b checklist + fix table — wording and numeric references updated to match the new values; rationale cites Meta's "central 1080×1420" rule.
-
-**v2.4.7** — May 08, 2026
-- `add_text_overlay` — geometry fix: text bottom now anchored directly via `text_y = (target_h - safe_bottom_px) - block_h`; the previous `scrim_h = block_h + 2*pad` framing left an extra `pad` of empty gradient below text on every canvas. Feed text now sits exactly `pad` above the natural edge; 9:16 text sits exactly at the 18% safe-zone boundary.
-- `add_text_overlay` — brightness sample now reads the actual text zone (`text_y` to `text_bottom`) instead of the upper half of the old `scrim_h` slot.
-- `add_text_overlay` — runtime asserts added: `text_y + block_h == target_h - safe_bottom_px`, `scrim_top + pad == text_y`, `scrim_bottom == target_h`, `text_y >= 0`. Crashes loudly on geometry regression.
-- `add_logo` — runtime asserts added: cropped logo has non-zero dimensions; resize aspect-ratio matches cropped aspect within 1%. Catches anyone who reorders the crop/resize sequence and re-introduces the v2.4.5 distortion.
-- Step 3b fix table — replaced "Headline cut off at bottom of scrim" (stale wording from the old `scrim_h` geometry) with "Headline clipped at top of canvas" pointing to the actual failure mode under the new geometry.
-
-**v2.4.6** — May 08, 2026
-- `add_logo` — fixed logo aspect-ratio distortion. `logo.crop(logo.getbbox())` now runs BEFORE `logo_w`/`logo_h` are computed, so the resize target is derived from the cleaned (cropped) logo bounds instead of the original padded ones. Previously the resize calc used padded proportions but the crop-then-resize sequence applied them to a different aspect ratio, stretching the mark.
-- Step 3b fix table — updated the "Logo visually offset" row (the manual crop is now automatic) and added a "Logo aspect ratio looks distorted" row pointing to the crop-order requirement.
-
-**v2.4.5** — May 08, 2026
-- `add_text_overlay` — gradient now runs to `target_h` on every canvas (was `target_h - safe_bottom_px`); decoupled `text_bottom` anchors text above the inset — eliminates raw-image gap below the scrim on FB/IG Story and feed
-- `add_text_overlay` — feed text inset corrected to `pad` on bottom and sides (was 60 / max(pad,60), mislabeled as "safe zone"); 9:16 18%/13% unchanged
-- `add_text_overlay` — scrim max-alpha 200→230 + brightness threshold 0.45→0.40 to match; improves subline legibility on busy and light backgrounds
-- `add_logo` — flat margin = `max(int(w * 0.03), 30)` on every canvas; removed 9:16 safe-zone offsets that floated logo 269 px / 140 px from corners; dropped `bottom-right`/`bottom-left` dict entries
-- Layout rules — rewrote 9:16 / feed / logo / gradient sections to match implementation; replaced the "60 px rendering buffer" claim with `pad` design inset (Meta safe zones are Stories/Reels-only)
-- Step 3b visual verification — added feed `pad` inset, gradient-reaches-canvas-bottom, logo-anchored-to-corner checks; fix table updated for the four new symptoms
-
-**v2.4.0** — May 07, 2026
-- `add_text_overlay` + `add_logo` — replaced `is_vertical = target_h > target_w` with `is_story_reel = (target_h / target_w) >= 1.7`; fixes IG portrait 4:5 (1080×1350) incorrectly receiving 9:16 safe zones instead of flat 60px feed buffer
-
-**v2.3.7** — May 07, 2026
-- Frontmatter description — removed stale "with Nano Banana Pro" (removed in v2.2.2)
-- Line note after `add_text_overlay` — clarified that 18% offset is 9:16 only; feed canvases use flat 60 px buffer instead
-- `add_logo` positions dict — added `# NEVER USE` comments on `bottom-right` and `bottom-left` entries (text occupies bottom zone)
-
-**v2.3.6** — May 07, 2026
-- Visual verification (Step 3b) — full rewrite: added safe zone checks per canvas type (9:16 vs feed), text alignment check, logo-always-top check, logo/text separate-zone check, adaptive color scheme check; fix table updated to match all implemented rules
-
-**v2.3.5** — May 07, 2026
-- `add_text_overlay` + `add_logo` — feed post safe zones: `safe_bottom_px = 60`, `safe_side_px = max(pad, 60)`, `feed_margin = max(margin, 60)` for all non-9:16 canvases (IG feed, FB, LinkedIn, X); was 0/pad/margin (content touching edge)
-- Layout rules — documented per-platform safe zone rationale: feed posts have no UI overlay, 60 px is a rendering buffer; 9:16 values unchanged
-- Step 4a (content-generator) — added safe zone reference table for all 6 canvas types
-
-**v2.3.4** — May 07, 2026
-- `add_text_overlay` — adaptive text color: samples image brightness in the text zone before scrim is applied; dark backgrounds → white + pink `#ec4899`; light backgrounds → near-black + dark-pink `#be185d`; `ImageStat` added to PIL import
-- Visual verification checklist — added text color contrast check
-
-**v2.3.3** — May 07, 2026
-- `add_text_overlay` — restored left/center/right `text_align` rotation (was center-only since v2.2.14); text position is always bottom; safe zones enforced: bottom 18% (~346 px), sides 13% (~140 px) for 9:16 canvas
-- `add_logo` — logo positions now respect 9:16 safe zone margins: top 14%, bottom 18%, sides 13%; non-9:16 canvases unchanged
-- Rotation table restored to left/center/right `text_align` with `text_position` always bottom
-- Layout rules — added explicit 9:16 safe zone note (Stories top/bottom 13%; Reels bottom 16.7%, right rail 13%)
-
-**v2.3.1** — May 06, 2026
-- Step 4a bullet 2 — `template_list` verbose response now includes `entry_html` field
-- Step 4a bullet 6 — `template_render` call updated: `version_hash` optional pinning field added; `slots` accepts PNG or JPEG with per-slot and total size limits documented
-- Quality checklist — `template_list` checklist item updated to include `entry_html`
-
-**v2.3.0** — May 06, 2026
-- Step 4a template-path — gateway renders the template server-side via template_render MCP; Playwright removed
-- Step 4b intro text corrected — removed stale "render the modified HTML in Playwright" reference
-
-**v2.2.15** — May 05, 2026
-- Step 4a switched to template-path; delegates canonical implementation to content-generator/SKILL.md
-- design-system/ mandate softened to optional with brand.md fallback
-- Step 4b Gemini + Pillow fallback unchanged (incl. Step 3b visual verification)
-
-**v2.2.14** — May 05, 2026
-- text_align fixed to "center"; gradient scrim dynamically sized to text block
-- Step 3b — mandatory visual verification before Zernio upload
-
-**v2.2.10** — May 04, 2026
-- design-system/ is source of truth for visuals (replaces brand.md as primary reference)
-- Step 4a — branches Carousel/Story to template-render via Playwright when templates installed
-
-**v2.2.5** — April 26, 2026
-- Added "Before Executing" section — reads agents/link.md before starting
-
-**v2.2.2** — April 10, 2026
-- gemini_generate_image result auto-saved to temp file; Python decodes to PNG on disk
-- Replaced image_add_text_overlay and image_add_logo gateway tools with Python Pillow
 
 # Creative Designer Skill
 

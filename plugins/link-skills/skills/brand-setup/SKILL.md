@@ -6,11 +6,14 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.1 | May 15, 2026 |
+| Link | v2.5.2 | May 16, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.5.2** — May 16, 2026
+- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 **v2.5.1** — May 15, 2026
 - Step 7b Zernio setup Step D — Google Ads now needs **two** env vars: `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID, 10-digit). Zernio's Google Ads tools take both `account_id` AND `ad_account_id` — passing only the SocialAccount ID returned empty results. The legacy single var `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` is now renamed by plugin-update Step 3e. Customer ID is resolved via `late_list_ad_accounts`; on 429 / empty response, prompts the user for the dashboard ID (strips dashes).
@@ -37,60 +40,6 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 - Steps 5g / 5h / 5i / 5j / 5k — added "Read existing context first" mapping table at the top of each new sub-step. Lists which existing brand files (brand.md, audience.md, product.md, etc.) to pre-fill from, so the agent never asks the user for info that's already on disk
 - **Step 8d (NEW) — Agent Readiness Summary.** Translation table (technical → business labels), status rules (Ready / Works with limitations / Not ready / You skipped), display format with worked example, structured save schema for Step 10
 - Step 10 email payload — restructured around `agent_readiness[]` + `readiness_summary` as primary blocks; demoted `connections[]` and `files[]` to diagnostic detail. Slack DM leads with readiness counts + top 3 fixes instead of integration count
-
-**v2.4.0** — May 07, 2026
-- UX intro audit — added top-level "What this skill does" overview + per-step intro paragraphs across all 10 steps; conversational tone, smart-default callouts, time estimates per step
-- Step 5 (Research & Context Generation) — added 5 new sub-steps that generate `sales.md`, `customer-success.md`, `finance.md`, `investors.md`, `operations.md` for the 10 new business-operations skills (apollo-lead-prospector, outreach-sequencer, proposal-generator, customer-onboarder, churn-predictor, invoice-collector, financial-reporter, investor-update-writer, meeting-analyzer; competitor-monitor reads extended competitors.md fields)
-- Step 5 — extended `competitors.md` template with per-competitor `monitor_urls`, `track_pages`, `exec_team` fields (used by competitor-monitor)
-- Step 7 (API Keys & Connections) — documented the new auto-bootstrapped Notion DB env vars: `${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB` (no user action at setup; created on first run of the relevant skill)
-- Step 8 (Validate Connections) — added probes for Apollo.io, Calendly, Stripe, Xero MCPs (PostHog and Gamma already validated via data-analysis / campaign-presenter probes)
-- Step 10 (Completion email) — `files[]` block expanded to include the 5 new context files
-
-**v2.3.2** — May 06, 2026
-- Step 1 — Added `## Arguments` section + project-session redirect at end of Step 1a: after creating the project, user is instructed to open the project and run `/brand-setup -- project created`; all subsequent steps run inside the project session
-- Steps 4c-i/ii Step A (carousel + story prompts) — added IMAGE SLOTS AND SIZE LIMIT paragraph: bans embedded images/base64/bundled photos, mandates `uploads/<slot>.png` naming, enforces 3 MB export limit
-- Step 4c-i Step C — added 3 MB size check before `shutil.copytree`; if exceeded, blocks copy and surfaces ready-to-paste claude.ai/design re-export prompt
-- Step 4c-ii Step C — same 3 MB size check added before copy with tailored re-export prompt
-
-**v2.3.1** — May 06, 2026
-- Steps 4c-i/ii Step D — `compute_version_hash` fixed: added `__MACOSX` to exclusion set, unified IGNORE/IGNORE_DIRS into single set, switched directory check from `p.relative_to().parts` to `rel.split("/")` (matches canonical gateway algorithm — without this fix, macOS-extracted templates produce a different hash than the gateway, breaking drift detection permanently)
-- Steps 4c-i/ii Step D — zip creation loops updated to use same unified IGNORE set (was using separate IGNORE_DIRS variable)
-- Step 4c-i Step A (carousel prompt) — removed stale Playwright offscreen DOM ID requirements; replaced with `.slide` CSS class convention and `uploads/` slot-naming rule (per template authoring requirements)
-- Step 4c-ii Step A (story prompt) — same Playwright DOM ID removal; `.slide` CSS class and server-side rendering convention added
-- Steps 4c-i/ii Step F — `template_list` brand parameter documented as OPTIONAL
-
-**v2.3.0** — May 06, 2026
-- Step 9a — version stamp extracted from link.md Maintenance table; embedded into CLAUDE.md as `<!-- link.md version: ... | Last Changed: ... | Embedded: ... -->` comment inside BEGIN/END markers
-- Step 9b — placeholder list extended: `{link_version}`, `{link_version_date}`, `{embed_date}` added for version stamp substitution
-- Steps 4c-i/ii (D/E/F) — template upload sub-flow added: zip with noise exclusion, `template_upload` gateway call, `## Social Templates` persisted to brand.md, `template_list` verification
-- Step 9c — Visual System block updated: gateway template_render path documented; no local Playwright required for rendering
-
-**v2.2.15** — May 05, 2026
-- Step 9 ↔ Step 10 swap — CLAUDE.md initialization now runs before completion email
-- Step 4b (Claude Design System) MANDATORY → OPTIONAL — fallback to brand.md colors/voice
-- Step 4b/4c install flow rewritten — user provides unzipped folder path, agent copies + renames
-- Step 4c rewrite — social templates are React + Babel apps with EDITMODE-BEGIN/END contracts
-- Step 9c — detects design-system/, carousel/story templates for CLAUDE.md Visual System block
-
-**v2.2.13** — May 05, 2026
-- Meta Ads framing reversed — Windsor.ai is now MANDATORY; Meta Ads MCP is optional enhancement
-- Step 7c — META_ADS_SOURCE env var contract documented
-- Step 8 #14 — Windsor.ai test verifies all three connectors (Google Ads, GA4, Facebook)
-
-**v2.2.12** — May 04, 2026
-- Step 7b — save DEFAULT_BRAND and {BRAND}_NOTION_DB to settings.local.json
-- Step 8d — mandatory validation checks for DEFAULT_BRAND and {BRAND}_NOTION_DB
-- Step 10b CLAUDE.md template — "Workspace Defaults" section with hardcoded brand slug
-
-**v2.2.11** — May 04, 2026
-- Step 10 — CLAUDE.md now embeds full agents/link.md (idempotent BEGIN/END markers)
-- Added Meta Ads MCP custom connector (https://mcp.facebook.com/ads)
-- Windsor.ai narrowed to Google Ads + GA4 only
-
-**v2.2.10** — May 04, 2026
-- Step 4b — Claude Design system installed at brands/{brand}/design-system/
-- Step 4c — Social Carousel (4:5) and Social Story (9:16) templates installed
-- Step 10a hardened — ABSOLUTE path enforced for agents/link.md
 
 # Brand Setup — New Client Onboarding
 

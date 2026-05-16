@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.6.4 | May 15, 2026 |
+| Link | v2.6.5 | May 16, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.6.5** — May 16, 2026
+- Change log trimmed to the last 5 entries per Step 3c policy. No functional change.
 
 **v2.6.4** — May 15, 2026
 - Skills table — `data-analysis` and `digital-marketing-analyst` rows gained an `Env:` deps block listing the Zernio fallback env-var pairs: `${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads pair), `${BRAND}_LATE_META_ADS_ACCOUNT_ID`, `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (LinkedIn pair, opt-in per brand). brand-setup Step 8d-iv parses Deps to compute the agent_readiness matrix — without these declarations, the readiness email understated the actual env-var dependencies.
@@ -34,34 +37,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 - Missing tokens added: `MCP: Slack` on 6 skills (`social-publisher`, `digital-marketing-analyst`, `social-calendar`, `proposal-generator`, `churn-predictor`, `outreach-sequencer`), `Gateway: Argil` on `creative-designer` + `content-generator`, `MCP: Notion` on `background-generator`, `MCP: Google Drive` + `MCP: Gmail` on `meeting-analyzer`, `MCP: PayPal (opt)` + `MCP: Notion` + `MCP: Google Drive (opt)` on `financial-reporter`, `Gateway: email` on `outreach-sequencer`, `MCP: Gmail` on `churn-predictor`, `MCP: Stripe (opt)` + `Gateway: email (opt)` on `invoice-collector`.
 - Missing Files refs added across most skills (`audience.md`, `product.md`, `competitors.md`, `brand.md`, `design-system/` opt) — they were being read but not declared, so the agent_readiness matrix understated actual context dependencies.
 - Why this matters: brand-setup Step 8d-iv computes the per-agent `connected_tools[]` readiness matrix by parsing this column. Drift here means the readiness email lies (claims tools that aren't used, or omits ones that are). Now in lockstep with reality.
-
-**v2.4.1** — May 07, 2026
-- Skills table — extended with `Area` (Marketing / Sales / Customer Success / Finance / Strategy / Productivity / Setup) and `Deps` columns. Deps column is the single source-of-truth for the agent readiness matrix that brand-setup Step 8d and plugin-update Step 4b compute. Added a prefix notation guide (`MCP:` / `Gateway:` / `Files:` / `Env:` with `(opt)` marker for graceful-degrade deps) and per-skill dep mappings for all 22 entries.
-
-**v2.4.0** — May 07, 2026
-- 10 new business-operations skills added: apollo-lead-prospector, outreach-sequencer, proposal-generator (sales); customer-onboarder, churn-predictor (retention); invoice-collector, financial-reporter (finance); competitor-monitor, investor-update-writer (strategy); meeting-analyzer (productivity)
-- Description rewritten — marketing-only → business operations (encompasses sales, CS, finance, strategy, productivity)
-- Context Files section — added 5 new optional brand files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with fallback rules per skill
-- Skill Chains section — added Sales chain, Retention chain, Finance chain, Strategy chain
-- Tools & Integrations — added Apollo.io, Calendly, Stripe, Xero, Gamma rows (PostHog already present from data-analysis)
-
-**v2.3.1** — May 07, 2026
-- Skills table — removed stale "with Nano Banana Pro" from `creative-designer` description (Nano Banana replaced by Gemini in v2.2.2)
-
-**v2.3.0** — May 06, 2026
-- External APIs section — added template_upload / template_list / template_render gateway tools
-
-**v2.2.15** — May 05, 2026
-- Visual consistency rule softened — design-system/ is now "optional but recommended"; brand.md is universal fallback
-
-**v2.2.13** — May 05, 2026
-- MCP Connectors — Windsor.ai marked required (Google Ads + GA4 + Meta Ads); Meta Ads MCP marked optional with META_ADS_SOURCE contract
-
-**v2.2.11** — May 04, 2026
-- MCP Connectors — Windsor.ai narrowed to Google Ads + GA4; Meta Ads MCP custom-connector entry added
-
-**v2.2.10** — May 04, 2026
-- Context Files — design-system/ added as authoritative for visuals; carousel/story templates listed as optional with fallback; Visual consistency rule added
 
 # Link — Business Operations Agent
 

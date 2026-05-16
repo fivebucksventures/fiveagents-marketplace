@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.1 | May 15, 2026 |
+| Link | v2.3.2 | May 16, 2026 |
 
 **Description:** Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand
 
 ### Change Log
+
+**v2.3.2** — May 16, 2026
+- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 **v2.3.1** — May 15, 2026
 - Step 1a Windsor fallback — Google Ads Zernio fallback now passes **both** `account_id=${BRAND}_LATE_GOOGLE_ADS` and `ad_account_id=${BRAND}_LATE_GOOGLE_ADS_CID`. Passing only the SocialAccount ID returned empty results (the existing bug). Env-var gate added: if either var is missing, the Google Ads Zernio fallback is skipped and noted in Data Gaps.
@@ -32,9 +35,6 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 **v2.2.8** — April 28, 2026
 - date_preset → last_30dT; GA4 invalid field corrections; per-connector field reference table added
-
-**v2.2.5** — April 26, 2026
-- Added "Before Executing" section — reads agents/link.md before starting
 
 # Data Analysis Skill
 
