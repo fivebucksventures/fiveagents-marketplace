@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.8.0 | May 20, 2026 |
+| Link | v2.10.0 | May 20, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.10.0** — May 20, 2026
+- **Step 4a render: `slide_ids` is now template-type-specific** (mirrors content-generator Step 4c-template §6). Single-image types (`linkedin-post`, `meta-post`) require `slide_ids` — they render all 3 direction artboards and fb.ai applies no direction filter for them. The slide is resolved by Direction **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`, with per-type label fast paths (`linkedin-post`: Hook Headline/Stat Hero/Pull Quote; `meta-post`: Hero Visual/Quote Card/Listicle Teaser). Multi-slide types omit `slide_ids` (`meta-story` uses `_direction`; `meta-carousel` renders all 6 and rotates `coverVariant`/`bodyVariant`).
 
 **v2.8.0** — May 20, 2026
 - Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (kit gives font families only; weight scale stays local).
@@ -221,7 +224,9 @@ all other cases (banners, ads, mockups, no matching template) → fall through t
 1. `fivebucks_list_templates` (cached) → pick the template whose `type` matches; read its `manifest` (fields + image slots + slides). If none, fall through to Step 4b.
 2. Build `overrides` from the post copy (manifest field keys; skip `bound:false`, `select` values from `options`). Set direction: `_direction` (A/B/C) for meta-story; un-prefixed `direction` (A/B/C) for linkedin-post / meta-post; `coverVariant` / `bodyVariant` for meta-carousel if present.
 3. (Optional) assign photos via the fb.ai media library (`fivebucks_presign_media_upload` → `requests.put` → `fivebucks_confirm_media_upload` → `"media:{fileId}"`); otherwise leave image slots empty (template renders its placeholder).
-4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id)` → 1-hour signed PNG URLs.
+4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id, slide_ids?)` → 1-hour signed PNG URLs. **Slide selection is template-type-specific:**
+   - **`linkedin-post` / `meta-post` — pass `slide_ids` (required):** resolve the slide by the chosen Direction's **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`; use the calendar `SlideId` as a fast path when it matches a manifest id. Expected labels differ by type — `linkedin-post`: A `01 Hook Headline` / B `02 Stat Hero` / C `03 Pull Quote` (verified live); `meta-post`: A `01 Hero Visual` / B `02 Quote Card` / C `03 Listicle Teaser`. These types render all 3 direction artboards and fb.ai applies no direction filter for them, so omitting `slide_ids` renders all 3 (or errors).
+   - **`meta-story` / `meta-carousel` — omit `slide_ids`:** meta-story screenshots the 6 slides of the `_direction` set (A/B/C, never `all`); meta-carousel renders all 6. See content-generator Step 4c-template §6 for the canonical rule.
 5. Re-host each PNG on Zernio (`late_presign_upload` + `requests.put`) and use those URLs for the post. Skip Steps 4d/4e (Pillow overlays — fb.ai render includes all chrome).
 6. On quota / 5xx error: fall through to Step 4b (Gemini + Pillow fallback).
 
@@ -815,8 +820,8 @@ Before finalizing any design output:
 - [ ] No off-brand colors used
 - [ ] Typography follows the fb.ai brand kit / design-system font stack OR brand.md Google Fonts (whichever applied)
 - [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → re-host on Zernio); else Gemini-only fallback (Step 4b) documented
-- [ ] Template-path: `fivebucks_list_templates` called once and cached; `overrides` built from manifest field keys; direction set per type (`_direction` for meta-story; `direction` for single-image)
-- [ ] Template-path: `edits` payload matches the template's key contract; Direction applied (`_direction` for story, `coverVariant`/`bodyVariant` for carousel)
+- [ ] Template-path: `fivebucks_list_templates` called once and cached; `overrides` built from manifest field keys; direction set per type (`_direction` for meta-story; `direction` for single-image; `coverVariant`/`bodyVariant` for meta-carousel)
+- [ ] Template-path: `slide_ids` passed for `linkedin-post`/`meta-post` (= `SlideId`, or derived from Direction) and **omitted** for `meta-story`/`meta-carousel`
 - [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome
 - [ ] Gemini-only fallback path (Step 4b): Story/Reel full-frame guard applied — `image_prompt` passed to Gemini contains `"fills the ENTIRE frame"` for every 9:16 asset
 - [ ] Gemini-only fallback path (Step 4b): Pillow text overlay AND Pillow logo overlay (both inside Step 4b) BOTH applied — Gemini background has no copy and no logo

@@ -13,11 +13,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.8.0 | May 20, 2026 |
+| Link | v2.8.1 | May 20, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.8.1** — May 20, 2026
+- Added explicit **fb.ai paid-product context** shown before any `fivebucks.ai` link (Steps 4b-D / 4c / 4d), and tagged `FIVEBUCKS_API_KEY` as a paid subscription in the credential tables.
+- Step 4b-C design-system copy now uses the Cowork directory-access flow — request `mcp__cowork__request_cowork_directory` on the user-provided path before reading (skipped in local Claude Code; in-project copy fallback if the user declines).
 
 **v2.8.0** — May 20, 2026
 - **Design system stays local + optional fb.ai upload.** Step 4b keeps the local `brands/{brand}/design-system/` copy flow (crucial, free baseline) and gains a new optional Step D — author in Claude Design → export → (optional) generate fb.ai API key + upload the ZIP to the fb.ai brand-kit dashboard. The design system was never removed from local storage; fb.ai is an opt-in paid mirror.
@@ -187,7 +191,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 |---|---|---|---|
 | 6 | `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research (search volume, suggestions) | 1. Sign up at https://dataforseo.com<br>2. Go to Dashboard → API Settings<br>3. Copy your login email and API password |
 | 7 | `ARGIL_API_KEY` | AI avatar talking-head videos (Reels) | 1. Sign up at https://argil.ai<br>2. Create your avatar (upload a video of yourself)<br>3. Go to Settings → API → copy your API key |
-| 8 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai (Step 4c — optional) | 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in<br>2. Generate API Key and save it somewhere safe<br>3. Copy it (skip if you're not using Claude Design social templates) |
+| 8 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c — optional; see Step 4b for what fb.ai is) | 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in<br>2. Generate API Key and save it somewhere safe<br>3. Copy it (skip if you're not using Claude Design social templates) |
 
 **MCP connections (connect in Claude settings):**
 
@@ -362,6 +366,9 @@ Optional but recommended. A Claude Design system is a structured visual identity
 
 Anthropic ships **Claude Design** — a visual brand-system builder at https://claude.ai/design. When installed, it becomes the source of truth for visual identity (fonts, colors, components, spacing) and is preferred by every downstream skill that produces visuals. **It is recommended for the strongest brand consistency, but it is not required** — Step 9c will detect whether the design system was installed and skills will fall back to the colors/fonts/voice in `brands/{brand}/brand.md` (plus Gemini + Pillow rendering) when it isn't there.
 
+**fb.ai context — show this before any fivebucks.ai link.** fivebucks.ai (fb.ai) is a **paid** product. Never hand the user a `fivebucks.ai` URL or ask them to upload anything there without first explaining what it is — Steps 4b-D, 4c, and 4d all link to fb.ai, so the user should already have this context by the time they see the first link:
+> **About fb.ai (fivebucks.ai):** it's an optional **paid subscription** that stores your **design system and social templates** in the cloud, so Claude can **automate your branded social posting** — generating and publishing fully on-brand Carousels, Stories, and IG / FB / LinkedIn posts for you. Your design system also lives locally for **free** (this step), so you can start without paying; the fb.ai plan adds the hosted social templates and lets posts render in your exact brand colors and fonts. You can skip fb.ai entirely — Claude falls back to the colors and fonts in `brand.md` plus Gemini rendering, which stays fully supported.
+
 Ask the user:
 > Want me to walk you through creating a Claude Design system for your brand? It's the strongest way to keep every image, post, and deck visually consistent. We can also skip and rely on the brand colors / fonts you already confirmed in `brand.md` — skills will fall back gracefully.
 
@@ -382,14 +389,24 @@ If the user says skip, acknowledge and move on to Step 4c. If yes, walk them thr
 > 1. Click **Share** → **Download Project as .zip**
 > 2. Unzip the file on your computer (you'll get a folder named something like "{Brand Name} Design System")
 >
-> **Step C — Tell me the path to the unzipped folder; I'll copy it into place for you:**
-> 1. Make sure the unzipped folder is somewhere I can read it. In Cowork that means **inside your project folder** (anywhere — root, a subfolder, doesn't matter, as long as it's inside the project mount).
-> 2. Tell me the absolute or project-relative path to the folder. I'll copy its contents into `brands/{brand}/design-system/` and rename automatically — no manual renaming required.
+> **Step C — Tell me the path to the unzipped folder; I'll request access and copy it into place:**
+> 1. Leave the unzipped folder wherever it is — e.g. `~/Downloads/Acme Design System`. You do **not** need to move it into the project.
+> 2. Tell me the path. I'll request read access to that exact folder — you'll get a one-time approval prompt; click **Allow**. Then I copy its contents into `brands/{brand}/design-system/` automatically (no renaming required).
 
 Then ask:
-> What's the path to your unzipped Claude Design folder? (Examples: `./design-temp/Acme Design System` if you dropped it into your project, or `~/Downloads/Acme Design System` if you're running this locally and your home directory is mounted.)
+> What's the path to your unzipped Claude Design folder? (e.g. `~/Downloads/Acme Design System`, or a project-relative path like `./design-temp/Acme Design System` if you already dropped it inside the project.)
 
-After the user provides the path, copy the folder using Python:
+**Request access to the user-provided path before reading it.** The path the user just gave is the one to mount — request access to *that exact folder*, and the user approves it in a one-time prompt:
+
+```
+mcp__cowork__request_cowork_directory(path="<the path the user gave>")
+```
+
+This is required in the Cowork harness, where filesystem access is sandboxed to approved directories. Request the folder the user named — not a guessed default — so the approval prompt matches what they typed. (In local Claude Code the filesystem is already accessible and this tool is absent; skip the request and copy directly.)
+
+If the user **declines** the access prompt, ask them to move the unzipped folder inside the project folder (anywhere within the mount), then copy from there.
+
+Once access is approved, copy the folder using Python:
 
 ```python
 import shutil
@@ -1649,7 +1666,7 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 | 6 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
 | 7 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
 | 8 | `ARGIL_API_KEY` | AI avatar videos for Reels | https://argil.ai — sign up, create your avatar, go to Settings → API → copy key |
-| 9 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai (Step 4c) | https://www.fivebucks.ai/dashboard/social-posts/api-keys — sign in, generate API Key, save it somewhere safe. Skip if not using Claude Design social templates. |
+| 9 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c; see Step 4b for what fb.ai is) | https://www.fivebucks.ai/dashboard/social-posts/api-keys — sign in, generate API Key, save it somewhere safe. Skip if not using Claude Design social templates. |
 
 **Save ALL keys to `.claude/settings.local.json`:**
 

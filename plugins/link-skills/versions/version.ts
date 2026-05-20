@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.9.0';
+const DEFAULT_VERSION = 'v2.10.0';
 const DEFAULT_DATE = 'May 20, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.10.0',
+    date: 'May 20, 2026',
+    changes: [
+      'fivebucks_render_post slide selection is now template-type-specific (verified against the live fb.ai gateway + renderer). Single-image types (linkedin-post, meta-post) render all three direction artboards into the DOM and fb.ai applies no direction filter for them, so content-generator + creative-designer now PASS slide_ids — resolved by the Direction position (A=1st, B=2nd, C=3rd) against manifest.slides[], with the calendar SlideId cell as a fast path. Multi-slide types omit slide_ids: meta-story uses _direction (A/B/C, never all); meta-carousel renders all 6 and rotates coverVariant/bodyVariant. Omitting slide_ids for single-image renders all 3 (or errors).',
+      'social-calendar v2.10.0: NEW SlideId column (calendar table 11 → 12 columns) for the two single-image template types, with PER-TYPE labels — linkedin-post: 01 Hook Headline / 02 Stat Hero / 03 Pull Quote (verified against the live manifest); meta-post: 01 Hero Visual / 02 Quote Card / 03 Listicle Teaser (per brand-setup). Blank for Carousel, Story/Reel, Reel(Argil), and non-template formats. Field table, SlideId section, Step 3c column count/example, local-backup table, and quality checklist updated.',
+      'content-generator v2.10.0: Step 1c row parsing now reads [10] SlideId, [11] Status; Step 4c-template §6 render made template-type-specific with position-against-manifest slide_ids resolution; Step 6 status-update string match + cell index updated to 12 columns; checklist bullet added.',
+      'creative-designer v2.10.0: Step 4a render mirrors the same per-type + position-based slide_ids rule (canonical impl in content-generator Step 4c-template §6); checklist updated.',
+      'brand-setup v2.8.1 + plugin-update v2.8.1: explicit fb.ai paid-product context shown before any fivebucks.ai link, and the Cowork directory-access flow (mcp__cowork__request_cowork_directory on the user-provided design-system path; skipped in local Claude Code; in-project fallback if declined).',
+    ],
+  },
   {
     version: 'v2.9.0',
     date: 'May 20, 2026',
@@ -161,14 +172,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator + creative-designer: add_text_overlay — runtime asserts added inside the function: text_y + block_h == target_h - safe_bottom_px, scrim_top + pad == text_y, scrim_bottom == target_h, text_y >= 0. Geometric regressions now raise AssertionError at execution time instead of silently shipping a misplaced text block. Each assert message names the exact mismatch.',
       'content-generator + creative-designer: add_logo — runtime asserts added: cropped logo has non-zero dimensions; resize aspect-ratio matches cropped aspect within 1%. Catches anyone who reorders the crop/resize sequence and re-introduces the v2.4.5 logo-distortion bug.',
       'content-generator Step 4h + creative-designer Step 3b fix tables: replaced "Headline cut off at bottom of scrim" (stale wording from the old scrim_h geometry where the scrim was a tight block_h + 2*pad slot) with "Headline clipped at top of canvas (block too tall for canvas)" — under the new geometry the scrim runs to target_h regardless and any clipping happens at the canvas top, not the scrim bottom.',
-    ],
-  },
-  {
-    version: 'v2.4.6',
-    date: 'May 08, 2026',
-    changes: [
-      'content-generator + creative-designer: add_logo — fixed logo aspect-ratio distortion. logo.crop(logo.getbbox()) now runs BEFORE logo_w/logo_h are computed, so the resize target is derived from the cleaned (cropped) logo bounds instead of the original padded ones. Previously the resize calc used padded proportions but the crop-then-resize sequence applied them to a different aspect ratio, stretching the mark.',
-      'content-generator Step 4h + creative-designer Step 3b: fix tables updated — the "Logo visually offset" row now confirms the crop is automatic; new "Logo aspect ratio looks distorted" row points to the crop-order requirement.',
     ],
   },
 ];

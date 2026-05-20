@@ -13,11 +13,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.8.0 | May 20, 2026 |
+| Link | v2.8.1 | May 20, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.8.1** — May 20, 2026
+- Added the same **fb.ai paid-product context** before any `fivebucks.ai` link in Step 3b.
+- Step 3b design-system install now uses the Cowork directory-access flow (`mcp__cowork__request_cowork_directory` on the user-provided path; skipped in local Claude Code; in-project fallback if the user declines).
 
 **v2.8.0** — May 20, 2026
 - **Step 3b (design-system)** restored to the local copy flow (Claude Design → export → unzip → move into `brands/{brand}/design-system/`) + an optional fb.ai brand-kit upload (`/dashboard/social-posts/api-keys` → `/dashboard/social-posts/brand-kit`); the fb.ai upload is opt-in (paid plan), the local copy is the baseline.
@@ -451,6 +455,9 @@ For each missing file in `brands/{brand}/`:
 
 ### 3b. design-system/ (optional — recommended)
 
+**fb.ai context — show this before any fivebucks.ai link.** fivebucks.ai (fb.ai) is a **paid** product. Never give the user a `fivebucks.ai` URL or ask them to upload there (the optional upload below, plus Steps 3c and 3d all do) without first explaining what it is:
+> **About fb.ai (fivebucks.ai):** it's an optional **paid subscription** that stores your **design system and social templates** in the cloud, so Claude can **automate your branded social posting** — generating and publishing fully on-brand Carousels, Stories, and IG / FB / LinkedIn posts for you. Your design system also lives locally for **free**, so you can start without paying; the fb.ai plan adds the hosted social templates and lets posts render in your exact brand colors and fonts. You can skip fb.ai entirely — Claude falls back to the colors and fonts in `brand.md` plus Gemini rendering, which stays fully supported.
+
 If `brands/{brand}/design-system/` is missing, offer installation but accept "skip" — the brand.md colors and fonts are a fully functional fallback:
 
 > Your brand doesn't have a Claude Design system installed. It's optional — skills fall back to the colors and fonts in `brand.md`. Installing it gives tighter visual consistency across all outputs. Want to set it up now?
@@ -458,8 +465,13 @@ If `brands/{brand}/design-system/` is missing, offer installation but accept "sk
 If yes, walk the user through `brand-setup` Step 4b:
 1. Open https://claude.ai/design → Create new project
 2. Define colors, typography, components using values already in `brands/{brand}/brand.md`
-3. Share → Download Project as .zip → unzip
-4. Move the unzipped folder into `brands/{brand}/` and rename to `design-system/`
+3. Share → Download Project as .zip → unzip (leave it wherever it is — e.g. `~/Downloads/Acme Design System`; no need to move it)
+4. Ask the user for the path to the unzipped folder, then request access to *that exact path* before reading it — the user approves it in a one-time prompt:
+   ```
+   mcp__cowork__request_cowork_directory(path="<the path the user gave>")
+   ```
+   Required in the Cowork harness (filesystem access is sandboxed to approved directories); request the folder the user named, not a guessed default. In local Claude Code this tool is absent and the filesystem is already accessible — skip the request. If the user declines, ask them to move the folder inside the project mount, then copy from there.
+5. Once access is approved, copy the folder into `brands/{brand}/design-system/` (Python `shutil.copytree`, handling the single-inner-folder nested-zip case — see brand-setup Step 4b-C).
 
 Verify `brands/{brand}/design-system/` exists and is non-empty before marking complete. If the user skips, mark as ⏭ — not a gap that blocks any skill.
 
