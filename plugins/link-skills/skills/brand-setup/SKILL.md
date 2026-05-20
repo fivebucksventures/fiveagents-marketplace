@@ -6,11 +6,16 @@ description: Onboard a new brand — configure API keys, connect integrations, a
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.2 | May 16, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.7.0** — May 20, 2026
+- **Step 4c rebuilt for the fb.ai (`fivebucks_*`) platform.** Social templates are now authored in Claude Design, exported, and uploaded via the **fb.ai dashboard** — the old "copy ZIP locally → `template_upload` → `version_hash` → `template_list` verify" flow is gone (it targeted a gateway API that no longer exists). The four near-identical per-template install blocks collapsed into one shared install flow (author → export → dashboard upload → `fivebucks_list_templates` verify) + four type-specific Claude Design prompts. No local `social-meta-*-template/` folders — dropped from the Step 3 directory tree and Step 9c. Detection is live via `fivebucks_list_templates`.
+- **Native-image contract stated once** (shared section) instead of repeated per prompt: each photo slot is an `_image`/`_image_position`/`_image_fit` EDITMODE trio the template renders itself (`<img>` + baked tint overlay), logo bundled at `assets/logo.png` and never in EDITMODE. Removed `_brandLogo` from the story EDITMODE; set meta-story `_direction` default to `A` (quota-safe).
+- **New credential:** `FIVEBUCKS_API_KEY` (`fbai_live_…`, paid fb.ai) added to Step 2 + Step 7, stored in the vault under service `fivebucks`. Required only for the optional templates; the Gemini + Pillow fallback path is unchanged.
 
 **v2.5.2** — May 16, 2026
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
@@ -80,7 +85,7 @@ Brand setup creates the entire context library that the Link plugin's 23 skills 
 | 3 | Brand Name & Folder | Pick the brand slug, create `brands/{brand}/` directory | 1 min |
 | 4 | Website Analysis | Auto-extract tagline, voice, colors, personas from your website (Playwright + AI) | 5–10 min |
 | 4b | Claude Design System (optional) | Install your Claude Design visual system for tighter brand consistency | 10 min if installed |
-| 4c | Social Templates (optional) | Install Carousel (4:5) + Story (9:16) templates for IG/FB content | 15 min if installed |
+| 4c | Social Templates (optional) | Author Meta Carousel / Story / LinkedIn Post / Meta Post templates in Claude Design and upload them to the fb.ai dashboard (needs a paid fb.ai plan) | ~5 min per template |
 | 5 | Research & Context Generation | Build out product.md, competitors.md, funnel.md, avatars.md + new v2.4.0 sales/CS/finance/investors/operations files | 30–60 min |
 | 6 | Logo | Copy your logo file into the brand folder | 1 min |
 | 7 | API Keys & Connections | Connect each integration (FiveAgents gateway, Notion, Slack, Apollo, Stripe, Xero, etc.) | 15–30 min |
@@ -165,6 +170,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 |---|---|---|---|
 | 6 | `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research (search volume, suggestions) | 1. Sign up at https://dataforseo.com<br>2. Go to Dashboard → API Settings<br>3. Copy your login email and API password |
 | 7 | `ARGIL_API_KEY` | AI avatar talking-head videos (Reels) | 1. Sign up at https://argil.ai<br>2. Create your avatar (upload a video of yourself)<br>3. Go to Settings → API → copy your API key |
+| 8 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai (Step 4c — optional) | 1. Paid fb.ai plan at https://www.fivebucks.ai<br>2. Dashboard → your project → Settings → generate an `fbai_live_…` key<br>3. Copy it (skip if you're not using Claude Design social templates) |
 
 **MCP connections (connect in Claude settings):**
 
@@ -217,10 +223,10 @@ brands/{brand}/
 ├── operations.md                   ← Step 5k (v2.4.0 — required for meeting-analyzer; SKIP if you don't process meeting transcripts)
 ├── logo.png                        ← Step 6
 ├── backgrounds/
-├── design-system/                  ← installed in Step 4b (Claude Design — OPTIONAL, recommended)
-├── social-carousel-template/       ← installed in Step 4c-i (Claude Design — OPTIONAL)
-└── social-story-template/          ← installed in Step 4c-ii (Claude Design — OPTIONAL)
+└── design-system/                  ← installed in Step 4b (Claude Design — OPTIONAL, recommended)
 ```
+
+> Social templates (Step 4c) are **not** stored here — they live on fb.ai (uploaded via the fb.ai dashboard) and are discovered at runtime via the gateway `fivebucks_list_templates` tool.
 
 Also create:
 ```
@@ -408,20 +414,62 @@ If colors/fonts in the Claude Design system differ from `brands/{brand}/brand.md
 
 ### Step 4c — Social Templates (OPTIONAL — recommended)
 
-Also optional but recommended for IG/FB-heavy brands. Templates are React + Babel apps that render polished, branded carousel posts (4:5) and story/reel posts (9:16) — way better visual quality than the Pillow text overlay fallback. The content-generator skill picks them up automatically when present.
+Optional but recommended for brands publishing regularly to IG / FB / LinkedIn. These are Claude Design templates that render polished, fully-branded posts — far better than the Gemini + Pillow fallback. They live on **fb.ai** (you upload them in the fb.ai dashboard), and `content-generator` / `creative-designer` render them at runtime via the gateway `fivebucks_*` tools. **If you skip any (or all), nothing breaks — those channels fall back to the Gemini + Pillow image-path, which stays fully supported.**
 
-**Expect ~15 minutes** if you opt in (create the templates at claude.ai/design, install both, upload to gateway). **Skip it** for now if you're not running daily IG/FB posts — content-generator's Gemini + Pillow fallback works fine for occasional posts.
+**Prerequisite:** a paid fb.ai subscription and the brand's fb.ai API key (`FIVEBUCKS_API_KEY` — set up in Step 7). Without it, skip Step 4c entirely and rely on the fallback.
 
-Two Claude Design templates can be installed — one for IG/FB Carousel posts (4:5, 6 slides: Cover + 4 sign slides + CTA), one for IG/FB Stories and Reels (9:16, 6 slides: Hook → Problem → Solution → Proof → Offer → CTA, with three direction styles A/B/C). Each template is a **self-contained React + Babel app** (entry HTML + JSX + CSS + assets + fonts) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block inside the entry HTML that exposes every editable copy field. At runtime, content-generator generates Gemini visuals for each image slot (held in memory as base64), then calls the gateway `template_render` tool which renders the template server-side (Vercel + Playwright on the gateway) and delivers rendered slide PNGs directly to presigned Zernio upload URLs — so brand consistency comes from the template's full React render (logo, layout chrome, slide-number kickers, CTA buttons, eyebrow chips, themes), not from any post-render Pillow overlay. **No local Playwright required.**
+Four template types can be installed (all optional — set up only the channels you publish on):
 
-**Both are optional.** If skipped, content-generator and creative-designer fall back to a Gemini-generated background + Pillow text overlay + Pillow logo overlay (no brand-specific layout chrome, but still produces working assets).
+| Type (`fivebucks` `type`) | Channel | Canvas | Structure |
+|---|---|---|---|
+| `meta-carousel` | IG / FB carousel | 4:5 | 6 slides: Cover + 4 value slides + CTA |
+| `meta-story` | IG / FB Stories & Reels | 9:16 | 6 slides (Hook→Problem→Solution→Proof→Offer→CTA) × 3 directions A/B/C |
+| `linkedin-post` | LinkedIn single-image feed | 4:5 | 1 slide, 3 directions A/B/C (Hook Headline / Stat Hero / Pull Quote) |
+| `meta-post` | IG / FB single-image feed | 4:5 | 1 slide, 3 directions A/B/C (Hero Visual / Quote Card / Listicle Teaser) |
+
+**Expect ~5 min per template** (author in Claude Design → export → upload to the fb.ai dashboard).
 
 Ask the user:
-> Want me to walk you through the optional social templates? They give every Carousel and Story / Reel a fully branded layout instead of a generic Gemini-generated background — much more polished. We can skip if you're not ready.
+> Want to set up any of the optional social templates? They give your Carousel / Story / LinkedIn / IG-FB posts a fully-branded layout instead of a generic Gemini background. They need a paid fb.ai plan. We can skip any channel — those just use the Gemini + Pillow fallback.
 
-If the user says skip, acknowledge and move on to Step 5.
+If the user skips all, move on to Step 5. Otherwise run only the sub-steps for the channels they want.
 
-#### 4c-i. Social Carousel Template (Instagram + Facebook, 4:5)
+#### Install flow (identical for all four templates)
+
+**Step A — Author in Claude Design.** Open https://claude.ai/design, create a project, and paste the type-specific prompt from the matching sub-step below (4c-i … 4c-iv). Iterate until it looks on-brand. The prompt already encodes the **native-image contract** (below) — keep that part intact.
+
+**Step B — Export.** In Claude Design: **Share → Download Project as .zip**.
+
+**Step C — Upload to the fb.ai dashboard.** Go to https://www.fivebucks.ai → your project → **Templates → Upload**, and drop the ZIP. fb.ai unpacks it, reads the `EDITMODE` block into a **manifest** (editable fields + image slots + slides), and detects the template `type` from its slug. *(Template upload is dashboard-only — there is no gateway upload tool.)*
+
+**Step D — Verify via the gateway.**
+```
+Use gateway MCP tool fivebucks_list_templates:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+```
+Confirm an entry with the expected `type` appears, then call `fivebucks_get_template` (template_id) and confirm `manifest.fields` include the copy keys + image slots for that type. If absent, the upload didn't land — re-check the dashboard upload. **No local copy is kept** — the template lives only on fb.ai; detection everywhere uses `fivebucks_list_templates`.
+
+#### Native-image contract (already baked into every prompt below — keep it intact)
+
+Every template renders its **own** photos and tint overlay natively from its EDITMODE image slots — fb.ai does not composite images server-side. Each photo slot is three EDITMODE keys:
+```
+"<slot>_image": "",                 // "" or "media:{fileId}" — fb.ai resolves it at render time
+"<slot>_image_position": "center",  // center | left | right | top | bottom
+"<slot>_image_fit": "cover"         // cover | contain
+```
+and the template JSX renders, behind the content:
+```jsx
+{tweaks.<slot>_image && (<img src={tweaks.<slot>_image} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:tweaks.<slot>_image_fit||'cover',objectPosition:tweaks.<slot>_image_position||'center',zIndex:0}} />)}
+{tweaks.<slot>_image && (<div style={{position:'absolute',inset:0,background: THEME==='light' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',zIndex:1}} />)}
+```
+with the slide's text/content wrapper at `position:relative; zIndex:2` so copy always sits above the photo + overlay. Rules:
+- **Logo** is bundled at `assets/logo.png` and referenced directly (`<img src="assets/logo.png">`). It must **NOT** appear in the EDITMODE JSON under any key.
+- **No** hardcoded photo paths in EDITMODE, **no** base64 data URIs, **no** bundled demo photos. Empty `_image` slots render the template's own gradient/placeholder.
+- Overlay opacity is fixed: dark = `rgba(0,0,0,0.4)`, light = `rgba(255,255,255,0.5)`. The theme indicator (`_template_theme`, or `_theme_A/B/C` for meta-story) sets the template's own `THEME` constant for the overlay.
+
+The four type-specific prompts follow. Each ends with the EDITMODE block; the image-slot trio + native render rules above apply to all of them.
+
+#### 4c-i. Meta Carousel Template (Instagram + Facebook, 4:5)
 
 **Step A — Generate the template in Claude Design:**
 
@@ -438,7 +486,7 @@ The agent gives the user a fully-composed, copy-pasteable prompt to drop into Cl
 
 **Then present to the user, framed exactly like this:**
 
-> Here's a prompt I've put together for your carousel template. Copy and paste it into Claude Design:
+> Here's a prompt I've put together for your Meta Carousel template. Copy and paste it into Claude Design:
 >
 > 1. Open https://claude.ai/design in your browser
 > 2. Create a new project (name it whatever you like — e.g. "Acme Carousel Template")
@@ -463,15 +511,16 @@ The agent gives the user a fully-composed, copy-pasteable prompt to drop into Cl
 >   \"slideTheme_4\": \"cream\",
 >   \"slideTheme_5\": \"cream\",
 >   \"slideTheme_6\": \"dark\",
+>   \"_template_theme\": \"dark\",
 >   \"handle\": \"@{BRAND_NAME_SLUG}\",
 >   \"hashtag\": \"#YourTag\",
 >   \"cover_eyebrow\": \"sample eyebrow\",
 >   \"cover_title\": \"sample cover headline\",
 >   \"cover_sub\": \"sample cover subline\",
->   \"s2_kicker\": \"01\", \"s2_title\": \"...\", \"s2_body\": \"...\",
->   \"s3_kicker\": \"02\", \"s3_title\": \"...\", \"s3_body\": \"...\",
->   \"s4_kicker\": \"03\", \"s4_title\": \"...\", \"s4_body\": \"...\",
->   \"s5_kicker\": \"04\", \"s5_title\": \"...\", \"s5_body\": \"...\",
+>   \"s2_kicker\": \"01\", \"s2_title\": \"...\", \"s2_body\": \"...\", \"s2_image\": \"\", \"s2_image_position\": \"center\", \"s2_image_fit\": \"cover\",
+>   \"s3_kicker\": \"02\", \"s3_title\": \"...\", \"s3_body\": \"...\", \"s3_image\": \"\", \"s3_image_position\": \"center\", \"s3_image_fit\": \"cover\",
+>   \"s4_kicker\": \"03\", \"s4_title\": \"...\", \"s4_body\": \"...\", \"s4_image\": \"\", \"s4_image_position\": \"center\", \"s4_image_fit\": \"cover\",
+>   \"s5_kicker\": \"04\", \"s5_title\": \"...\", \"s5_body\": \"...\", \"s5_image\": \"\", \"s5_image_position\": \"center\", \"s5_image_fit\": \"cover\",
 >   \"cta_eyebrow\": \"...\",
 >   \"cta_title\": \"...\",
 >   \"cta_sub\": \"...\",
@@ -481,199 +530,20 @@ The agent gives the user a fully-composed, copy-pasteable prompt to drop into Cl
 >
 > Use these EXACT key names — the agent substitutes copy by parsing the JSON between the markers and writing back. Optional supporting keys per sign slide are welcome (e.g. s2_pullquote, s3_stat_value/s3_stat_label, s5_before/s5_after) — the agent can populate them when the post copy provides matching fields, otherwise leave defaults.
 >
-> Each slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so the gateway can screenshot each `.slide` element in DOM order for server-side rendering. Do NOT use Playwright-specific offscreen DOM IDs — the gateway renders entirely server-side via Vercel.
+> THEME INDICATOR — set `_template_theme` to `\"dark\"` or `\"light\"` to match the value slides' (s2–s5) background scheme. The template uses it to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces it as `manifest.theme` but composites nothing — the template owns the overlay.
 >
-> IMAGE SLOTS AND SIZE LIMIT — the exported ZIP must be under 3 MB. Do NOT embed images as base64 data URIs or bundle any photo or background assets. Use solid colour rectangles or CSS gradients as visual placeholders instead. If a slide needs a swappable image (e.g. a product photo or background), place a plain CSS placeholder and add a corresponding file at `uploads/<slot_name>.png` in the template root — the filename without extension is the slot name the agent fills at render time (e.g. `uploads/s4_visual.png` → slot `s4_visual`). No demo images, no bundled icon sprites, no unused fonts.
+> Each slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so fb.ai can screenshot each slide in DOM order. Render is server-side — no Playwright-specific offscreen DOM IDs.
+>
+> IMAGE SLOTS — the 4 value slides (s2–s5) each take a user-swappable photo via `s{n}_image` / `s{n}_image_position` / `s{n}_image_fit` (defaults empty / center / cover). Render them NATIVELY per the native-image contract above: when `tweaks.s{n}_image` is set, draw a full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), a theme overlay div at zIndex:1, and keep the slide's content wrapper at position:relative; zIndex:2; when empty, show the slide's own gradient/placeholder. Cover (s1) and CTA (s6) are photo-free. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
 >
 > Use the brand colors and fonts above. The template's sample copy will be replaced at runtime — don't worry about it being final."
 > ```
 >
-> Iterate with Claude inside Claude Design until the 6 slide layouts look on-brand — you can ask for tweaks like "make the cover darker" or "swap the gradient direction on slide 4". Don't worry about the sample copy; it gets replaced per post at runtime. Once the layout looks good, let me know and we'll move to Step B (export).
+> Iterate with Claude inside Claude Design until the 6 slide layouts look on-brand — you can ask for tweaks like "make the cover darker" or "swap the gradient direction on slide 4". Don't worry about the sample copy; it gets replaced per post at runtime. Once the layout looks good, let me know and we'll move to export.
 
-**Wait for the user to confirm they're happy with the template before moving on to Step B.** Don't rush — the iteration inside Claude Design is the creative step; brand-setup should pause cleanly here.
+**Wait for the user to confirm they're happy with the template before exporting.** Then run the shared install flow above (Step B export → Step C upload to the fb.ai dashboard → Step D verify via `fivebucks_list_templates`). The `meta-carousel` manifest should expose `cover_*`, `s2_*`–`s5_*` (including each `_image` trio), and `cta_*` fields. If the user skips this template, that's fine — IG/FB carousels fall back to the Gemini + Pillow image-path.
 
-**Step B — Export the template from Claude Design:**
-
-Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts). The skill copies it locally and uploads it to the gateway — the gateway renders per-post server-side via `template_render`, so no local Playwright is needed.
-
-> Great — let's export it. In Claude Design's main toolbar, click **Share → Download Project as .zip** (the standard project export — gives you the full HTML/JSX/CSS source). Unzip the file somewhere inside your Cowork project mount so I can read it, then let me know the path.
-
-**Wait for the user to confirm the file is downloaded and unzipped before moving on to Step C.**
-
-**Step C — Give me the path; I'll copy the template into place:**
-
-Ask the user:
-
-> What's the path to your unzipped Carousel Template folder? (e.g. `./carousel-temp/Acme Carousel Template`)
-
-After the user provides the path, copy the folder and verify the EDITMODE contract:
-
-```python
-import re, shutil
-from pathlib import Path
-
-raw = user_input.strip().strip('"').strip("'")
-src = Path(raw).expanduser().resolve()
-assert src.exists() and src.is_dir() and any(src.iterdir()), f"Invalid source folder: {src}"
-
-# Handle nested-zip case
-contents = list(src.iterdir())
-if len(contents) == 1 and contents[0].is_dir():
-    src = contents[0]
-
-# Size check — must be ≤ 3 MB before copying
-total_bytes = sum(p.stat().st_size for p in src.rglob("*") if p.is_file())
-if total_bytes > 3 * 1024 * 1024:
-    total_mb = total_bytes / (1024 * 1024)
-    raise ValueError(f"SIZE_EXCEEDED:{total_mb:.1f}")
-
-dst = Path("brands") / brand / "social-carousel-template"
-if dst.exists():
-    shutil.rmtree(dst)
-shutil.copytree(src, dst)
-
-# Verify EDITMODE block exists in an entry HTML
-entry_html = next(
-    (p for p in dst.glob("*.html")
-     if "EDITMODE-BEGIN" in p.read_text(encoding="utf-8")),
-    None
-)
-assert entry_html is not None, (
-    f"No entry HTML with EDITMODE-BEGIN block found in {dst}. "
-    "Re-export from Claude Design — the template must contain index.html (or similar) with "
-    "/*EDITMODE-BEGIN*/...JSON.../*EDITMODE-END*/ markers."
-)
-
-# Verify the JSON parses and contains the expected carousel keys
-import json
-m = re.search(r'/\*EDITMODE-BEGIN\*/(.*?)/\*EDITMODE-END\*/', entry_html.read_text(encoding="utf-8"), re.DOTALL)
-tweaks = json.loads(m.group(1))
-required_carousel_keys = {
-    "cover_eyebrow", "cover_title", "cover_sub",
-    "s2_kicker", "s2_title", "s2_body",
-    "s3_kicker", "s3_title", "s3_body",
-    "s4_kicker", "s4_title", "s4_body",
-    "s5_kicker", "s5_title", "s5_body",
-    "cta_eyebrow", "cta_title", "cta_sub", "cta_button",
-}
-missing_keys = required_carousel_keys - set(tweaks.keys())
-assert not missing_keys, (
-    f"EDITMODE block is missing required carousel keys: {sorted(missing_keys)}. "
-    "Re-iterate with Claude Design to ensure all Cover, s2-s5, and CTA keys are present."
-)
-```
-
-**If `ValueError: SIZE_EXCEEDED:{X}` is raised**, do not copy. Show the user:
-
-> ⚠️ Your carousel template is **{X} MB** — over the 3 MB limit. Embedded images are the most common cause.
->
-> Go back to [claude.ai/design](https://claude.ai/design), open your carousel project, and paste this prompt:
->
-> ```
-> This template is used by an automated agent that uploads and renders it server-side. It must be under 3 MB. Please:
-> 1. Remove all embedded images (base64 data URIs, <img> tags with data: src, or any bundled photo assets) — replace with a solid colour placeholder or CSS gradient
-> 2. Remove any unused fonts, icon sets, or external CDN resources that aren't actually referenced in the layout
-> 3. Remove sample/demo background photos — the agent supplies images at render time via named files in the uploads/ folder
-> 4. Keep only the HTML, CSS, and JavaScript needed for the layout structure
-> Re-export, re-download, and unzip the new version. Then tell me the new folder path.
-> ```
-
-Ask the user to let you know the new folder path once re-exported. Then re-run Step C from the top.
-
-Confirm to the user:
-> ✅ Copied to `brands/{brand}/social-carousel-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required keys. Original folder untouched.
-
-**Step D — Zip and upload to gateway:**
-
-Compute the canonical `version_hash` and create the upload zip using Python:
-
-```python
-import hashlib, io, base64, zipfile
-from pathlib import Path
-
-folder = Path("brands") / brand / "social-carousel-template"
-IGNORE = {".DS_Store", "Thumbs.db", ".git", "node_modules", "__MACOSX"}
-
-def compute_version_hash(folder: Path) -> str:
-    h = hashlib.sha256()
-    files = sorted(
-        (p for p in folder.rglob("*") if p.is_file()),
-        key=lambda p: p.relative_to(folder).as_posix()
-    )
-    for p in files:
-        rel = p.relative_to(folder).as_posix()
-        if any(part in IGNORE for part in rel.split("/")):
-            continue
-        h.update(hashlib.sha256(rel.encode()).hexdigest().encode())
-        h.update(b":")
-        h.update(hashlib.sha256(p.read_bytes()).hexdigest().encode())
-        h.update(b"\n")
-    return h.hexdigest()
-
-local_hash = compute_version_hash(folder)
-
-buf = io.BytesIO()
-with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-    for path in folder.rglob("*"):
-        if not path.is_file(): continue
-        rel = path.relative_to(folder).as_posix()
-        if any(part in IGNORE for part in rel.split("/")):
-            continue
-        zf.write(path, arcname=rel)
-zip_b64 = base64.b64encode(buf.getvalue()).decode()
-zip_mb = len(buf.getvalue()) / 1_048_576
-assert zip_mb < 10, f"Zip is {zip_mb:.1f} MB — remove large assets and retry."
-```
-
-Upload to gateway:
-```
-Use gateway MCP tool template_upload:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"
-- template_type: "carousel"
-- zip_base64: <zip_b64>
-```
-
-On success, capture: `version_hash`, `edit_keys`, `image_slots`, `uploaded_at` from the response.
-On 5xx → retry once after 5 seconds, then fail with "gateway error — try again later".
-On 4xx (zip/schema invalid) → show the error and ask the user to re-export from Claude Design. Do not write to brand.md.
-
-| Failure | Action |
-|---|---|
-| `template_upload` 4xx | Show error + ask user to re-export from Claude Design, do not retry |
-| `template_upload` 5xx | Retry once after 5s, then fail with "gateway error — try again later" |
-| Zip > 10 MB | Abort with instructions to remove large assets |
-
-**Step E — Persist to `brands/{brand}/brand.md`:**
-
-After a successful `template_upload` response, append (or update if already present) the `## Social Templates` section in `brand.md`:
-
-```markdown
-## Social Templates
-
-- Carousel — version `{version_hash}` uploaded {uploaded_at}
-  - Edit keys: {len(edit_keys)}
-  - Image slots: {len(image_slots)}
-```
-
-If a `## Social Templates` section already exists (re-run scenario), replace its Carousel entry while preserving any Story entry. Only write this after a confirmed successful upload response.
-
-**Step F — Verification gate:**
-
-```
-Use gateway MCP tool template_list:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
-- verbose: false
-```
-
-Confirm the response includes `template_type: "carousel"` with `version_hash` matching the value returned by `template_upload`. If absent or hash mismatch, fail and instruct the user to re-run Step D. Do not mark the step complete until this check passes.
-
-> ✅ Carousel template uploaded to gateway — version `{version_hash[:8]}...`, {len(edit_keys)} edit keys, {len(image_slots)} image slot(s). Verified with `template_list`.
-
-If the path is invalid, re-ask. If the EDITMODE block is missing or the required keys are absent, tell the user what was wrong and ask them to re-iterate with Claude Design (referencing the prompt in Step A). If the user skips this template entirely, leave the folder absent — Step 9c records `missing` and skills fall back to Gemini + Pillow.
-
-#### 4c-ii. Social Story Template (Instagram + Facebook, 9:16)
+#### 4c-ii. Meta Story Template (Instagram + Facebook, 9:16)
 
 **Step A — Generate the template in Claude Design:**
 
@@ -683,7 +553,7 @@ Same pattern as Step 4c-i: the agent composes a copy-pasteable prompt and gives 
 
 **Then present to the user, framed exactly like this:**
 
-> Here's a prompt I've put together for your Story / Reel template. Copy and paste it into Claude Design:
+> Here's a prompt I've put together for your Meta Story / Reel template. Copy and paste it into Claude Design:
 >
 > 1. Open https://claude.ai/design in your browser
 > 2. Create a new project (name it whatever you like — e.g. "Acme Story Template")
@@ -703,175 +573,171 @@ Same pattern as Step 4c-i: the agent composes a copy-pasteable prompt and gives 
 >
 > ```
 > /*EDITMODE-BEGIN*/{
->   \"_direction\": \"all\",
->   \"_brandLogo\": true,
+>   \"_direction\": \"A\",
+>   \"_theme_A\": \"dark\",
+>   \"_theme_B\": \"dark\",
+>   \"_theme_C\": \"light\",
 >   \"handle\": \"@{BRAND_NAME_SLUG}\",
 >   \"s1_eyebrow\": \"...\", \"s1_headline_pre\": \"...\", \"s1_headline_accent\": \"...\", \"s1_sub\": \"...\", \"s1_live\": \"...\", \"s1_big\": \"...\", \"s1_big_unit\": \"...\",
->   \"s2_eyebrow\": \"...\", \"s2_headline\": \"...\", \"s2_pain1\": \"...\", \"s2_pain2\": \"...\", \"s2_pain3\": \"...\",
->   \"s3_eyebrow\": \"...\", \"s3_headline_pre\": \"...\", \"s3_headline_accent\": \"...\", \"s3_sub\": \"...\",
->   \"s4_eyebrow\": \"...\", \"s4_headline\": \"...\", \"s4_stat1_num\": \"...\", \"s4_stat1_lbl\": \"...\", \"s4_stat2_num\": \"...\", \"s4_stat2_lbl\": \"...\", \"s4_stat3_num\": \"...\", \"s4_stat3_lbl\": \"...\", \"s4_stat4_num\": \"...\", \"s4_stat4_lbl\": \"...\", \"s4_quote\": \"...\", \"s4_quote_author\": \"...\",
->   \"s5_eyebrow\": \"...\", \"s5_headline\": \"...\", \"s5_b1\": \"...\", \"s5_b2\": \"...\", \"s5_b3\": \"...\", \"s5_b4\": \"...\", \"s5_pill\": \"...\",
+>   \"s2_eyebrow\": \"...\", \"s2_headline\": \"...\", \"s2_pain1\": \"...\", \"s2_pain2\": \"...\", \"s2_pain3\": \"...\", \"s2_image\": \"\", \"s2_image_position\": \"center\", \"s2_image_fit\": \"cover\",
+>   \"s3_eyebrow\": \"...\", \"s3_headline_pre\": \"...\", \"s3_headline_accent\": \"...\", \"s3_sub\": \"...\", \"s3_image\": \"\", \"s3_image_position\": \"center\", \"s3_image_fit\": \"cover\",
+>   \"s4_eyebrow\": \"...\", \"s4_headline\": \"...\", \"s4_stat1_num\": \"...\", \"s4_stat1_lbl\": \"...\", \"s4_stat2_num\": \"...\", \"s4_stat2_lbl\": \"...\", \"s4_stat3_num\": \"...\", \"s4_stat3_lbl\": \"...\", \"s4_stat4_num\": \"...\", \"s4_stat4_lbl\": \"...\", \"s4_quote\": \"...\", \"s4_quote_author\": \"...\", \"s4_image\": \"\", \"s4_image_position\": \"center\", \"s4_image_fit\": \"cover\",
+>   \"s5_eyebrow\": \"...\", \"s5_headline\": \"...\", \"s5_b1\": \"...\", \"s5_b2\": \"...\", \"s5_b3\": \"...\", \"s5_b4\": \"...\", \"s5_pill\": \"...\", \"s5_image\": \"\", \"s5_image_position\": \"center\", \"s5_image_fit\": \"cover\",
 >   \"s6_eyebrow\": \"...\", \"s6_headline_pre\": \"...\", \"s6_headline_accent\": \"...\", \"s6_sub\": \"...\", \"s6_cta\": \"...\", \"s6_url\": \"...\"
 > }/*EDITMODE-END*/;
 > ```
 >
-> Each slide (across all directions) must carry the CSS class `slide` (e.g. `<div class="slide">`) so the gateway can screenshot each `.slide` element in DOM order for server-side rendering. Do NOT use Playwright-specific offscreen DOM IDs — the gateway renders entirely server-side via Vercel.
+> THEME INDICATORS — set `_theme_A`, `_theme_B`, `_theme_C` to `\"dark\"` or `\"light\"` to match each direction's background scheme (defaults A=dark, B=dark, C=light). The template uses the active direction's theme to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces these as `manifest.theme` but composites nothing — the template owns the overlay.
 >
-> IMAGE SLOTS AND SIZE LIMIT — the exported ZIP must be under 3 MB. Do NOT embed images as base64 data URIs or bundle any photo or background assets. Use solid colour rectangles or CSS gradients as visual placeholders instead. If a slide needs a swappable image (e.g. a background photo or visual), place a plain CSS placeholder and add a corresponding file at `uploads/<slot_name>.png` in the template root — the filename without extension is the slot name the agent fills at render time (e.g. `uploads/hero.png` → slot `hero`). No demo images, no bundled icon sprites, no unused fonts.
+> Each slide (across all directions) must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) AND a `data-export-id` attribute in the format `\"{DIRECTION}-{SLIDE_INDEX}\"` (0-indexed), e.g. `data-export-id=\"A-0\"` through `data-export-id=\"C-5\"`. fb.ai uses `data-export-id` to identify each direction–slide pair for the `_direction` filter and server-side export. All 18 artboards (3 directions × 6 slides) must have distinct `data-export-id` values.
+>
+> IMAGE SLOTS — body slides s2–s5 (Problem → Proof) each take a user-swappable photo via `s{n}_image` / `s{n}_image_position` / `s{n}_image_fit` (defaults empty / center / cover), shared across directions A/B/C. Render them NATIVELY per the native-image contract above: full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), a direction-themed overlay div at zIndex:1 (per `_theme_A`/`_theme_B`/`_theme_C`), content wrapper at position:relative; zIndex:2; when empty show the slide's own gradient/placeholder. s1 (Hook) and s6 (CTA) are photo-free. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
 >
 > Use brand colors and fonts. Sample copy will be replaced at runtime."
 > ```
 >
 > Iterate with Claude inside Claude Design until the 6 slide layouts (Hook → Problem → Solution → Proof → Offer → CTA) and the 3 directions (A/B/C) all look on-brand. Don't worry about the sample copy; it gets replaced per post at runtime. Once the layout looks good, let me know and we'll move to Step B (export).
 
-**Wait for the user to confirm they're happy with the template before moving on to Step B.** Don't rush — the iteration inside Claude Design is the creative step; brand-setup should pause cleanly here.
+**Wait for the user to confirm they're happy with the template before exporting.** Then run the shared install flow above (Step B export → Step C upload to the fb.ai dashboard → Step D verify via `fivebucks_list_templates`). The `meta-story` manifest should expose `_direction` + `_theme_A/B/C`, `s1_*`–`s6_*` (with the `_image` trio on s2–s5), and the per-direction `data-export-id` slides. If the user skips this template, IG/FB Stories & Reels fall back to the Gemini + Pillow image-path.
 
-**Step B — Export the template from Claude Design:**
+#### 4c-iii. LinkedIn Post Template (LinkedIn, 4:5)
 
-Once the user confirms the template is ready, tell them how to export. Claude Design exports the project as a ZIP containing the **React + Babel source code** (entry HTML, `*.jsx`, `*.css`, assets, fonts). The skill copies it locally and uploads it to the gateway — the gateway renders per-post server-side via `template_render`, so no local Playwright is needed.
+**Step A — Generate the template in Claude Design:**
 
-> Great — let's export it. In Claude Design's main toolbar, click **Share → Download Project as .zip** (the standard project export — gives you the full HTML/JSX/CSS source). Unzip the file somewhere inside your Cowork project mount so I can read it, then let me know the path.
+Same pattern as Step 4c-i and 4c-ii: the agent composes a copy-pasteable prompt and gives it to the user. Claude Design produces a React + Babel template app with an EDITMODE block; the user iterates on the design.
 
-**Wait for the user to confirm the file is downloaded and unzipped before moving on to Step C.**
+LinkedIn single-image feed posts are **one slide**, not a multi-slide deck. Default canvas is **1080×1350 (4:5 portrait)** — current LinkedIn feed guidance favors this aspect for maximum mobile screen real estate. The template supports three directions (A/B/C) sharing one EDITMODE block but rendering different visual treatments per post.
 
-**Step C — Give me the path; I'll copy the template into place:**
+**Compose the prompt before showing the user.** Substitute the same placeholders as in 4c-i / 4c-ii (from `brands/{brand}/brand.md`): `{BRAND_NAME}`, `{PRIMARY_HEX}`, `{SECONDARY_HEX}`, `{ACCENT_HEX}`, `{HEADING_FONT}`, `{BODY_FONT}`, `{VOICE_TONE}`, `{BRAND_NAME_SLUG}`. The user must see only the finished prompt — no `{...}` markers left over.
 
-Ask the user:
+**Then present to the user, framed exactly like this:**
 
-> What's the path to your unzipped Story Template folder? (e.g. `./story-temp/Acme Story Template`)
-
-After the user provides the path, copy the folder and verify the EDITMODE contract:
-
-```python
-import json, re, shutil
-from pathlib import Path
-
-raw = user_input.strip().strip('"').strip("'")
-src = Path(raw).expanduser().resolve()
-assert src.exists() and src.is_dir() and any(src.iterdir()), f"Invalid source folder: {src}"
-
-contents = list(src.iterdir())
-if len(contents) == 1 and contents[0].is_dir():
-    src = contents[0]
-
-# Size check — must be ≤ 3 MB before copying
-total_bytes = sum(p.stat().st_size for p in src.rglob("*") if p.is_file())
-if total_bytes > 3 * 1024 * 1024:
-    total_mb = total_bytes / (1024 * 1024)
-    raise ValueError(f"SIZE_EXCEEDED:{total_mb:.1f}")
-
-dst = Path("brands") / brand / "social-story-template"
-if dst.exists():
-    shutil.rmtree(dst)
-shutil.copytree(src, dst)
-
-# Verify EDITMODE block exists in an entry HTML
-entry_html = next(
-    (p for p in dst.glob("*.html")
-     if "EDITMODE-BEGIN" in p.read_text(encoding="utf-8")),
-    None
-)
-assert entry_html is not None, (
-    f"No entry HTML with EDITMODE-BEGIN block found in {dst}. "
-    "Re-export from Claude Design — the template must contain an entry HTML with "
-    "/*EDITMODE-BEGIN*/...JSON.../*EDITMODE-END*/ markers."
-)
-
-# Verify the JSON parses and contains the expected story keys
-m = re.search(r'/\*EDITMODE-BEGIN\*/(.*?)/\*EDITMODE-END\*/', entry_html.read_text(encoding="utf-8"), re.DOTALL)
-tweaks = json.loads(m.group(1))
-required_story_keys = {
-    "s1_eyebrow", "s1_headline_pre", "s1_headline_accent", "s1_sub",
-    "s2_eyebrow", "s2_headline", "s2_pain1", "s2_pain2", "s2_pain3",
-    "s3_eyebrow", "s3_headline_pre", "s3_headline_accent", "s3_sub",
-    "s4_eyebrow", "s4_headline",
-    "s5_eyebrow", "s5_headline", "s5_b1", "s5_b2", "s5_b3", "s5_b4",
-    "s6_eyebrow", "s6_headline_pre", "s6_headline_accent", "s6_sub", "s6_cta", "s6_url",
-}
-missing_keys = required_story_keys - set(tweaks.keys())
-assert not missing_keys, (
-    f"EDITMODE block is missing required story keys: {sorted(missing_keys)}. "
-    "Re-iterate with Claude Design to ensure all H/P/S/P/O/CTA slide keys (s1_* through s6_*) are present."
-)
-```
-
-**If `ValueError: SIZE_EXCEEDED:{X}` is raised**, do not copy. Show the user:
-
-> ⚠️ Your story template is **{X} MB** — over the 3 MB limit. Embedded images are the most common cause.
+> Here's a prompt I've put together for your LinkedIn Post template. Copy and paste it into Claude Design:
 >
-> Go back to [claude.ai/design](https://claude.ai/design), open your story project, and paste this prompt:
+> 1. Open https://claude.ai/design in your browser
+> 2. Create a new project (name it whatever you like — e.g. "Acme LinkedIn Post Template")
+> 3. Paste the prompt below into Claude Design's chat:
 >
 > ```
-> This template is used by an automated agent that uploads and renders it server-side. It must be under 3 MB. Please:
-> 1. Remove all embedded images (base64 data URIs, <img> tags with data: src, or any bundled photo assets) — replace with a solid colour placeholder or CSS gradient
-> 2. Remove any unused fonts, icon sets, or external CDN resources that aren't actually referenced in the layout
-> 3. Remove sample/demo background photos — the agent supplies images at render time via named files in the uploads/ folder
-> 4. Keep only the HTML, CSS, and JavaScript needed for the layout structure
-> Re-export, re-download, and unzip the new version. Then tell me the new folder path.
+> "I need a configurable LinkedIn single-image feed post template for {BRAND_NAME}. 4:5 portrait, 1080×1350, ONE slide. Build it as a React + Babel app rendered from a single index.html (use Babel standalone via CDN — no build step). The agent will modify copy programmatically per post, so structure matters more than specific sample copy.
+>
+> The brand uses {PRIMARY_HEX} as primary, {SECONDARY_HEX} as secondary, {ACCENT_HEX} as accent. Headings are set in {HEADING_FONT}, body in {BODY_FONT}. The aesthetic is {VOICE_TONE}. Include the {BRAND_NAME} brand logo subtly in a corner of the slide and the handle / URL as a small footer.
+>
+> Three direction styles (A / B / C) sharing the same EDITMODE keys but different visual treatments — the agent picks a direction per post via the `direction` key:
+> - Direction A — Hook Headline (text-led): large oversized headline as the centerpiece, eyebrow chip above, 1–2 lines of supporting body underneath, accent-color CTA pill at bottom. Best for narrative / opinion posts.
+> - Direction B — Stat Hero (numeric): an extremely large stat_value as the visual hero (think 60–70% of slide height), short stat_label underneath, eyebrow above, small body line at bottom. Best for proof / results posts.
+> - Direction C — Pull Quote (editorial): large quote in serif/italic, attribution line beneath, optional small headshot circle, cream / light background. Best for testimonials, founder posts, press mentions.
+>
+> CRITICAL CONTRACT — wrap all editable copy in a single JSON object inside index.html, marked with /*EDITMODE-BEGIN*/ and /*EDITMODE-END*/ comment markers, using these EXACT key names:
+>
 > ```
+> window.__TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+>   \"direction\": \"A\",
+>   \"accent\": \"purple\",
+>   \"_template_theme\": \"dark\",
+>   \"handle\": \"@{BRAND_NAME_SLUG}\",
+>   \"hashtag\": \"#YourTag\",
+>   \"eyebrow\": \"sample eyebrow\",
+>   \"headline\": \"sample LinkedIn headline that hooks the reader\",
+>   \"body\": \"sample supporting body line, ~1–2 sentences max.\",
+>   \"stat_value\": \"78%\",
+>   \"stat_label\": \"of teams say X\",
+>   \"quote\": \"sample quote that fits a pull-quote treatment.\",
+>   \"attribution\": \"Jane Doe, CEO\",
+>   \"bg_image\": \"\", \"bg_image_position\": \"center\", \"bg_image_fit\": \"cover\",
+>   \"headshot_image\": \"\",
+>   \"cta_text\": \"Learn more\",
+>   \"cta_button\": \"Read the full post\"
+> }/*EDITMODE-END*/;
+> ```
+>
+> Use these EXACT key names — the agent substitutes copy by parsing the JSON between the markers and writing back. The `direction` key (A / B / C) selects which visual treatment renders. Unused keys for a given direction (e.g. stat_value when direction='A', or quote when direction='B') should be ignored gracefully, not shown.
+>
+> THEME INDICATOR — set `_template_theme` to `\"dark\"` or `\"light\"` to match directions A & B (which receive user photos). The template uses it to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces it as `manifest.theme` but composites nothing — the template owns the overlay.
+>
+> The slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so fb.ai can screenshot it. Render is server-side — no Playwright-specific offscreen DOM IDs. All three direction artboards live in the DOM, gated by `direction` (e.g. `display:none` on the inactive ones) so only one `.slide` is visible at render time.
+>
+> IMAGE SLOTS — directions A & B take a full-bleed user photo via `bg_image` / `bg_image_position` / `bg_image_fit`; direction C takes an optional circular `headshot_image`. Render them NATIVELY per the native-image contract above: full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), theme overlay div at zIndex:1, content wrapper at position:relative; zIndex:2; when `bg_image` is empty show the gradient/placeholder. Direction C must look balanced when `headshot_image` is empty. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
+>
+> SAFE ZONES — LinkedIn doesn't crop feed images, but the right ~80px and bottom ~80px can collide with the like/comment overlay on hover preview. Keep critical text and logo at least 80px from the right edge and bottom edge.
+>
+> Use the brand colors and fonts above. The template's sample copy will be replaced at runtime — don't worry about it being final."
+> ```
+>
+> Iterate with Claude inside Claude Design until all three directions (A/B/C) look on-brand. Don't worry about the sample copy; it gets replaced per post at runtime. Once the layout looks good, let me know and we'll move to Step B (export).
 
-Ask the user to let you know the new folder path once re-exported. Then re-run Step C from the top.
+**Wait for the user to confirm they're happy with the template before exporting.** Then run the shared install flow above (Step B export → Step C upload to the fb.ai dashboard → Step D verify via `fivebucks_list_templates`). The `linkedin-post` manifest should expose `direction`, `_template_theme`, the copy keys (`eyebrow`/`headline`/`body`/`stat_value`/`stat_label`/`quote`/`attribution`/`cta_text`/`cta_button`), and the `bg_image` trio (+ optional `headshot_image`). If the user skips this template, LinkedIn posts fall back to the Gemini + Pillow image-path.
 
-Confirm to the user:
-> ✅ Copied to `brands/{brand}/social-story-template/` — entry HTML `{entry_html.name}` validated, EDITMODE contract present with all required H/P/S/P/O/CTA keys. Original folder untouched.
+#### 4c-iv. Meta Post Template (Instagram + Facebook, 4:5)
 
-**Step D — Zip and upload to gateway:**
+**Step A — Generate the template in Claude Design:**
 
-Compute the canonical `version_hash` and create the upload zip using Python (same algorithm as Step 4c-i Step D — `compute_version_hash`, `IGNORE`):
+Same pattern as Steps 4c-i through 4c-iii: the agent composes a copy-pasteable prompt and gives it to the user. Claude Design produces a React + Babel template app with an EDITMODE block; the user iterates on the design.
 
-```python
-folder = Path("brands") / brand / "social-story-template"
-local_hash = compute_version_hash(folder)
+Instagram and Facebook single-image feed posts are **one slide**, not a multi-slide deck (carousels are covered by Step 4c-i). Default canvas is **1080×1350 (4:5 portrait)** — current 2026 IG and FB feed guidance both converge on this aspect ratio for maximum mobile screen real estate (IG's profile grid also defaults to 4:5 thumbnails as of 2026). The template supports three directions (A/B/C) sharing one EDITMODE block but rendering different visual treatments per post.
 
-buf = io.BytesIO()
-with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-    for path in folder.rglob("*"):
-        if not path.is_file(): continue
-        rel = path.relative_to(folder).as_posix()
-        if any(part in IGNORE for part in rel.split("/")):
-            continue
-        zf.write(path, arcname=rel)
-zip_b64 = base64.b64encode(buf.getvalue()).decode()
-zip_mb = len(buf.getvalue()) / 1_048_576
-assert zip_mb < 10, f"Zip is {zip_mb:.1f} MB — remove large assets and retry."
-```
+**Compose the prompt before showing the user.** Substitute the same placeholders as in 4c-i / 4c-ii / 4c-iii (from `brands/{brand}/brand.md`): `{BRAND_NAME}`, `{PRIMARY_HEX}`, `{SECONDARY_HEX}`, `{ACCENT_HEX}`, `{HEADING_FONT}`, `{BODY_FONT}`, `{VOICE_TONE}`, `{BRAND_NAME_SLUG}`. The user must see only the finished prompt — no `{...}` markers left over.
 
-Upload to gateway:
-```
-Use gateway MCP tool template_upload:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"
-- template_type: "story"
-- zip_base64: <zip_b64>
-```
+**Then present to the user, framed exactly like this:**
 
-On success, capture: `version_hash`, `edit_keys`, `image_slots`, `uploaded_at` from the response.
-On 5xx → retry once after 5 seconds. On 4xx → show error, ask user to re-export. Same failure table as Step 4c-i Step D.
+> Here's a prompt I've put together for your Meta Post template. Copy and paste it into Claude Design:
+>
+> 1. Open https://claude.ai/design in your browser
+> 2. Create a new project (name it whatever you like — e.g. "Acme Meta Post Template")
+> 3. Paste the prompt below into Claude Design's chat:
+>
+> ```
+> "I need a configurable Instagram + Facebook single-image feed post template for {BRAND_NAME}. 4:5 portrait, 1080×1350, ONE slide. Build it as a React + Babel app rendered from a single index.html (use Babel standalone via CDN — no build step). The agent will modify copy programmatically per post, so structure matters more than specific sample copy.
+>
+> The brand uses {PRIMARY_HEX} as primary, {SECONDARY_HEX} as secondary, {ACCENT_HEX} as accent. Headings are set in {HEADING_FONT}, body in {BODY_FONT}. The aesthetic is {VOICE_TONE}. Include the {BRAND_NAME} brand logo subtly in a corner of the slide and the handle as a small footer (e.g. @{BRAND_NAME_SLUG}). This same image will be published to both Instagram feed and Facebook feed — design accordingly (no platform-specific UI chrome).
+>
+> Three direction styles (A / B / C) sharing the same EDITMODE keys but different visual treatments — the agent picks a direction per post via the `direction` key:
+> - Direction A — Hero Visual (image-led): full-bleed background photo with a theme overlay, oversized emotional headline as the centerpiece, eyebrow chip above, minimal body underneath, accent-color CTA pill at bottom. Best for brand campaigns, product launches, scroll-stopping visuals.
+> - Direction B — Quote Card (editorial): large quote in serif/italic as the centerpiece, attribution line beneath, optional small headshot circle. Cream / light or branded background. Best for testimonials, founder voice, press quotes.
+> - Direction C — Listicle Teaser (educational): eyebrow + headline at top, then 3–5 numbered or bulleted points down the slide (b1–b5), CTA at bottom. Best for value-led / educational posts (\"5 ways to...\", \"3 reasons why...\").
+>
+> CRITICAL CONTRACT — wrap all editable copy in a single JSON object inside index.html, marked with /*EDITMODE-BEGIN*/ and /*EDITMODE-END*/ comment markers, using these EXACT key names:
+>
+> ```
+> window.__TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+>   \"direction\": \"A\",
+>   \"accent\": \"purple\",
+>   \"_template_theme\": \"dark\",
+>   \"handle\": \"@{BRAND_NAME_SLUG}\",
+>   \"hashtag\": \"#YourTag\",
+>   \"eyebrow\": \"sample eyebrow\",
+>   \"headline\": \"sample IG/FB headline that stops the scroll\",
+>   \"body\": \"sample supporting body line, ~1 sentence max for IG/FB.\",
+>   \"quote\": \"sample quote that fits a quote-card treatment.\",
+>   \"attribution\": \"Jane Doe, Customer\",
+>   \"bg_image\": \"\", \"bg_image_position\": \"center\", \"bg_image_fit\": \"cover\",
+>   \"headshot_image\": \"\",
+>   \"b1\": \"First bullet point\",
+>   \"b2\": \"Second bullet point\",
+>   \"b3\": \"Third bullet point\",
+>   \"b4\": \"Fourth bullet point (optional)\",
+>   \"b5\": \"Fifth bullet point (optional)\",
+>   \"cta_text\": \"Tap the link in bio\",
+>   \"cta_button\": \"Learn more\"
+> }/*EDITMODE-END*/;
+> ```
+>
+> Use these EXACT key names — the agent substitutes copy by parsing the JSON between the markers and writing back. The `direction` key (A / B / C) selects which visual treatment renders. Unused keys for a given direction (e.g. quote/attribution when direction='A', or b1–b5 when direction='B') should be ignored gracefully, not shown. The agent may also pass fewer than 5 bullets to direction C — design the layout so it still looks balanced with only 3 bullets.
+>
+> THEME INDICATOR — set `_template_theme` to `\"dark\"` or `\"light\"` to match direction A (which receives the full-bleed photo). The template uses it to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces it as `manifest.theme` but composites nothing — the template owns the overlay.
+>
+> The slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so fb.ai can screenshot it. Render is server-side — no Playwright-specific offscreen DOM IDs. All three direction artboards live in the DOM, gated by `direction` (e.g. `display:none` on the inactive ones) so only one `.slide` is visible at render time.
+>
+> IMAGE SLOTS — direction A takes a full-bleed user photo via `bg_image` / `bg_image_position` / `bg_image_fit`; direction B takes an optional circular `headshot_image`; direction C is design-only. Render them NATIVELY per the native-image contract above: full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), theme overlay div at zIndex:1, content wrapper at position:relative; zIndex:2; when `bg_image` is empty show the gradient/placeholder. Direction B must look balanced when `headshot_image` is empty. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
+>
+> SAFE ZONES — Instagram doesn't crop 4:5 feed images, but the profile-grid recrop (~34px side trim) can clip edge content. Keep critical text and logo at least ~80px from the left and right edges. Facebook's feed renders 4:5 fully but the bottom ~60px can collide with reaction/comment chrome on some clients — keep critical content out of the bottom 60px.
+>
+> Use the brand colors and fonts above. The template's sample copy will be replaced at runtime — don't worry about it being final."
+> ```
+>
+> Iterate with Claude inside Claude Design until all three directions (A/B/C) look on-brand. Don't worry about the sample copy; it gets replaced per post at runtime. Once the layout looks good, let me know and we'll move to Step B (export).
 
-**Step E — Persist to `brands/{brand}/brand.md`:**
-
-Update the `## Social Templates` section in `brand.md` (append Story entry, preserve any Carousel entry already written by Step 4c-i):
-
-```markdown
-- Story — version `{version_hash}` uploaded {uploaded_at}
-  - Edit keys: {len(edit_keys)}
-  - Image slots: {len(image_slots)}
-```
-
-**Step F — Verification gate:**
-
-```
-Use gateway MCP tool template_list:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
-- verbose: false
-```
-
-Confirm the response includes `template_type: "story"` with `version_hash` matching the value returned by `template_upload`. If absent or hash mismatch, fail and instruct re-upload.
-
-> ✅ Story template uploaded to gateway — version `{version_hash[:8]}...`, {len(edit_keys)} edit keys, {len(image_slots)} image slot(s). Verified with `template_list`.
-
-If the path is invalid, re-ask. If the EDITMODE block is missing or required keys are absent, tell the user what was wrong and ask them to re-iterate with Claude Design (referencing the prompt in Step A). If the user skips this template entirely, leave the folder absent — Step 9c records `missing` and skills fall back to Gemini + Pillow.
+**Wait for the user to confirm they're happy with the template before exporting.** Then run the shared install flow above (Step B export → Step C upload to the fb.ai dashboard → Step D verify via `fivebucks_list_templates`). The `meta-post` manifest should expose `direction`, `_template_theme`, the copy keys (`eyebrow`/`headline`/`body`/`quote`/`attribution`/`b1`–`b5`/`cta_text`/`cta_button`), and the `bg_image` trio (+ optional `headshot_image`). If the user skips this template, IG/FB single-image posts fall back to the Gemini + Pillow image-path.
 
 **Do not proceed to Step 5 until both 4b and 4c have been addressed — installed or explicitly skipped. Either outcome is acceptable; Step 9c will record the actual state in CLAUDE.md.**
 
@@ -1732,6 +1598,7 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 | 6 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
 | 7 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
 | 8 | `ARGIL_API_KEY` | AI avatar videos for Reels | https://argil.ai — sign up, create your avatar, go to Settings → API → copy key |
+| 9 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai (Step 4c) | https://www.fivebucks.ai — paid plan → project Settings → generate an `fbai_live_…` key. Skip if not using Claude Design social templates. |
 
 **Save ALL keys to `.claude/settings.local.json`:**
 
@@ -1780,6 +1647,7 @@ Use these service names (must match what the gateway expects):
 | `GEMINI_API_KEY` | `gemini` |
 | `LATE_API_KEY` | `late` |
 | `ARGIL_API_KEY` | `argil` |
+| `FIVEBUCKS_API_KEY` | `fivebucks` |
 | `DATAFORSEO_LOGIN` | `dataforseo_login` |
 | `DATAFORSEO_PASSWORD` | `dataforseo_password` |
 
@@ -2374,9 +2242,8 @@ These values are hardcoded here at brand-setup time so any session reading `CLAU
       ├─ investors.md                        — investor-update config (v2.4.0 Step 5j — investor-update-writer; absent if no outside funding raised)
       ├─ operations.md                       — meeting-processing config (v2.4.0 Step 5k — meeting-analyzer; absent if not used)
       ├─ backgrounds/                        — pre-generated background images (background-generator skill)
-      ├─ design-system/                      — Claude Design export (Step 4b — see Visual System below)
-      ├─ social-carousel-template/           — 4:5 IG/FB carousel template (Step 4c-i — optional)
-      └─ social-story-template/              — 9:16 Stories/Reels template (Step 4c-ii — optional)
+      └─ design-system/                      — Claude Design export (Step 4b — see Visual System below)
+      (social templates live on fb.ai, not here — Step 4c)
     outputs/{brand}/                         — all generated content (copy .md, images .png, videos .mp4)
     tmp/                                     — scratch space for scripts, intermediate files
 
@@ -2409,15 +2276,14 @@ Show the user what was written:
 
 #### 9c. Detect and wire brand visual assets (best-effort — non-mandatory)
 
-After `CLAUDE.md` is written by 9b, scan `brands/{brand}/` for the three brand visual asset folders that Steps 4b and 4c may have installed. Their canonical names (lowercase, hyphenated — exactly as the user was instructed to rename them) are:
+After `CLAUDE.md` is written by 9b, detect the brand's visual assets. **Design system** is a local folder (`brands/{brand}/design-system/`, Step 4b). **Social templates** (Step 4c) are not local — they live on fb.ai; detect them via the gateway `fivebucks_list_templates` tool (needs `FIVEBUCKS_API_KEY`).
 
-| Folder | Installed by | Used by |
+| Asset | Where | Used by |
 |---|---|---|
-| `brands/{brand}/design-system/` | Step 4b (Claude Design system export) | every visual-producing skill — colors, typography, components, spacing |
-| `brands/{brand}/social-carousel-template/` | Step 4c-i (4:5 IG/FB carousel template export) | content-generator and creative-designer for rendering; content-creation reads the EDITMODE key contract to size copy correctly |
-| `brands/{brand}/social-story-template/` | Step 4c-ii (9:16 Stories/Reels template export) | content-generator and creative-designer for rendering; content-creation reads the EDITMODE key contract to size copy correctly |
+| `brands/{brand}/design-system/` | local folder (Step 4b) | every visual-producing skill — colors, typography, components, spacing |
+| fb.ai social templates (`meta-carousel` / `meta-story` / `linkedin-post` / `meta-post`) | fb.ai (Step 4c, via `fivebucks_list_templates`) | content-generator + creative-designer render via `fivebucks_*`; content-creation reads the manifest to size copy |
 
-⚠️ **Non-mandatory.** All three folders are optional (Steps 4b and 4c are recommended-but-skippable). This detection step does **not** fail or block when folders are missing — it just records each as `missing` so the email and CLAUDE.md reflect reality. Skills fall back to `brand.md` colors/fonts + Gemini + Pillow rendering when a folder is absent. Never error out, never block the Step 10 completion email.
+⚠️ **Non-mandatory.** All are optional (Steps 4b/4c are recommended-but-skippable). This step never fails or blocks — it just records what's present so the email and CLAUDE.md reflect reality. Skills fall back to `brand.md` colors/fonts + Gemini + Pillow when an asset is absent. Never error out, never block the Step 10 completion email.
 
 ```python
 from pathlib import Path
@@ -2426,29 +2292,28 @@ brand_root = Path("brands") / brand  # `brand` is the slug from Step 3
 
 def folder_status(name):
     p = brand_root / name
-    if p.is_dir() and any(p.iterdir()):
-        return "installed"
-    return "not installed"
+    return "installed" if (p.is_dir() and any(p.iterdir())) else "not installed"
 
 design_system_status = folder_status("design-system")
-carousel_template_status = folder_status("social-carousel-template")
-story_template_status = folder_status("social-story-template")
+
+# Social templates live on fb.ai — detect via the gateway (best-effort; skip if FIVEBUCKS_API_KEY unset).
+# Call fivebucks_list_templates and collect each returned template's `type`.
+fb_template_types = []   # e.g. ["meta-carousel", "linkedin-post"], or [] if none / no fb.ai key
 ```
 
-**Build the Visual System block** to inject into `CLAUDE.md`. Substitute each `{*_status}` placeholder verbatim with `installed` or `not installed`:
+**Build the Visual System block** to inject into `CLAUDE.md`. Substitute `{design_system_status}` with `installed`/`not installed` and `{fb_template_types}` with the list (or `none`):
 
 ```markdown
 <!-- BEGIN visual-system (managed by brand-setup Step 9c) -->
 
 ## Visual System
 
-Detected at brand-setup time. Re-run Step 9c (or the full brand-setup) after installing additional templates to refresh.
+Detected at brand-setup time. Re-run Step 9c (or full brand-setup) after installing more assets to refresh.
 
 - **Design system:** `brands/{brand}/design-system/` — **{design_system_status}** (source of truth for colors, typography, components, spacing — read by every visual-producing skill)
-- **Carousel template (4:5, IG/FB feed):** `brands/{brand}/social-carousel-template/` — **{carousel_template_status}**
-- **Story template (9:16, Stories/Reels):** `brands/{brand}/social-story-template/` — **{story_template_status}**
+- **Social templates (fb.ai):** {fb_template_types or "none"} — types present out of meta-carousel / meta-story / linkedin-post / meta-post
 
-**How skills use this:** when a template folder shows `installed`, `creative-designer` and `content-generator` render via the gateway `template_render` tool — the skill generates Gemini visuals for each image slot (base64 in memory), presigns Zernio upload slots, then calls `template_render` which renders the template server-side and PUTs rendered slide PNGs directly to the presigned Zernio URLs. `content-creation` reads the EDITMODE key contract to size per-slide copy correctly (it does not render). When `not installed`, all skills fall back to Gemini image generation + Pillow text overlay + Pillow logo overlay. The fallback path is fully functional — visuals are still produced, just without brand-specific layout chrome. Skills should still filesystem-probe at runtime as a safety check; this section is a hint, not a contract.
+**How skills use this:** social templates live on fb.ai. When a brand has a template of the matching `type` (via `fivebucks_list_templates`), `content-generator` / `creative-designer` render it through the `fivebucks_*` tools (`fivebucks_create_post` → `fivebucks_render_post`) and `content-creation` reads the manifest to size copy. When absent — or when `FIVEBUCKS_API_KEY` isn't set — all skills fall back to Gemini image generation + Pillow text/logo overlay. The fallback is fully functional; it just lacks brand-specific layout chrome. This section is a hint, not a contract — skills re-check at runtime.
 
 <!-- END visual-system (managed by brand-setup Step 9c) -->
 ```
@@ -2460,11 +2325,10 @@ Detected at brand-setup time. Re-run Step 9c (or the full brand-setup) after ins
 Show the user a concise status line:
 > ✅ `CLAUDE.md` Visual System section refreshed:
 > - design-system: **{design_system_status}**
-> - social-carousel-template: **{carousel_template_status}**
-> - social-story-template: **{story_template_status}**
+> - fb.ai social templates: {fb_template_types or "none"}
 
-If all three came back `not installed`, gently prompt:
-> Heads up — none of your brand visual asset folders are present yet. Skills will still work (they fall back to Gemini + Pillow), but for the most on-brand visuals, run Step 4b (design system) and optionally Step 4c (carousel/story templates) when you have time.
+If design-system is `not installed` and no fb.ai templates are present, gently prompt:
+> Heads up — no brand visual assets are set up yet. Skills still work (they fall back to Gemini + Pillow), but for the most on-brand visuals, run Step 4b (design system) and optionally Step 4c (fb.ai social templates) when you have time.
 
 This step is non-blocking and safe to re-run on its own at any later point — useful when the user finishes installing a template after initial brand-setup.
 
@@ -2545,9 +2409,7 @@ brand_name = m.group(1).strip() if m else brand  # fall back to slug only if hea
     { "file": "brands/{brand}/operations.md", "status": "present | skipped | failed", "notes": "skipped if user does not run meetings through Claude" },
     { "file": "brands/{brand}/logo.png", "status": "present | missing | failed" },
     { "file": "CLAUDE.md", "status": "present | missing | failed" },
-    { "file": "brands/{brand}/design-system/", "status": "present | missing | failed" },
-    { "file": "brands/{brand}/social-carousel-template/", "status": "present | missing | failed" },
-    { "file": "brands/{brand}/social-story-template/", "status": "present | missing | failed" }
+    { "file": "brands/{brand}/design-system/", "status": "present | missing | failed" }
   ],
   "connections": [
     { "integration": "Five Agents gateway", "status": "pass | fail | skipped", "notes": "" },
@@ -2583,7 +2445,7 @@ brand_name = m.group(1).strip() if m else brand  # fall back to slug only if hea
 
 **`files[]` status enum** — most rows use three values; two rows (`investors.md`, `operations.md`) accept a fourth `skipped` value:
 - `present` — file or folder exists with expected content (the happy path; covers "newly created", "already existed and updated", and "installed by user").
-- `missing` — file/folder absent because the relevant step was skipped or the user didn't supply input (e.g. `logo.png` when the user skipped Step 6, `social-carousel-template/` when the user skipped Step 4c).
+- `missing` — file/folder absent because the relevant step was skipped or the user didn't supply input (e.g. `logo.png` when the user skipped Step 6, `design-system/` when the user skipped Step 4b).
 - `skipped` — used **only** for `investors.md` (when the brand hasn't raised outside funding) and `operations.md` (when the user doesn't run meetings through Claude). These are legitimate "not applicable" outcomes — not failures. Do not raise an action item for these.
 - `failed` — the write/copy/folder-probe operation raised an error during this run (e.g. permission denied, disk full, Step 9b couldn't write CLAUDE.md). A `failed` value on `CLAUDE.md` MUST also produce an `action_items` entry pointing the user to retry Step 9.
 
@@ -2593,7 +2455,7 @@ brand_name = m.group(1).strip() if m else brand  # fall back to slug only if hea
 - `investors.md` — set by Step 5j. Use `present` if generated, `skipped` if the brand hasn't raised outside funding (the user said no in 5j Step 0), `failed` if the write raised.
 - `operations.md` — set by Step 5k. Use `present` if generated, `skipped` if the user doesn't run meetings through Claude, `failed` if the write raised.
 - `CLAUDE.md` — set by Step 9b: `present` if the file is on disk with the expected workspace block (whether newly created or refreshed in place), `failed` if the write raised. (`missing` should never appear since Step 9 is mandatory.)
-- The three visual asset folder rows — set by Step 9c's `folder_status()` results: `present` when the folder exists and is non-empty, `missing` when absent or empty.
+- The `design-system/` row — set by Step 9c's `folder_status()` result: `present` when the folder exists and is non-empty, `missing` when absent or empty. (Social templates are not in `files[]` — they live on fb.ai; the Visual System block records their presence via `fivebucks_list_templates`.)
 
 **`connections[]` status enum** — `pass | fail | skipped`. Use `"pass"` for ✅, `"fail"` for ❌, `"skipped"` for ⏭. Only include `action_items` entries for failures and skips that **actually affect skill functionality**. Specifically:
 

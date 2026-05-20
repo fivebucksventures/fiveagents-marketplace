@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.6.5 | May 16, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.7.0** — May 20, 2026
+- Social templates moved to fb.ai: the `brands/{brand}/social-meta-*-template/` brand-asset bullets and the `template_upload`/`template_list`/`template_render` tool line are replaced by the `fivebucks_*` tool family (templates installed via the fb.ai dashboard in brand-setup Step 4c; rendered via `fivebucks_create_post` → `fivebucks_render_post`). Needs `FIVEBUCKS_API_KEY`.
 
 **v2.6.5** — May 16, 2026
 - Change log trimmed to the last 5 entries per Step 3c policy. No functional change.
@@ -73,8 +76,7 @@ Always read relevant context before any task. Use the active brand's folder:
 - `brands/{brand}/funnel.md` — conversion funnel stages and benchmarks
 - `brands/{brand}/avatars.md` — Argil avatar preferences and voice clone IDs
 - `brands/{brand}/design-system/` — **Claude Design** visual system (colors, fonts, components, spacing). Optional but recommended. When present, it is the authoritative source for visual identity and must be followed. When absent, fall back to colors / fonts / voice declared in `brands/{brand}/brand.md`.
-- `brands/{brand}/social-carousel-template/` — Claude Design template for IG/FB carousels (4:5). Optional. If present, use it for carousel generation; otherwise fall back to standard generation.
-- `brands/{brand}/social-story-template/` — Claude Design template for IG/FB stories/reels (9:16). Optional. If present, use it for story/reel generation; otherwise fall back to standard generation.
+- **Social-post templates (fb.ai)** — the brand's Claude-designed Carousel / Story / LinkedIn / IG-FB single-image templates live on fb.ai (installed via `brand-setup` Step 4c), **not on disk**. Discover them via the gateway `fivebucks_list_templates` tool (needs `FIVEBUCKS_API_KEY`); `content-generator` / `creative-designer` render via `fivebucks_create_post` → `fivebucks_render_post`. Optional — when absent (or no fb.ai key), fall back to Gemini + Pillow generation.
 - `brands/{brand}/sales.md` — sales operations config: sender persona, ICP filters, sequence templates, proposal terms. Required by `apollo-lead-prospector`, `outreach-sequencer`, `proposal-generator`. If absent → those skills exit cleanly with a "configure brand sales context first" message; other skills unaffected.
 - `brands/{brand}/customer-success.md` — onboarding milestones, health-score weights, intervention playbooks. Required by `customer-onboarder`, `churn-predictor`. Same fallback rule as sales.md.
 - `brands/{brand}/finance.md` — payment terms, escalation tone ladder, KPI definitions, alert thresholds, runway calc method. Required by `invoice-collector`, `financial-reporter`.
@@ -175,7 +177,7 @@ All external API calls go through the fiveagents-gateway remote MCP server (`htt
 - **DataforSEO API** — keywords → `dataforseo_search_volume` / `dataforseo_keyword_suggestions`
 - **FiveAgents** — `fiveagents_log_run` / `fiveagents_store_credential` / `fiveagents_send_email`
 - **Image processing** — Python Pillow (local) for text overlay and logo compositing; media uploaded via `requests.put` to presigned S3 URL
-- **Templates** — server-side carousel/story render → `template_upload` / `template_list` / `template_render`
+- **Social templates (fb.ai)** — list/get/create/render via `fivebucks_list_templates` / `fivebucks_get_template` / `fivebucks_create_post` / `fivebucks_update_post` / `fivebucks_render_post`; media library via `fivebucks_list_media_folders` / `fivebucks_list_media_files` / `fivebucks_presign_media_upload` / `fivebucks_confirm_media_upload`
 
 ### Agent Run Logging
 All skills log to fiveagents.io dashboard at the end of execution via `fiveagents_log_run` gateway tool. See `docs/new_agent_onboarding/metrics-spec.md` for the metrics JSONB contract.

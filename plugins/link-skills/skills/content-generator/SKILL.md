@@ -8,44 +8,22 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.4 | May 16, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
 
+**v2.7.0** — May 20, 2026
+- **Render pipeline migrated to fb.ai (`fivebucks_*` gateway tools).** The old `template_list` / `template_render` flow (Gemini base64 → presign Zernio slots → server-side render) is gone — it targeted a gateway API that no longer exists. Step 4c-template now: `fivebucks_list_templates` (cache) → read manifest → `fivebucks_create_post` (copy + direction + optional `media:{fileId}` photos) → `fivebucks_render_post` → 1-hour signed PNG URLs → re-host on Zernio (`late_presign_upload`) → `late_create_post`. Templates live on fb.ai (uploaded via the dashboard in brand-setup Step 4c), discovered by `type` (meta-carousel | meta-story | linkedin-post | meta-post) — no local `social-meta-*-template/` folders.
+- **All four template types are template-path now.** Added IG/FB single-image (`meta-post`) and LinkedIn single-image (`linkedin-post`) routing. meta-story uses `_direction` (A/B/C, default A — never `all`); single-image types use the un-prefixed `direction`.
+- Requires the brand's fb.ai key (`FIVEBUCKS_API_KEY`, vault service `fivebucks`) — see brand-setup Step 7.
+
 **v2.5.4** — May 16, 2026
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
-**v2.5.3** — May 12, 2026
-- Step 4c-image Prompt rules — "Match the brand's visual style and color palette" expanded to spell out the read order (`design-system/` first when present, `brand.md` Colors fallback) AND *how* to inject palette into the Gemini prompt (HEX values phrased as ambient mood, e.g. "warm tones around #ec4899 / muted slate around #0f172a"). Same Visual consistency rule as `agents/link.md` — never hardcode brand colors from memory.
-- Step 4c-image Prompt rules — clarifying note added: Pillow text rendering uses `DejaVuSans-Bold` as a stable cross-platform rasterizer regardless of brand; design-system font names live in design-system files for the Canva / HTML mockup paths, not the Pillow path. Text colors are picked adaptively from the Gemini background, which is why getting the brand palette into the Gemini prompt at this step matters.
-- Step 4c-image image-prompt example bullet — fixed stale claim that text overlay needs space "at the bottom" (now correctly says "top or bottom per the day-of-week `text_position` from Step 4b").
-
-**v2.5.2** — May 12, 2026
-- `add_text_overlay` (Step 4d) — feed `side_inset` increased from `pad // 2` to `pad + pad // 2` (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram's profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at `pad // 2`. **Reason:** v2.5.0's "uniform `pad // 2` on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced — symptom was headlines hugging the canvas edge on square feed posts (worse on IG than LinkedIn because LinkedIn doesn't aggressively recrop).
-- `add_logo` (Step 4e) — **unchanged.** Feed branch still uses uniform `pad // 2` on all four sides; logo padding is correct as-is. Text and logo feed insets now diverge on sides by design.
-- Step 4a inset table + annotations + Step 4h checklist + fix table — rewritten to reflect text/logo divergence on feed sides. Removed "logo follows the same per-canvas inset table" claim (no longer true for feed sides). Any future "simplification" that re-aligns text feed sides with logo feed sides will reintroduce the bug — see this entry.
-
-**v2.5.1** — May 10, 2026
-- Step 4c-image — defensive full-frame guard added: if a Story/Reel post's `image_brief` does not already contain `"fills the ENTIRE frame"` (i.e. was authored by an older `social-calendar` run), wrap it in the Story composition template before calling `gemini_generate_image`. Belt-and-suspenders; primary fix is in `social-calendar` v2.5.0.
-
-**v2.5.0** — May 08, 2026
-- `add_text_overlay` (Step 4d) — new `text_position` parameter (`'bottom'` default or `'top'`). Text and scrim anchor per position; gradient direction flips so the dark end is always on the same end as the text. Asserts are position-aware.
-- `add_text_overlay` (Step 4d) — refactored to **named per-canvas insets**: `top_inset`, `bottom_inset`, `side_inset`, `scrim_fade`. Single rule across the function — 9:16 = Meta safe zones only (14% top, 13% bottom, 13% sides, `scrim_fade = 0`); feed = uniform `pad // 2` for all four. Eliminates the legacy `safe_bottom_px` / `safe_side_px` / `scrim_h` naming.
-- `add_logo` (Step 4e) — restored `bottom-right` / `bottom-left` positions to enable bottom-anchored logo. Per-canvas insets follow the same rule as text (9:16 Meta = 14%/13%/13%; feed = uniform `pad // 2`).
-- Step 4b rotation table — `text_position` now alternates: Mon/Wed/Fri = bottom text + top-right logo; Tue/Thu/Sat = top text + bottom-left logo. Text and logo always on opposite vertical ends. **Tue/Thu/Sat posts will look different from prior versions.**
-- Step 4a inset table + Step 4d/4e narratives + Step 4h checklist + fix table — rewritten to reflect named insets, top/bottom text, rotated logo placements.
-- Bug fix: Quality Checklist said "All 'Planned' posts for **tomorrow** processed" — corrected to "today" (matches Step 1).
-- Step 4h fix table "Logo over busy image area" reworded as a last-resort fallback that explicitly overrides the day-of-week rotation, used only when contrast cannot be salvaged via scrim alpha or backing.
-
-**v2.4.8** — May 08, 2026
-- `add_text_overlay` (Step 4d) — bottom inset tuned to push text closer to the canvas edge:
-  - **9:16:** `0.18` → `0.13` (now matches Meta's published safe zone — 250 px on 1920 canvas — instead of the previous conservative 346 px). Text bottom moves down by 96 px.
-  - **Feed:** `pad` → `pad // 2` (~32–36 px instead of ~65–72 px). Text bottom moves down by 32–36 px on every feed canvas. Side inset stays at `pad` (still survives IG profile-grid 3:4 cropping ~34 px side trim).
-- Step 4a safe-zone table — updated to reflect the new 13% / `pad // 2` values; rationale rewritten to cite Meta's "central 1080×1420" rule for 9:16 and the asymmetric (smaller bottom, larger sides) feed inset.
-- Step 4b text-position note + Step 4d code comments updated to match.
-- Step 4h checklist + fix table — pixel/percentage references updated; added a "feed text drifts above natural edge / has too much bottom buffer" row that points to `pad // 2`.
+**v2.4.8 – v2.5.3** — May 2026 (image-path tuning, condensed)
+- Step 4c-image Pillow overlay hardening: per-canvas named insets (`top/bottom/side_inset`, `scrim_fade`); 9:16 uses Meta safe zones (14%/13%/13%), feed uses asymmetric insets (top/bottom `pad // 2`, **sides `pad + pad // 2`** to survive IG's profile-grid 4:5 recrop — do not re-align feed text sides to `pad // 2`); `text_position` top/bottom rotation with scrim following the text; brand palette injected into the Gemini prompt as ambient mood (never hardcode HEX from memory); Story/Reel full-frame guard.
 
 # SKILL.md — Content Generator
 
@@ -149,11 +127,9 @@ Read before writing any copy:
 
 Read before generating any image — **all optional, never block on missing folders:**
 - `brands/{brand}/design-system/` — Claude Design visual system (colors, fonts, components, spacing). When present, informs the Gemini-only image-path's prompt aesthetic. When absent, fall back to the Colors and Voice & Tone sections of `brands/{brand}/brand.md` plus the Google Font names captured in brand-setup Step 4.
-- `brands/{brand}/social-carousel-template/` — when present, contains a Claude Design React + Babel template app (entry HTML + JSX + CSS + assets) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block in the entry HTML. Used for IG/FB Carousel via Step 4c-template.
-- `brands/{brand}/social-story-template/` — when present, contains the same kind of Claude Design template app with the EDITMODE contract, plus three direction styles (A/B/C). Used for IG/FB Story / Reel via Step 4c-template.
-- `brands/{brand}/brand.md` `## Social Templates` section — when present, records the `version_hash` and slot/key counts written by brand-setup Step 4c after gateway upload. If this section exists for a template type, it means the template is uploaded to the gateway and ready for `template_render`.
+- **Social templates on fb.ai** — the brand's Claude-designed social templates live on fb.ai (uploaded via the dashboard in brand-setup Step 4c), **not on disk**. Discover them with the gateway tool `fivebucks_list_templates` (needs the brand's fb.ai key in the vault under service `fivebucks` — `FIVEBUCKS_API_KEY`). Each entry has an `id`, a `type` (`meta-carousel` | `meta-story` | `linkedin-post` | `meta-post`), `dimensions`, and a `manifest` (editable fields + image slots + slide IDs). Used by Step 4c-template; **cache the list for the whole run** (don't call per post).
 
-If `design-system/` and the relevant template folder are both missing, fall back to the Gemini-only path (Step 4c-image) using brand.md colors/voice. Never log a `failed` run for missing visual assets.
+If `design-system/` is absent AND no matching fb.ai template exists for the post's format, fall back to the Gemini-only path (Step 4c-image) using brand.md colors/voice. Never log a `failed` run for missing visual assets.
 
 ---
 
@@ -191,32 +167,36 @@ Examples:
 
 ### Step 3b — Generate structured `_copy.json` for template-path posts
 
-For posts that will render via the template-path (Carousel / Story / Reel on IG or FB when the matching `brands/{brand}/social-carousel-template/` or `brands/{brand}/social-story-template/` folder exists with an `EDITMODE-BEGIN` block), produce a structured copy artifact alongside `_copy.md`:
+For posts that will render via the template-path (a matching fb.ai template exists for the post's format — see Step 4c), produce a structured copy artifact alongside `_copy.md`:
 
 ```
 outputs/{brand}/posts/[Platform]/[TopicSlug]_[DDMonYYYY]_copy.json
 ```
 
-The JSON's keys MUST match the template's contract — the canonical key set + per-key character budgets are documented in `content-creation/SKILL.md` ("Carousel template copy contract" and "Story template copy contract"). Read those budgets before writing.
+The JSON's keys MUST match the template's **fb.ai manifest field keys** (`fivebucks_get_template` → `manifest.fields[].key`) — the canonical key set + per-key character budgets per type are documented in `content-creation/SKILL.md` ("template copy contracts"). Read those budgets before writing.
 
-Map the post's hook/body/CTA (from Step 3) into the template's per-slide structure:
+Map the post's hook/body/CTA (from Step 3) into the template's structure per type:
 
-- **Carousel** (6 slides): map the post's narrative into Cover (`cover_eyebrow` + `cover_title` + `cover_sub`) → 4 sign slides (`s2_kicker`/`s2_title`/`s2_body` through `s5_*`, with optional `s2_pullquote`, `s3_stat_value`/`s3_stat_label`, `s5_before`/`s5_after`) → CTA (`cta_eyebrow` + `cta_title` + `cta_sub` + `cta_button`).
-- **Story** (6 slides): map into Hook (`s1_*` — eyebrow + headline_pre + headline_accent + sub + live + big + big_unit) → Problem (`s2_*` — eyebrow + headline + 3 pain bullets) → Solution (`s3_*`) → Proof (`s4_*` — 4 stats + quote + author) → Offer (`s5_*` — 4 bullets + pill) → CTA (`s6_*` — eyebrow + headline_pre + headline_accent + sub + cta + url).
+- **meta-carousel** (6 slides): Cover (`cover_eyebrow` + `cover_title` + `cover_sub`) → 4 sign slides (`s2_kicker`/`s2_title`/`s2_body` through `s5_*`, optional `s2_pullquote`, `s3_stat_value`/`s3_stat_label`, `s5_before`/`s5_after`) → CTA (`cta_eyebrow` + `cta_title` + `cta_sub` + `cta_button`).
+- **meta-story** (6 slides): Hook (`s1_*`) → Problem (`s2_*` — eyebrow + headline + 3 pain bullets) → Solution (`s3_*`) → Proof (`s4_*` — 4 stats + quote + author) → Offer (`s5_*` — 4 bullets + pill) → CTA (`s6_*`). Set `_direction` (A/B/C).
+- **linkedin-post** (1 slide): `eyebrow` + `headline` + `body` + `stat_value`/`stat_label` + `quote`/`attribution` + `cta_text` + `cta_button`. Set `direction` (A/B/C).
+- **meta-post** (1 slide): `eyebrow` + `headline` + `body` + `quote`/`attribution` + `b1`…`b5` + `cta_text` + `cta_button`. Set `direction` (A/B/C).
 
-If the post brief is too thin to fill all required keys, leave the template's defaults in place for those keys (the EDITMODE block already has sample copy that won't break the render) and log a warning to memory.
+If the post brief is too thin to fill all required keys, omit those keys — fb.ai seeds the template's defaults for any key you don't send — and log a warning to memory.
 
-**Skip Step 3b for non-template posts** — LinkedIn posts, Reel(Argil), and any post where the matching template folder is missing. For those, only `_copy.md` is required; content-generator's image-path uses the headline + body from `_copy.md` directly via Pillow text overlay.
+**Skip Step 3b for non-template posts** — Reel(Argil) and any post where no matching fb.ai template exists. For those, only `_copy.md` is required; content-generator's image-path uses the headline + body from `_copy.md` directly via Pillow text overlay.
 
 ---
 
 ## Step 4 — Generate images
 
 **Two image-production paths depending on Format and template availability — see Step 4c for the dispatcher.**
-- **Template-path** (Carousel / Story / Reel on IG/FB when the matching template folder is installed): the React + Babel template renders the slides; no Gemini call, no Pillow overlay.
-- **Image-path** (LinkedIn posts; non-template formats; any post where the template folder is missing or the EDITMODE block can't be parsed): Gemini generates the background fresh + Pillow stamps text and logo. Universal fallback — always available.
+- **Template-path** (Carousel / Story / Reel / single-image Post on IG/FB/LinkedIn when a matching fb.ai template exists): fb.ai renders the slides server-side via `fivebucks_render_post`; no Gemini call, no Pillow overlay.
+- **Image-path** (any post with no matching fb.ai template, or when the fb.ai render fails / quota is exhausted): Gemini generates the background fresh + Pillow stamps text and logo. Universal fallback — always available.
 
 ### Step 4a — Determine canvas dimensions
+
+> **Template-path posts skip this step** — fb.ai renders each template at its own registered dimensions (e.g. 1080×1350 for 4:5 types, 1080×1920 for meta-story). The table below applies only to the **image-path** (Step 4c-image).
 
 | Format | target_w | target_h |
 |--------|----------|----------|
@@ -262,159 +242,121 @@ Determine the day-of-week for the post date, then apply:
 
 ### Step 4c — Choose asset type: Image or Video
 
-Check the post `Format` from the calendar:
+Check the post `Format` from the calendar. "A `<type>` template exists" means the cached `fivebucks_list_templates` result (Step 4c-template, step 1) includes an entry with that `type`.
 
 | Platform | Format | Asset Type | Tool |
 |---|---|---|---|
-| FB/IG | Carousel | Static images | If `social-carousel-template/` has an entry HTML with EDITMODE block → **Step 4c-template** (Gemini base64 → presign Zernio slots → gateway `template_render` → 6 publicUrls). Else → **Step 4c-image** (Gemini background → text overlay → logo). |
-| FB/IG | Story | Static image | If `social-story-template/` has an entry HTML with EDITMODE block → **Step 4c-template** (same gateway render flow, 6 slides per direction). Else → **Step 4c-image** (publish as Story). |
+| FB/IG | Carousel | Static images | If a `meta-carousel` template exists on fb.ai → **Step 4c-template**. Else → **Step 4c-image** (Gemini background → text overlay → logo). |
+| FB/IG | Story | Static image | If a `meta-story` template exists → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
 | FB/IG | Reel (Argil) | **AI avatar video** | **Argil API** (1 per brand per week, tagged by social-calendar) |
-| FB/IG | Reel | **Static image as Story** | If `social-story-template/` has entry HTML with EDITMODE block → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
-| LinkedIn | Post | Static image | **Step 4c-image** (templates don't apply on LinkedIn) |
+| FB/IG | Reel | **Static image as Story** | If a `meta-story` template exists → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
+| FB/IG | Post (single image) | Static image | If a `meta-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
+| LinkedIn | Post | Static image | If a `linkedin-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
 | LinkedIn | Reel/Story | Static image | **Step 4c-image** (publish as post) |
-| Any | Post | Static image | **Step 4c-image** |
+| Any | Post | Static image | **Step 4c-image** (no matching template) |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar.
 2. If Format = `"Reel (Argil)"` → use **Step 4c-argil** (AI avatar talking-head).
-3. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND `brands/{brand}/social-carousel-template/` contains an entry HTML with `EDITMODE-BEGIN`/`EDITMODE-END` block → use **Step 4c-template**.
-4. If Format ∈ {`"Story"`, `"Reel"`} AND platform ∈ {Instagram, Facebook} AND `brands/{brand}/social-story-template/` contains an entry HTML with `EDITMODE-BEGIN`/`EDITMODE-END` block → use **Step 4c-template**.
-5. If Format = `"Reel"` (no template, no Argil tag) → use **Step 4c-image** (static image, publish as Story).
-6. All other formats (or template missing / EDITMODE block absent) → use **Step 4c-image** (Gemini-generated background + text overlay + logo).
+3. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND a `meta-carousel` template exists → use **Step 4c-template**.
+4. If Format ∈ {`"Story"`, `"Reel"`} AND platform ∈ {Instagram, Facebook} AND a `meta-story` template exists → use **Step 4c-template**.
+5. If Format = `"Post"` AND platform ∈ {Instagram, Facebook} AND a `meta-post` template exists → use **Step 4c-template**.
+6. If Format = `"Post"` AND platform = LinkedIn AND a `linkedin-post` template exists → use **Step 4c-template**.
+7. If Format = `"Reel"` (no template, no Argil tag) → use **Step 4c-image** (static image, publish as Story).
+8. All other formats (or no matching template) → use **Step 4c-image** (Gemini-generated background + text overlay + logo).
 
-### Step 4c-template — Render via gateway template_render (Carousel / Story)
+### Step 4c-template — Render via fb.ai (`fivebucks_*`)
 
-Use this path when the applicable template folder contains an entry HTML with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block AND the brand's `## Social Templates` section in `brand.md` confirms the template is uploaded to the gateway (written by brand-setup Step 4c). Rendering is server-side — **no local Playwright required**.
+Use this path when a matching fb.ai template exists for the post's format (see Step 4c). Rendering is server-side on fb.ai — **no local Playwright, no Gemini-for-slots, no Zernio slot presign**. Templates render their own images and tint overlay natively; the skill just supplies copy (and optionally photos) and collects rendered PNGs.
 
-**No Pillow text overlay, no Pillow logo overlay on this path.** The gateway renders the React + Babel template server-side (Vercel + Playwright) and PUTs finished slide PNGs directly to presigned Zernio URLs. The skill's jobs: Gemini visuals (base64 only, in memory) → presign Zernio slots → call template_render → receive publicUrls.
+**No Pillow text overlay, no Pillow logo overlay on this path.** The skill's jobs: pick the template by `type` → build copy `overrides` → create a post → render → re-host the PNGs on Zernio for publishing.
+
+Requires the brand's fb.ai key in the vault under service `fivebucks` (`FIVEBUCKS_API_KEY`, brand-setup Step 7). Each render consumes **1.0 CONTENT_GENERATION quota** on fb.ai regardless of slide count.
 
 **Steps:**
 
-#### 1. Call `template_list` to get schema (cache for the run)
+#### 1. List templates (cache for the run)
 
 ```
-Use gateway MCP tool template_list:
+Use gateway MCP tool fivebucks_list_templates:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
-- verbose: true
 ```
 
-Returns per-template entry with: `edit_keys: string[]`, `image_slots: string[]`, and `entry_html: string` (root HTML filename inside the version directory, e.g. `"index.html"`). Cache the result for the entire daily run — don't call per post.
+Returns an array of templates, each with `id`, `name`, `type` (`meta-carousel` | `meta-story` | `linkedin-post` | `meta-post`), `dimensions`, and `manifest`. Build a `type → {id, manifest}` map and **cache it for the entire daily run** — don't call per post. If no template of the type this post needs exists, fall back to **Step 4c-image**.
 
-Derive slide count from `edit_keys`:
-- **Carousel**: count distinct slide-section prefixes (cover + s2…s5 + cta = 6 slides by default; let the template's structure be the truth).
-- **Story**: 6 slides per direction (each direction A/B/C renders 6 frames).
+#### 2. Read the manifest
 
-**Sanity check**: confirm the Direction value from Notion matches values represented in `edit_keys`. If a mismatch, default to template defaults and log a warning.
+From the cached entry (or `fivebucks_get_template` for the freshest copy) read:
+- `manifest.fields[]` — each `{ key, label, group, type, default, bound?, options? }`. **Skip** fields with `bound === false` (hardcoded — editing has no effect). For `type: 'select'` fields, send only a value from `options`. For `type: 'image'` slots, the value is `""` or `"media:{fileId}"`, with companion `{slot}_image_position` / `{slot}_image_fit` selects.
+- `manifest.slides[]` — slide IDs. The render returns one PNG per slide, in slide order.
+- `manifest.theme` — informational (the template bakes its own overlay: `dark` = 40% black, `light` = 50% white). Use it to pick photos that contrast.
 
-#### 2. Generate Gemini visual(s) for each image slot
+#### 3. Build the `overrides` payload (copy → manifest field keys)
 
-For each slot in `image_slots`, generate a Gemini image. Keep each result **in memory as base64** — do NOT upload to Zernio or anywhere else. These are render inputs only.
+Flat key→value map. Send only fields you're changing; fb.ai seeds defaults for the rest. Use the per-type key sets in `content-creation/SKILL.md` (or the Step 3b `_copy.json`). Set direction:
+- **meta-story**: `_direction` = `"A"` / `"B"` / `"C"` (default `"A"` — renders 6 slides). **Never `"all"`** (renders 18 slides and burns the same 1.0 quota at once).
+- **linkedin-post / meta-post**: the un-prefixed `direction` = `"A"` / `"B"` / `"C"` (picks the single slide's layout).
+- **meta-carousel**: `coverVariant` / `bodyVariant` from the post's Direction field (e.g. `"type-allnumbers"` → `coverVariant="type"`, `bodyVariant="allnumbers"`) if the manifest exposes them.
+
+#### 4. (Optional) Assign photos
+
+By default, **leave image slots empty** — the template renders its own branded placeholder/gradient (on-brand, zero extra cost). To inject a real photo:
+- Upload to the fb.ai media library: `fivebucks_presign_media_upload` (folder_id, filename) → `requests.put(uploadUrl, bytes)` → `fivebucks_confirm_media_upload` (file_id, folder_id, size_bytes, mime_type) → use the returned id.
+- Add to overrides: `{ "s4_image": "media:{id}", "s4_image_position": "center", "s4_image_fit": "cover" }` (meta-carousel/meta-story body slots `s2_image`…`s5_image`; single-image types `bg_image` + optional `headshot_image`).
+
+(Or pick an existing photo with `fivebucks_list_media_folders` → `fivebucks_list_media_files`. For automated daily runs without curated photos, skip this step.)
+
+#### 5. Create the post
 
 ```
-Use gateway MCP tool gemini_generate_image:
+Use gateway MCP tool fivebucks_create_post:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- prompt: "<ImageBrief from Notion + brand visual style + 'no text, no people'>"
-- aspect_ratio: "4:5"   # carousel; use "9:16" for story
-- model: "gemini-3.1-flash-image-preview"
+- template_id: "<id from step 1>"
+- name: "[Brand] [Platform] [Format] — [Topic] — [Date]"
+- overrides: { ...copy + direction (+ image slots from step 4)... }
+→ Returns the new post id
 ```
 
-Decode to base64 string (hold in memory, not written to a permanent path):
-```python
-import glob, json, os
-result_file = max(glob.glob('/sessions/*/mnt/.claude/projects/*/tool-results/mcp-*gemini_generate_image*.txt'), key=os.path.getmtime)
-with open(result_file) as f:
-    parsed = json.loads(json.load(f)[0]['text'])
-slot_b64 = parsed['image_base64']   # in memory only
+To adjust copy or add photos after creating, call `fivebucks_update_post` (post_id, overrides) — overrides merge.
+
+#### 6. Render
+
+```
+Use gateway MCP tool fivebucks_render_post:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- post_id: "<id from step 5>"
+- slide_ids: [ ... ]   # OPTIONAL — omit to render every slide
+→ Returns 1-hour signed PNG URLs, one per slide, in slide order
 ```
 
-#### 3. Presign one Zernio upload per output slide
+For meta-story the slide count follows `_direction` (A/B/C = 6, all = 18). fb.ai resolves any `"media:{fileId}"` overrides server-side and the template renders the photo natively — nothing else to wire.
 
-Run presigns immediately before the `template_render` call (presigned URLs expire; render p95 < 18 s, well within the 5-minute lifetime):
+#### 7. Re-host on Zernio, then publish
 
+The fb.ai signed URLs are short-lived (1 h), so re-host each PNG on Zernio before publishing:
 ```python
-upload_targets = []
-for i in range(1, slide_count + 1):
+import requests
+media_urls = []
+for i, signed_url in enumerate(render_urls, start=1):
+    img = requests.get(signed_url).content
     presign = late_presign_upload(
         fiveagents_api_key=API_KEY,
         filename=f"{slug}_slide-{i}_{date}.png",
         content_type="image/png",
     )
-    upload_targets.append({
-        "slide_index":  i,
-        "upload_url":   presign["uploadUrl"],
-        "content_type": "image/png",
-        "public_url":   presign["publicUrl"],
-    })
+    requests.put(presign["uploadUrl"], data=img, headers={"Content-Type": "image/png"})
+    media_urls.append(presign["publicUrl"])
 ```
 
-#### 4. Build the `edits` payload
+Pass `media_urls` (in slide order) as `media_items` in `late_create_post` (Step 5) — a carousel becomes multiple `media_items`; single-image types are one. **Skip Steps 4d, 4e, 4f, 4g** — no Pillow overlays, no local tmp files. Day-of-week `text_align` / `logo_position` rotations apply only to Step 4c-image.
 
-Map post copy fields to the template's EDITMODE key contract. Send only keys you're overriding — gateway preserves template defaults for any missing key.
+**On quota / subscription error** (`fivebucks_render_post` returns 402/403 with a quota body): surface the upgrade message in the Slack notification, set the Notion status to `"Draft Ready"`, and fall back to **Step 4c-image** for this post.
 
-**Carousel** (read full key contract from `content-creation/SKILL.md` carousel copy contract):
-```python
-edits = {
-    "cover_eyebrow": post.eyebrow.upper(),
-    "cover_title":   post.hook,
-    "cover_sub":     post.subline,
-    "s2_kicker": "01", "s2_title": slide_titles[0], "s2_body": slide_bodies[0],
-    "s3_kicker": "02", "s3_title": slide_titles[1], "s3_body": slide_bodies[1],
-    "s4_kicker": "03", "s4_title": slide_titles[2], "s4_body": slide_bodies[2],
-    "s5_kicker": "04", "s5_title": slide_titles[3], "s5_body": slide_bodies[3],
-    "cta_eyebrow": post.cta_eyebrow, "cta_title": post.cta_title,
-    "cta_sub": post.cta_sub, "cta_button": post.cta_button,
-    "handle": brand.handle, "hashtag": post.primary_hashtag,
-}
-if format == "Carousel" and post.direction:
-    cover_v, body_v = post.direction.split("-", 1)
-    edits["coverVariant"] = cover_v   # e.g. "type" / "sticker" / "editorial"
-    edits["bodyVariant"]  = body_v    # e.g. "allnumbers" / "editorial" / "mixed"
-```
-
-**Story** (map into s1_*…s6_* keys per the story EDITMODE contract; include `_direction`):
-```python
-edits = {
-    "s1_eyebrow": ..., "s1_headline_pre": ..., "s1_headline_accent": ..., "s1_sub": ...,
-    "s2_eyebrow": ..., "s2_headline": ..., "s2_pain1": ..., "s2_pain2": ..., "s2_pain3": ...,
-    # ...s3_* through s6_* from _copy.json or Step 3 post copy
-    "handle": brand.handle,
-    "_direction": post.direction or "A",   # default to A if calendar Direction is blank
-}
-```
-
-#### 5. Call `template_render`
-
-```
-Use gateway MCP tool template_render:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"
-- template_type: "carousel"    # or "story"
-- version_hash: "<hash>"       # OPTIONAL — pin to a specific version for reproducibility; omit to render from latest
-- edits: { ... from step 4 }
-- slots: { "<slot_key>": "<base64 PNG or JPEG>" }   # e.g. { "s4_visual": slot_b64 }; each slot ≤ 4 MB, total ≤ 32 MB
-- upload_targets: [ ... from step 3 ]
-- options: {
-    "direction":    post.direction,          # story only (A/B/C)
-    "coverVariant": cover_v,                 # carousel only
-    "bodyVariant":  body_v                   # carousel only
-  }
-```
-
-Gateway renders server-side, PUTs each slide PNG to its `upload_url`, returns:
-```json
-{ "images": [{ "slide_index": 1, "public_url": "https://..." }, ...] }
-```
-
-The skill never downloads or re-uploads the rendered PNGs — they live on Zernio S3 from the moment they're rendered.
-
-**On success:** collect `public_url` values in slide order → pass as `media_items` in `late_create_post` (Step 5). **Skip Steps 4d, 4e, and 4g** — no Pillow overlays, no tmp cleanup (no tmp folder was created on this path). Day-of-week `text_align` and `logo_position` rotations apply only to Step 4c-image, not here.
-
-**On failure (5xx / 504 timeout):**
-- Log a Slack warning for this post: `"⚠️ [{brand}] template_render failed for '{topic}' — falling back to Gemini-only path. Post marked Draft Ready."`
+**On other failure (5xx / timeout):**
+- Log a Slack warning for this post: `"⚠️ [{brand}] fb.ai render failed for '{topic}' — falling back to Gemini-only path. Post marked Draft Ready."`
 - Fall back to **Step 4c-image** (Gemini background → Pillow text overlay → Pillow logo overlay).
 - Set Notion status to `"Draft Ready"` instead of `"Published"` so the user reviews the fallback before resending.
-- Do NOT retry `template_render` — render once and fall back.
+- Do NOT retry the render — render once and fall back.
 
 ### Step 4c-argil — Generate Reel video via Argil API (1 per brand per week)
 
@@ -967,14 +909,11 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Hook is scroll-stopping; CTA is specific
 - [ ] `brands/{brand}/design-system/` was read when present (informs Gemini prompt aesthetic); fallback to `brand.md` colors/voice when absent — never block on missing design-system
 - [ ] Image dimensions are correct for platform/format
-- [ ] Template-path used when the matching template folder has an entry HTML with EDITMODE block; image-path used otherwise (no `failed` run for missing templates)
-- [ ] **Template-path:** `template_list(verbose=true)` called at run start; `edit_keys` and `image_slots` cached for the run (not called per-post)
-- [ ] **Template-path:** Gemini visual(s) generated per `image_slots` entry, held in memory as base64 — not uploaded to Zernio or anywhere else
-- [ ] **Template-path:** Zernio presigned slots created immediately before `template_render` (one per output slide)
-- [ ] **Template-path:** `edits` payload maps post copy to EDITMODE key contract; Direction applied (`_direction` for story; `coverVariant`/`bodyVariant` for carousel) — template defaults preserved for missing keys
-- [ ] **Template-path:** `template_render` called once; `publicUrls` from response used as `media_items` in `late_create_post`
-- [ ] **Template-path:** Pillow text overlay AND logo overlay BOTH skipped — gateway render includes all chrome; Steps 4d, 4e, 4g all skipped
-- [ ] **Template-path (failure):** 5xx/504 falls back to Step 4c-image; Notion status set to `"Draft Ready"` (not `"Published"`); Slack warning logged
+- [ ] Template-path used when a matching fb.ai template exists for the format; image-path used otherwise (no `failed` run for missing templates)
+- [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)
+- [ ] **Template-path:** `overrides` map copy → manifest field keys (skip `bound:false`, `select` values from `options`); direction set (`_direction` A/B/C for meta-story — never `all`; `direction` for single-image types)
+- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; signed PNGs re-hosted on Zernio and passed as `media_items` to `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
+- [ ] **Template-path (failure):** quota/5xx falls back to Step 4c-image; Notion status set to `"Draft Ready"`; Slack warning logged
 - [ ] **Image-path (Gemini-only):** Story/Reel full-frame guard applied — `image_brief` passed to Gemini contains `"fills the ENTIRE frame"` (either from `social-calendar` or wrapped by the guard)
 - [ ] **Image-path (Gemini-only):** Pillow text overlay (Step 4d) AND logo overlay (Step 4e) BOTH applied — Gemini background has no logo
 - [ ] **Image-path:** text overlay applied with correct day-of-week `text_align` (left Mon/Thu, center Tue/Fri, right Wed/Sat) AND `text_position` (bottom Mon/Wed/Fri, top Tue/Thu/Sat) per Step 4b

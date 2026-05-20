@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.0 | May 10, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
 
 ### Change Log
+
+**v2.7.0** — May 20, 2026
+- Direction selection extended to the two single-image fb.ai template types: `linkedin-post` and `meta-post` now take a `direction` (A/B/C), so the Direction column is required for them too (previously left blank for LinkedIn). Variant availability is checked against the template `manifest` (`fivebucks_get_template`) rather than a local template folder's entry HTML.
 
 **v2.5.0** — May 10, 2026
 - `image_brief` for Story / Reel posts now wrapped in full-frame composition template before saving to Notion — enforces full-bleed photorealistic composition so Gemini fills the entire 9:16 canvas (top, middle, and lower thirds) with no empty void at the bottom
@@ -122,7 +125,7 @@ Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table,
 | CTA | Specific action (≤8 words) |
 | Hashtags | 3–5 hashtags |
 | Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." For Story/Reel posts the raw scene is automatically wrapped in the full-frame composition template (see "Story/Reel image_brief wrapping" below) before saving to Notion. |
-| Direction | Template variant for the post — see "Direction selection" below. Required for IG/FB Carousel and Story/Reel posts; leave blank for LinkedIn / Reel(Argil) / formats without a Claude Design template. |
+| Direction | Template variant for the post — see "Direction selection" below. Required for any format with a matching fb.ai template (IG/FB Carousel, Story/Reel, IG/FB single-image, LinkedIn single-image); leave blank for Reel(Argil) or formats with no matching fb.ai template. |
 | Status | Planned |
 
 ### Direction selection — pick the template variant per post
@@ -149,9 +152,19 @@ Pick by content type:
 - Stat-driven proof / benchmark → `B`
 - Case study / testimonial / founder voice → `C`
 
-**For LinkedIn posts, Reel(Argil), or any format without a matching Claude Design template** — leave Direction blank.
+**For LinkedIn single-image posts** (`linkedin-post` template) — pick one of three directions:
+- `A` — Hook Headline (text-led). Narrative / opinion posts.
+- `B` — Stat Hero (one big number). Proof / results posts.
+- `C` — Pull Quote (editorial). Testimonials, founder posts, press mentions.
 
-If you assign a Direction the brand's template doesn't support (e.g. carousel template only ships `type-allnumbers`), content-generator falls back to the template defaults and logs a warning — but planning quality suffers, so check the entry HTML inside `brands/{brand}/social-carousel-template/` and `brands/{brand}/social-story-template/` (look for the `*.html` file that contains the `EDITMODE-BEGIN` block) for which variants the brand actually has before assigning.
+**For IG/FB single-image posts** (`meta-post` template) — pick one of three directions:
+- `A` — Hero Visual (full-bleed photo + headline). Brand campaigns, launches, scroll-stoppers.
+- `B` — Quote Card (editorial). Testimonials, founder voice, press quotes.
+- `C` — Listicle Teaser (3–5 bullets). Value-led / educational posts.
+
+**For Reel(Argil) or any format with no matching fb.ai template** — leave Direction blank.
+
+If you assign a Direction the brand's template doesn't support, content-generator falls back to the template defaults and logs a warning — so before assigning, check the template's `manifest` (via `fivebucks_get_template`) for the `direction` / `coverVariant` / `bodyVariant` `options` the brand's template actually exposes.
 
 ### Content mix across 14 posts:
 
@@ -380,7 +393,7 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 - [ ] Content mix is research-driven (Step 1b) — if research was available, mix reflects findings; if research was unavailable, default mix used (5 edu / 3 proof / 3 product / 2 CTA / 1 engage); at minimum 2 Direct CTA posts present
 - [ ] All raw scene descriptions (before wrapping) end with "No text. No logos. No watermarks."
 - [ ] Story and Reel (non-Argil) image briefs are wrapped in the full-frame composition template before saving to Notion — the saved `Image Brief` cell must contain "fills the ENTIRE frame"; `Reel (Argil)`, LinkedIn, and Carousel briefs are saved verbatim (no wrapping)
-- [ ] **Direction column populated** for every IG/FB Carousel post (one of `type-allnumbers` / `sticker-editorial` / `editorial-mixed`) and every IG/FB Story / non-Argil Reel post (one of `A` / `B` / `C`); left blank for LinkedIn posts and `Reel (Argil)` (Argil ignores Direction — it uses the script only)
+- [ ] **Direction column populated** for every post with a matching fb.ai template: IG/FB Carousel (`type-allnumbers` / `sticker-editorial` / `editorial-mixed`), IG/FB Story / non-Argil Reel (`A` / `B` / `C`), IG/FB single-image and LinkedIn single-image (`A` / `B` / `C`); left blank only for `Reel (Argil)` and formats with no matching fb.ai template
 - [ ] Notion page URL logged to memory
 - [ ] Agent run logged to dashboard
 

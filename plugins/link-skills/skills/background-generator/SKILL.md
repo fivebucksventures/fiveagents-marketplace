@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.1 | May 12, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
 
 ### Change Log
+
+**v2.7.0** — May 20, 2026
+- Dropped the "Claude Design shell collections" relationship note that referenced local `social-meta-*-template/` folders. Social-post templates now live on fb.ai (rendered via `fivebucks_*`); this skill's `backgrounds/` library remains an independent, general-purpose set for Reels + the Gemini fallback.
 
 **v2.4.1** — May 12, 2026
 - Step 2 — added explicit "Read brand visual identity FIRST" block. Probes `brands/{brand}/design-system/` (preferred) then `brand.md` Colors (fallback). Mirrors the Visual consistency rule in `agents/link.md`.
@@ -42,7 +45,7 @@ Read `agents/link.md` before starting. It defines the active brand, personality,
 
 You generate 20 pre-stored background images per brand for use in Ken Burns Reel videos. These backgrounds are stored at `brands/{brand}/backgrounds/` and used as raw material for video production. Run manually when the library needs refreshing.
 
-**Relationship to Claude Design shell collections** — `brands/{brand}/social-carousel-template/` and `brands/{brand}/social-story-template/` (when present) hold pre-rendered branded background **shells** for static social posts (Carousel + Story / Reel static frames). Those shells are populated by `brand-setup` Step 4c and consumed by `content-generator` and `creative-designer` via their shell-path. The `backgrounds/` library this skill produces is a separate, more general-purpose set used by Reel video production and as the Gemini fallback library. The two systems are independent — this skill does not need to read or write the shell folders.
+**Relationship to fb.ai social templates** — the brand's polished social-post templates live on fb.ai (installed via `brand-setup` Step 4c) and are rendered by `content-generator` / `creative-designer` via the `fivebucks_*` tools. The `backgrounds/` library this skill produces is a separate, general-purpose set used by Reel video production and as the Gemini fallback library. The two systems are independent — this skill does not touch fb.ai templates.
 
 ---
 

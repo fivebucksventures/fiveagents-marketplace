@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.4 | May 16, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.7.0** — May 20, 2026
+- **Template-path migrated to fb.ai (`fivebucks_*`).** Step 4a now detects templates via `fivebucks_list_templates` (by `type`) and renders via `fivebucks_create_post` → `fivebucks_render_post` → re-host on Zernio — replacing the dead `template_list`/`template_render` + presign-slots flow. All four types supported (meta-carousel / meta-story / linkedin-post / meta-post). Canonical implementation lives in `content-generator/SKILL.md` Step 4c-template. The Gemini + Pillow fallback (Step 4b) is unchanged.
 
 **v2.5.4** — May 16, 2026
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
@@ -111,16 +114,18 @@ If `brands/{brand}/design-system/` does not exist, **continue** — derive color
 
 Never hardcode colors or fonts from memory. Always derive them from `design-system/` (preferred) or `brand.md` (fallback). If the design system and `brand.md` disagree on colors/fonts, the design system wins and `brand.md` should be updated to match.
 
-### Optional Claude Design templates — Carousel and Story
+### Optional fb.ai social templates
 
-Two optional Claude Design templates may exist:
+Up to four optional Claude Design templates may exist for a brand, hosted on **fb.ai** (installed via brand-setup Step 4c, discovered via the gateway `fivebucks_list_templates` tool — needs `FIVEBUCKS_API_KEY`):
 
-| Template | Path | Used for | Fallback if missing |
-|----------|------|----------|---------------------|
-| Carousel template (4:5) | `brands/{brand}/social-carousel-template/` | IG + FB carousel posts (6 slides: Cover + 4 signs + CTA) | Generate the full background fresh with Gemini + Pillow text overlay using design-system / brand.md colors |
-| Story template (9:16) | `brands/{brand}/social-story-template/` | IG + FB Stories + Reels (6 slides: Hook → Problem → Solution → Proof → Offer → CTA, three direction styles A/B/C) | Same Gemini + Pillow fallback |
+| Template `type` | Used for | Fallback if missing |
+|---|---|---|
+| `meta-carousel` (4:5) | IG + FB carousel posts (Cover + 4 value slides + CTA) | Gemini + Pillow text/logo overlay using design-system / brand.md colors |
+| `meta-story` (9:16) | IG + FB Stories + Reels (Hook→…→CTA, directions A/B/C) | Same Gemini + Pillow fallback |
+| `linkedin-post` (4:5) | LinkedIn single-image feed posts (directions A/B/C) | Same Gemini + Pillow fallback |
+| `meta-post` (4:5) | IG + FB single-image feed posts (directions A/B/C) | Same Gemini + Pillow fallback |
 
-Each folder is a self-contained React + Babel app (entry HTML + JSX + CSS + assets) with an `EDITMODE-BEGIN`/`EDITMODE-END` JSON block in the entry HTML that exposes the editable copy keys. At runtime: the gateway renders the template server-side (Vercel + Playwright on the gateway) and PUTs slide PNGs directly to presigned Zernio URLs — no local Playwright required. See "Render via template" in Step 4a. If the folder is missing or the EDITMODE block can't be located, fall through to Step 4b's Gemini-only pipeline — never block.
+fb.ai renders each template server-side and returns signed PNG URLs — no local Playwright, no local template files. See "Render via template" in Step 4a. If no matching template exists (or `FIVEBUCKS_API_KEY` is unset), fall through to Step 4b's Gemini-only pipeline — never block.
 
 ### Standard asset dimensions (platform-fixed — same across all brands)
 | Asset | Dimensions | Notes |
@@ -163,8 +168,7 @@ Each folder is a self-contained React + Babel app (entry HTML + JSX + CSS + asse
 - **brands/{brand}/brand.md** — Voice, tone, approved phrases, Do/Don't rules; also canonical colors and Google Font name (used as fallback when design-system/ is absent)
 - **skills/creative-designer/style-guide.md** — Generic fallback rules (use only when both design-system/ and brand.md are silent on a topic)
 - Confirm the headline and key message (from content-creation or user input)
-- For carousel asset type → check `brands/{brand}/social-carousel-template/` for an entry HTML containing an `EDITMODE-BEGIN` block
-- For story / reel (static) asset type → check `brands/{brand}/social-story-template/` for an entry HTML containing an `EDITMODE-BEGIN` block
+- Call `fivebucks_list_templates` once (cache for the run) and note which template `type`s exist on fb.ai: `meta-carousel`, `meta-story`, `linkedin-post`, `meta-post`. (Skip if `FIVEBUCKS_API_KEY` is unset → image-path only.)
 
 ### Step 2: Define the layout structure
 Sketch the component hierarchy before writing code:
@@ -188,45 +192,32 @@ For design spec output:
 - Describe each section with: dimensions, colors (hex), font sizes, spacing, and component type
 - Include copy placeholders clearly marked
 
-### Step 4a: Carousel and Story — render via Claude Design template if available
+### Step 4a: Render via fb.ai template if available
 
-Before falling through to Gemini-only image generation (Step 4b — the universal fallback), branch on asset type:
+Before falling through to Gemini-only image generation (Step 4b — the universal fallback), branch on asset type. "A `<type>` template exists" = it appeared in the cached `fivebucks_list_templates` result (Step 1).
 
 **Decision tree:**
 
 ```
-asset_type == "carousel" AND platform in {instagram, facebook}
-  → if brands/{brand}/social-carousel-template/ has an entry HTML with EDITMODE-BEGIN block:
-      → render via template (instructions below)
-    else:
-      → fall through to Step 4b (Gemini full background per slide + Pillow text + Pillow logo)
-
-asset_type in {"story", "reel"} AND platform in {instagram, facebook}
-  → if brands/{brand}/social-story-template/ has an entry HTML with EDITMODE-BEGIN block:
-      → render via template (instructions below)
-    else:
-      → fall through to Step 4b (Gemini full background + Pillow text + Pillow logo)
-
-all other cases (LinkedIn posts, banners, ads, mockups, etc.)
-  → fall through to Step 4b (Gemini + Pillow text + Pillow logo)
+asset_type == "carousel" AND platform in {instagram, facebook} AND a meta-carousel template exists → render via template
+asset_type in {"story","reel"} AND platform in {instagram, facebook} AND a meta-story template exists → render via template
+asset_type == "post" AND platform in {instagram, facebook} AND a meta-post template exists → render via template
+asset_type == "post" AND platform == linkedin AND a linkedin-post template exists → render via template
+all other cases (banners, ads, mockups, no matching template) → fall through to Step 4b (Gemini + Pillow text + Pillow logo)
 ```
 
-**Render via template — gateway template_render. No local Playwright, no Pillow on this path.**
+**Render via fb.ai (`fivebucks_*`). No local Playwright, no Pillow on this path.** The template lives on fb.ai (installed via brand-setup Step 4c). **For the canonical implementation see `content-generator/SKILL.md` Step 4c-template** — both skills follow the same procedure:
 
-The template is a Claude Design React + Babel app installed via brand-setup Step 4c and uploaded to the gateway. The gateway renders it server-side (Vercel + Playwright) and PUTs slide PNGs directly to presigned Zernio URLs. **For the canonical implementation see `content-generator/SKILL.md` Step 4c-template** — both skills follow the same procedure:
-
-1. Confirm the template folder has an entry HTML with `EDITMODE-BEGIN`/`EDITMODE-END`. If absent, fall through to Step 4b.
-2. Call `template_list(verbose=true)` to get `edit_keys`, `image_slots`, and `entry_html` (root HTML filename) from the gateway.
-3. Generate Gemini visual(s) — one per `image_slots` entry, kept in memory as base64. Do not upload anywhere.
-4. Presign one Zernio upload slot per output slide via `late_presign_upload` (run immediately before the render call).
-5. Build `edits` payload from the post copy dict; apply Direction (`_direction` for story, `coverVariant`/`bodyVariant` for carousel — leave template defaults if Direction blank).
-6. Call `template_render` with `edits`, `slots` (base64 PNG or JPEG visuals — each slot ≤ 4 MB, total ≤ 32 MB), `upload_targets` (presigned Zernio slots), and optionally `version_hash` (pin to a specific version for reproducibility; omit for latest). Gateway renders and PUTs slide PNGs; returns `images[n].public_url`.
-7. On success: use `public_url` values for upload. Skip Steps 4d and 4e (Pillow overlays — template render includes all chrome).
-8. On failure (5xx/504): fall through to Step 4b (Gemini + Pillow fallback).
+1. `fivebucks_list_templates` (cached) → pick the template whose `type` matches; read its `manifest` (fields + image slots + slides). If none, fall through to Step 4b.
+2. Build `overrides` from the post copy (manifest field keys; skip `bound:false`, `select` values from `options`). Set direction: `_direction` (A/B/C) for meta-story; un-prefixed `direction` (A/B/C) for linkedin-post / meta-post; `coverVariant` / `bodyVariant` for meta-carousel if present.
+3. (Optional) assign photos via the fb.ai media library (`fivebucks_presign_media_upload` → `requests.put` → `fivebucks_confirm_media_upload` → `"media:{fileId}"`); otherwise leave image slots empty (template renders its placeholder).
+4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id)` → 1-hour signed PNG URLs.
+5. Re-host each PNG on Zernio (`late_presign_upload` + `requests.put`) and use those URLs for the post. Skip Steps 4d/4e (Pillow overlays — fb.ai render includes all chrome).
+6. On quota / 5xx error: fall through to Step 4b (Gemini + Pillow fallback).
 
 After the template-path completes, continue to the upload step further down in this section — do NOT re-run Step 4b's Gemini path; the template-path has already produced final assets.
 
-**The Gemini + Pillow fallback in Step 4b remains the universal path** for: LinkedIn posts, banners, ads, mockups, any post where the matching template folder is missing or has no EDITMODE block, and any failure on the template-path. That fallback path applies the Pillow text overlay AND Pillow logo overlay (both inside Step 4b) — both required since the Gemini-generated background has no copy and no logo. The day-of-week `text_align`, `text_position`, and `logo_position` rotations apply only on this Step 4b path.
+**The Gemini + Pillow fallback in Step 4b remains the universal path** for: banners, ads, mockups, any post with no matching fb.ai template (or when `FIVEBUCKS_API_KEY` is unset), and any failure (quota / 5xx) on the template-path. That fallback path applies the Pillow text overlay AND Pillow logo overlay (both inside Step 4b) — both required since the Gemini-generated background has no copy and no logo. The day-of-week `text_align`, `text_position`, and `logo_position` rotations apply only on this Step 4b path.
 
 ---
 
@@ -813,9 +804,8 @@ Before finalizing any design output:
 - [ ] Accent color used sparingly — not dominant
 - [ ] No off-brand colors used
 - [ ] Typography follows the design-system font stack OR brand.md Google Fonts (whichever applied)
-- [ ] For IG/FB Carousel: if `social-carousel-template/` has entry HTML with EDITMODE block, template-path used (template_list → Gemini base64 → presign slots → template_render → publicUrls); else Gemini-only fallback (Step 4b) documented
-- [ ] For IG/FB Story/Reel (static): if `social-story-template/` has entry HTML with EDITMODE block, template-path used; else Gemini-only fallback (Step 4b) documented
-- [ ] Template-path: `template_list(verbose=true)` called to get `edit_keys`, `image_slots`, and `entry_html`; Gemini visuals held in memory as base64 (not uploaded)
+- [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → re-host on Zernio); else Gemini-only fallback (Step 4b) documented
+- [ ] Template-path: `fivebucks_list_templates` called once and cached; `overrides` built from manifest field keys; direction set per type (`_direction` for meta-story; `direction` for single-image)
 - [ ] Template-path: `edits` payload matches the template's key contract; Direction applied (`_direction` for story, `coverVariant`/`bodyVariant` for carousel)
 - [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome
 - [ ] Gemini-only fallback path (Step 4b): Story/Reel full-frame guard applied — `image_prompt` passed to Gemini contains `"fills the ENTIRE frame"` for every 9:16 asset

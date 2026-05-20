@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.6.6';
-const DEFAULT_DATE = 'May 16, 2026';
+const DEFAULT_VERSION = 'v2.7.0';
+const DEFAULT_DATE = 'May 20, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.7.0',
+    date: 'May 20, 2026',
+    changes: [
+      'Social-post templates migrated to fb.ai (fivebucks_* gateway tools). The dead template_upload/template_list/template_render API and local brands/{brand}/social-meta-*-template/ folders are gone. Templates are authored in Claude Design, uploaded via the fb.ai dashboard, discovered via fivebucks_list_templates (by type: meta-carousel | meta-story | linkedin-post | meta-post), and rendered via fivebucks_create_post → fivebucks_render_post → re-host on Zernio. Affects content-generator, creative-designer, brand-setup (Step 4c), plugin-update, content-creation, social-calendar, background-generator, agents/link.md.',
+      'brand-setup Step 4c collapsed four near-identical install blocks into one shared flow (author → export → fb.ai dashboard upload → fivebucks_list_templates verify) + four type-specific Claude Design prompts using the native-image contract (per-slot _image/_image_position/_image_fit; template renders its own <img> + tint overlay; logo bundled at assets/logo.png, never in EDITMODE).',
+      'New credential FIVEBUCKS_API_KEY (fbai_live_..., vault service fivebucks) added to brand-setup Step 2 + Step 7 and plugin.json userConfig. Optional — the Gemini + Pillow fallback path is unchanged when absent.',
+    ],
+  },
   {
     version: 'v2.6.6',
     date: 'May 16, 2026',

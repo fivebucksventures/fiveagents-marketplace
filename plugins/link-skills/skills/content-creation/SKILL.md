@@ -8,11 +8,14 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.15 | May 05, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
 
 ### Change Log
+
+**v2.7.0** — May 20, 2026
+- `_copy.json` contracts now key off **fb.ai templates** (detected via `fivebucks_list_templates`), not local `social-meta-*-template/` folders. Keys are the template's **manifest field keys** (fed to `fivebucks_create_post` overrides). Added **linkedin-post** and **meta-post** single-image contracts alongside meta-carousel and meta-story. Fallback unchanged: no matching template → `_copy.json` optional, Gemini + Pillow reads `_copy.md`.
 
 **v2.2.15** — May 05, 2026
 - Carousel/Story copy outputs now produce structured _copy.json with per-slide blocks + character budgets
@@ -84,11 +87,11 @@ Always read before writing:
 - **brands/{brand}/competitors.md** — If a competitive angle is needed
 - **brands/{brand}/design-system/** — Read when present; informs voice / tonal alignment for copy paired with visuals. When absent, fall back to `brand.md` Voice & Tone.
 
-When the brief is for a **carousel** (IG/FB) or **story / reel** (IG/FB), the matching Claude Design template folder may exist. If it does, copy must be produced as a **structured JSON artifact** matching the template's key contract — content-generator substitutes those keys directly into the template's EDITMODE block at render time. Save the JSON next to the markdown copy file as `_copy.json`.
+When the brief is for a format that has a matching **fb.ai template** (Carousel → `meta-carousel`, Story/Reel → `meta-story`, LinkedIn single-image → `linkedin-post`, IG/FB single-image → `meta-post`), copy must be produced as a **structured JSON artifact** matching the template's manifest field keys — content-generator passes those keys to `fivebucks_create_post` as overrides at render time. Save the JSON next to the markdown copy file as `_copy.json`. (Template existence is detected via `fivebucks_list_templates`; if none, `_copy.json` is optional — see below.)
 
-#### Carousel template copy contract (IG/FB)
+#### meta-carousel copy contract (IG/FB carousel)
 
-When `brands/{brand}/social-carousel-template/` is present, output `_copy.json` with these keys (6 slides — Cover + 4 sign slides + CTA):
+When the brand has a `meta-carousel` template on fb.ai, output `_copy.json` with these keys (6 slides — Cover + 4 value slides + CTA). These are the template's manifest field keys:
 
 ```json
 {
@@ -124,9 +127,9 @@ When `brands/{brand}/social-carousel-template/` is present, output `_copy.json` 
 }
 ```
 
-#### Story template copy contract (IG/FB Stories + Reels)
+#### meta-story copy contract (IG/FB Stories + Reels)
 
-When `brands/{brand}/social-story-template/` is present, output `_copy.json` with these keys (6 slides — Hook → Problem → Solution → Proof → Offer → CTA):
+When the brand has a `meta-story` template on fb.ai, output `_copy.json` with these keys (6 slides — Hook → Problem → Solution → Proof → Offer → CTA):
 
 ```json
 {
@@ -175,11 +178,50 @@ When `brands/{brand}/social-story-template/` is present, output `_copy.json` wit
 }
 ```
 
+#### linkedin-post copy contract (LinkedIn single-image)
+
+When the brand has a `linkedin-post` template on fb.ai, output `_copy.json` with these keys (1 slide; the `direction` A/B/C is set by social-calendar). Unused keys for the chosen direction are ignored:
+
+```json
+{
+  "eyebrow":      "≤ 30 chars, all caps category tag",
+  "headline":     "≤ 90 chars, the hook headline (direction A centerpiece)",
+  "body":         "≤ 200 chars, 1–2 supporting sentences",
+  "stat_value":   "≤ 12 chars big stat (direction B hero, e.g. '78%')",
+  "stat_label":   "≤ 60 chars stat caption",
+  "quote":        "≤ 200 chars pull quote (direction C)",
+  "attribution":  "≤ 60 chars author + role",
+  "cta_text":     "≤ 60 chars CTA line",
+  "cta_button":   "≤ 30 chars button label"
+}
+```
+
+#### meta-post copy contract (IG/FB single-image)
+
+When the brand has a `meta-post` template on fb.ai, output `_copy.json` with these keys (1 slide; `direction` A/B/C set by social-calendar). b4/b5 are optional (direction C may use 3–5 bullets):
+
+```json
+{
+  "eyebrow":      "≤ 30 chars, all caps category tag",
+  "headline":     "≤ 80 chars, scroll-stopping headline (direction A)",
+  "body":         "≤ 140 chars, 1 supporting sentence",
+  "quote":        "≤ 200 chars quote (direction B)",
+  "attribution":  "≤ 60 chars author + role",
+  "b1":           "≤ 80 chars bullet 1 (direction C)",
+  "b2":           "≤ 80 chars bullet 2",
+  "b3":           "≤ 80 chars bullet 3",
+  "b4":           "(optional) ≤ 80 chars bullet 4",
+  "b5":           "(optional) ≤ 80 chars bullet 5",
+  "cta_text":     "≤ 60 chars CTA line",
+  "cta_button":   "≤ 30 chars button label"
+}
+```
+
 **Save both files per post:**
 - `outputs/{brand}/posts/[Platform]/[Slug]_[Date]_copy.md` — human-readable narrative draft (still required for review)
-- `outputs/{brand}/posts/[Platform]/[Slug]_[Date]_copy.json` — structured copy that content-generator feeds into the template's EDITMODE block
+- `outputs/{brand}/posts/[Platform]/[Slug]_[Date]_copy.json` — structured copy that content-generator passes to `fivebucks_create_post` as overrides
 
-If the template folder does NOT exist (or has no EDITMODE block), `_copy.json` is optional — content-generator will fall through to its Gemini-only path and read narrative copy from `_copy.md` instead.
+If the brand has no matching fb.ai template (or `FIVEBUCKS_API_KEY` is unset), `_copy.json` is optional — content-generator falls through to its Gemini-only path and reads narrative copy from `_copy.md` instead.
 
 **Direction is set by `social-calendar`, not by content-creation.** Your job is the copy contract; the calendar entry's `Direction` column drives template-variant routing at render time.
 
@@ -316,8 +358,7 @@ Before finalizing any content output:
 - [ ] Approved phrases used where appropriate
 - [ ] Do/Don't list followed
 - [ ] Brand colors and typography referenced correctly if visual specs included — derive from `brands/{brand}/design-system/` when present, `brand.md` otherwise; never from memory
-- [ ] For IG/FB Carousel posts when `social-carousel-template/` exists: `_copy.json` produced with all required cover_*/s2-5_*/cta_* keys; per-key character budgets respected
-- [ ] For IG/FB Story/Reel posts when `social-story-template/` exists: `_copy.json` produced with all required s1_*/s2_*/s3_*/s4_*/s5_*/s6_* keys; per-key character budgets respected
+- [ ] When the brand has a matching fb.ai template (`fivebucks_list_templates`): `_copy.json` produced with that type's manifest field keys (meta-carousel cover_*/s2-5_*/cta_*; meta-story s1_*–s6_*; linkedin-post eyebrow/headline/body/stat_*/quote/attribution/cta_*; meta-post eyebrow/headline/body/quote/attribution/b1-b5/cta_*); per-key character budgets respected
 - [ ] Direction NOT set in `_copy.json` — that's social-calendar's responsibility (lives in the Notion calendar entry's Direction column)
 
 **Messaging effectiveness:**

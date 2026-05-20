@@ -6,11 +6,14 @@ description: Bring an existing brand's setup up to date with the latest plugin v
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.2 | May 16, 2026 |
+| Link | v2.7.0 | May 20, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.7.0** — May 20, 2026
+- **Social-template detection migrated to fb.ai (`fivebucks_*`).** Step 1h now calls `fivebucks_list_templates` to see which `type`s (meta-carousel / meta-story / linkedin-post / meta-post) exist on fb.ai — replacing the dead local-folder + `template_list` + `version_hash` hash-drift reconciliation. Step 3c collapsed to a single "offer missing types → brand-setup Step 4c (Claude Design → fb.ai dashboard upload)" flow; dropped the upload/hash-drift/download Cases. Removed the local `social-meta-*-template/` rows from Step 1a and the Step 3j template change-log rows. Needs `FIVEBUCKS_API_KEY`; absent → templates skipped, Gemini + Pillow fallback used.
 
 **v2.5.2** — May 16, 2026
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
@@ -156,8 +159,6 @@ Check existence of each path under `brands/{brand}/`. Mark present/missing:
 | `logo.png` | v2.0 | present / missing |
 | `backgrounds/` | v2.0 (now empty by design) | present / missing |
 | `design-system/` | v2.2.10 (optional — brand.md fallback since v2.2.15) | present / missing |
-| `social-carousel-template/` | v2.2.10 (optional) | present / missing |
-| `social-story-template/` | v2.2.10 (optional) | present / missing |
 | `sales.md` | v2.4.0 | present / missing |
 | `customer-success.md` | v2.4.0 | present / missing |
 | `finance.md` | v2.4.0 | present / missing |
@@ -277,52 +278,16 @@ Read `.claude/settings.local.json` and `~/.claude/settings.json` for:
 
 These are UI settings — surface them to the user as a manual checklist if you can't read them programmatically.
 
-### 1h. Template upload status (v2.3.0)
+### 1h. fb.ai social templates
 
-For each social template folder that exists locally, check whether it is uploaded to the gateway and whether the local hash matches:
+Social templates live on fb.ai (brand-setup Step 4c), **not on disk** — there is no local folder, version hash, or gateway upload to reconcile. Detect which exist for this brand:
 
 ```
-Use gateway MCP tool template_list:
+Use gateway MCP tool fivebucks_list_templates:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- brand: "{brand}"   # OPTIONAL — omit to list all brands; pass brand to scope to this brand only
-- verbose: false
 ```
 
-For each local template folder (`social-carousel-template/` and `social-story-template/`):
-
-| Local state | Gateway state | Flag |
-|---|---|---|
-| Folder exists | No gateway entry | ❌ not uploaded — upload needed |
-| Folder exists | Gateway entry present | Compute local hash and compare |
-| Folder missing | Any | Skip (covered by Step 1a) |
-| No local folder | Gateway entry exists | ⚠️ local copy missing (no action needed — gateway still renders) |
-
-Compute the local `version_hash` for each present local folder using the canonical algorithm:
-
-```python
-import hashlib
-from pathlib import Path
-
-IGNORE = {".DS_Store", "Thumbs.db", ".git", "node_modules", "__MACOSX"}
-
-def compute_version_hash(folder: Path) -> str:
-    h = hashlib.sha256()
-    files = sorted(
-        (p for p in folder.rglob("*") if p.is_file()),
-        key=lambda p: p.relative_to(folder).as_posix()
-    )
-    for p in files:
-        rel = p.relative_to(folder).as_posix()
-        if any(part in IGNORE for part in rel.split("/")):
-            continue
-        h.update(hashlib.sha256(rel.encode()).hexdigest().encode())
-        h.update(b":")
-        h.update(hashlib.sha256(p.read_bytes()).hexdigest().encode())
-        h.update(b"\n")
-    return h.hexdigest()
-```
-
-Compare to the `version_hash` from `template_list`. Mark as `match` (✅), `drift` (⚠️ local changed since last upload), or `not uploaded` (❌).
+Record which of the four `type`s are present: `meta-carousel`, `meta-story`, `linkedin-post`, `meta-post`. If `FIVEBUCKS_API_KEY` isn't set (no fb.ai plan), skip this step — the brand uses the Gemini + Pillow fallback for all formats. Missing types are an install opportunity, not a failure (see Step 3c).
 
 ### 1i. Notion DB for social calendar
 
@@ -379,9 +344,9 @@ Build a **compact gap table** and show it to the user before doing anything. Gro
 Plugin version: {last_applied} → {DEFAULT_VERSION}
 
 Skills/agents updated since {last_applied}
-  ✅ agents/link.md       v2.3.0  template_upload / template_list / template_render added
+  ✅ agents/link.md       v2.7.0  social templates → fb.ai (fivebucks_* tools)
   ✅ brand-setup          v2.2.15  Step 4c rewrite (EDITMODE contracts); design-system/ now optional
-  ✅ content-generator    v2.2.15  Direction column; _copy.json; gateway template_render
+  ✅ content-generator    v2.7.0  render via fb.ai fivebucks_* (Step 4c-template)
   ✅ creative-designer    v2.2.15  template-path → gateway; design-system/ optional
   ✅ content-creation     v2.2.15  _copy.json output; naming convention split
   ✅ social-calendar      v2.2.15  Direction column added (11 columns)
@@ -395,12 +360,9 @@ Brand context files
   ⏭ investors.md                         ← v2.4.0 optional (only required if brand has raised external capital)
   ⏭ operations.md                        ← v2.4.0 optional (only required if user processes meeting transcripts)
   ⏭ design-system/                       ← optional (recommended; brand.md fallback if absent)
-  ⏭ social-carousel-template/            ← optional
-  ⏭ social-story-template/               ← optional
 
-Template uploads (v2.3.0)
-  ❌ social-carousel-template/ exists locally but not uploaded to gateway
-  ⚠️ social-story-template/ uploaded but local hash drifted — re-upload needed?
+fb.ai social templates (Step 1h — needs FIVEBUCKS_API_KEY)
+  ⏭ meta-carousel / meta-story / linkedin-post / meta-post — which exist on fb.ai? (install via Step 3c)
 
 brand.md sections
   ✅ Tagline / Voice & Tone / Colors / Approved Phrases / Do NOT Say
@@ -485,63 +447,19 @@ If yes, walk the user through `brand-setup` Step 4b:
 
 Verify `brands/{brand}/design-system/` exists and is non-empty before marking complete. If the user skips, mark as ⏭ — not a gap that blocks any skill.
 
-### 3c. Optional templates (offer, don't force)
+### 3c. Optional fb.ai social templates (offer, don't force)
 
-**Case 1 — Local folder missing entirely:**
+From Step 1h you know which of the four `type`s exist on fb.ai. For any **missing** type the brand would benefit from, offer to set it up — but accept "skip":
 
-If `social-carousel-template/` or `social-story-template/` is missing from disk, offer installation but accept "skip":
+> Want to set up any optional social templates? Pick any of the four: Meta Carousel (IG/FB carousel), Meta Story / Reel (IG/FB 9:16), LinkedIn Post (LinkedIn single-image), Meta Post (IG/FB single-image). They make published content more polished and need a paid fb.ai plan. Skip any channel you don't publish on — it falls back to Gemini + Pillow.
 
-> Want to install the optional Carousel (4:5) and Story (9:16) templates from Claude Design? They make IG/FB content more polished. Skip and we'll fall back to standard Gemini + Pillow generation.
+If yes, walk through the matching brand-setup sub-step (each = author in Claude Design → upload to the **fb.ai dashboard** → verify via `fivebucks_list_templates`):
+- Meta Carousel → `brand-setup` Step 4c-i
+- Meta Story → `brand-setup` Step 4c-ii
+- LinkedIn Post → `brand-setup` Step 4c-iii
+- Meta Post → `brand-setup` Step 4c-iv
 
-If yes, walk through `brand-setup` Steps 4c-i and 4c-ii (includes the gateway upload sub-steps D, E, F).
-
-**Case 2 — Local folder exists but not uploaded to gateway (detected in Step 1h):**
-
-Run the upload sub-flow automatically (no prompt needed — the folder is already installed locally; the upload is the missing piece):
-
-0. **Size check** — compute total folder size before attempting upload:
-   ```python
-   total_bytes = sum(p.stat().st_size for p in folder.rglob("*") if p.is_file())
-   ```
-   If `total_bytes > 3 * 1024 * 1024`, do not proceed. Show the user:
-
-   > ⚠️ The local `{template_type}` template is **{X} MB** — over the 3 MB gateway limit. Embedded images are the most common cause.
-   >
-   > Go back to [claude.ai/design](https://claude.ai/design), open the `{template_type}` project, and paste this prompt:
-   >
-   > ```
-   > This template is used by an automated agent that uploads and renders it server-side. It must be under 3 MB. Please:
-   > 1. Remove all embedded images (base64 data URIs, <img> tags with data: src, or any bundled photo assets) — replace with a solid colour placeholder or CSS gradient
-   > 2. Remove any unused fonts, icon sets, or external CDN resources that aren't actually referenced in the layout
-   > 3. Remove sample/demo background photos — the agent supplies images at render time via named files in the uploads/ folder
-   > 4. Keep only the HTML, CSS, and JavaScript needed for the layout structure
-   > Re-export, re-download, and re-install the template (run `/link-skills:brand-setup` Step 4c), then re-run plugin-update.
-   > ```
-
-   Skip this template and continue with the rest of the gap report.
-
-1. Compute `version_hash` from local folder (canonical algorithm from Step 1h).
-2. Zip the folder with noise-file exclusion (same code as brand-setup Step 4c-i Step D).
-3. Call `template_upload` via gateway MCP tool.
-4. Update `## Social Templates` section in `brand.md`.
-5. Verify with `template_list`.
-
-Report to user: `"Carousel template not yet uploaded to gateway — uploading now... ✅ Done."`
-
-**Case 3 — Local hash ≠ remote hash (drift detected in Step 1h):**
-
-Ask the user:
-> "The local `{template_type}` template has changed since it was last uploaded (hash drifted). Re-upload to the gateway now? [Y/n]"
-
-If yes → run the upload sub-flow above (Steps 0–5).
-If no → note the drift in the gap report. Content-generator will use the older gateway version until re-uploaded.
-
-**Case 4 — Remote entry exists but no local folder:**
-
-Note in the gap report:
-> "Gateway has a `{template_type}` template (version `{version_hash[:8]}...`) but no local copy. The gateway version is still used for rendering — content-generator will continue to work. A future `template_download` tool will let you pull the template back locally — currently no action is required for rendering to continue using the gateway version."
-
-No action required for rendering to continue.
+There is **no** local copy, version hash, or gateway-upload step to reconcile — templates live on fb.ai and are detected live. If `FIVEBUCKS_API_KEY` isn't set, skip this step (the brand uses the Gemini + Pillow fallback).
 
 ### 3d. brand.md sections (only the missing ones)
 
@@ -775,11 +693,10 @@ For each skill/agent flagged as changed in Step 1j, read its `### Change Log` bu
 | Changelog entry | Brand action required |
 |---|---|
 | Direction column added (content-generator / social-calendar v2.2.15) | ✅ Check Notion Social Calendar DB has a `Direction` select column at position 10; add it if missing |
-| template_upload / template_list / template_render added (agents/link.md v2.3.0) | ✅ Check brand.md `## Social Templates` section; if templates installed locally but not uploaded → run upload sub-flow (Step 3c Case 2) |
+| Social templates migrated to fb.ai — `fivebucks_*` tools (v2.7.0) | ✅ Run Step 1h (`fivebucks_list_templates`) to see which `type`s exist on fb.ai; offer missing ones via Step 3c. The old local `social-meta-*-template/` folders, `template_upload`/`template_list`, and version hashes no longer apply. |
 | design-system/ MANDATORY → OPTIONAL (brand-setup v2.2.15) | ❌ No action — constraint relaxed |
 | _copy.json output added (content-generator / content-creation v2.2.15) | ❌ No action — additive output format |
 | Naming convention split: social vs non-social (content-creation v2.2.15) | ❌ No action — future outputs only |
-| Step 4c rewrite — EDITMODE-BEGIN/END contracts (brand-setup v2.2.15) | ✅ If carousel/story templates installed, verify EDITMODE-BEGIN block is present in entry HTML; if templates predate v2.2.15 they may need reinstalling |
 | Meta Ads framing reversed — Windsor.ai MANDATORY (brand-setup v2.2.13) | ✅ Confirm Windsor.ai has Meta Ads (Facebook) connected; if not → Step 3f |
 | DEFAULT_BRAND + {BRAND}_NOTION_DB env vars (brand-setup v2.2.12) | ✅ Check env block for both; add if missing |
 | CLAUDE.md embeds agents/link.md (brand-setup v2.2.11) | ✅ Check CLAUDE.md for embedded link.md content (BEGIN/END markers); if absent → Step 3g |
@@ -826,7 +743,7 @@ After all selected gaps are filled, run a focused validation pass — only test 
 | LATE_API_KEY missing | Saved to settings.local.json + vault | ✅ |
 | Windsor.ai not connected | User authorized, probe passed | ✅ |
 | CLAUDE.md link.md path relative | Replaced with absolute path | ✅ |
-| social-carousel-template/ | User chose to skip | ⏭ |
+| meta-carousel template (fb.ai) | User chose to skip | ⏭ |
 | ... | ... | ... |
 
 This is the **diagnostic** view — useful for "what changed?" but not what the user actually wants to know.
@@ -938,8 +855,8 @@ Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; 
 - [ ] `.claude/settings.local.json` retained all pre-existing keys
 - [ ] Re-validation in Step 4 only tested touched integrations
 - [ ] Idempotent — a second immediate run produces zero gaps and `last_applied == DEFAULT_VERSION`
-- [ ] `template_list` called for each brand's templates in Step 1h; local hash compared to remote for each installed template
-- [ ] Missing uploads (Case 2) triggered the upload sub-flow automatically; hash drift (Case 3) prompted the user before re-uploading
+- [ ] `fivebucks_list_templates` called in Step 1h (when `FIVEBUCKS_API_KEY` set) to detect which template types exist on fb.ai
+- [ ] Missing template types offered via Step 3c (author in Claude Design → fb.ai dashboard upload); skips accepted
 - [ ] Step 5a wrote `## Plugin Version` to brand.md with the current DEFAULT_VERSION
 - [ ] Agent run logged to dashboard
 
