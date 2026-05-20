@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.8.0';
+const DEFAULT_VERSION = 'v2.9.0';
 const DEFAULT_DATE = 'May 20, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.9.0',
+    date: 'May 20, 2026',
+    changes: [
+      'Design system stays LOCAL (brands/{brand}/design-system/) as the crucial free baseline, with an OPTIONAL fb.ai brand-kit upload for paid users. brand-setup Step 4b keeps the local copy flow and adds optional Step D (upload ZIP to fb.ai /dashboard/social-posts/brand-kit); plugin-update Step 3b restores the local copy flow + optional fb.ai upload.',
+      'New optional Media Library step — brand-setup Step 4d + plugin-update Step 3d: upload brand photos to the fb.ai media library (/dashboard/social-posts/media), discovered via fivebucks_list_media_folders / fivebucks_list_media_files.',
+      '3-tier brand color/font lookup wired across agents/link.md + 8 visual skills: fb.ai brand kit (fivebucks_get_brand_kit) → local design-system/ → brand.md. New Brand kit field map in link.md documents only the non-obvious JSON mappings (secondary→tokens.colors.accent, text→tokens.colors.dark, no font weight scale). Gamma payloads (financial-reporter, investor-update-writer, proposal-generator) no longer request an unfillable secondary {HEX}.',
+      'fb.ai template upload moved to the new dashboard URLs (/dashboard/social-posts/api-keys → /templates); credential setup points to the api-keys page.',
+      'Skills bumped: brand-setup v2.8.0, plugin-update v2.8.0, background-generator v2.8.0, content-creation v2.8.0, content-generator v2.8.0, creative-designer v2.8.0, campaign-presenter v2.3.0, financial-reporter v2.5.0, proposal-generator v2.5.0, investor-update-writer v2.6.0, agents/link.md v2.11.0.',
+    ],
+  },
   {
     version: 'v2.8.0',
     date: 'May 20, 2026',
@@ -158,19 +169,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
     changes: [
       'content-generator + creative-designer: add_logo — fixed logo aspect-ratio distortion. logo.crop(logo.getbbox()) now runs BEFORE logo_w/logo_h are computed, so the resize target is derived from the cleaned (cropped) logo bounds instead of the original padded ones. Previously the resize calc used padded proportions but the crop-then-resize sequence applied them to a different aspect ratio, stretching the mark.',
       'content-generator Step 4h + creative-designer Step 3b: fix tables updated — the "Logo visually offset" row now confirms the crop is automatic; new "Logo aspect ratio looks distorted" row points to the crop-order requirement.',
-    ],
-  },
-  {
-    version: 'v2.4.5',
-    date: 'May 08, 2026',
-    changes: [
-      'content-generator + creative-designer: add_text_overlay — gradient now runs from scrim_top to target_h on every canvas (was target_h - safe_bottom_px). Decoupled text_bottom anchors text above the inset for 9:16; on feed text_bottom = target_h - pad. Eliminates the raw-image gap below the scrim that was visible on every FB/IG Story (~346 px) and feed post (~60 px).',
-      'content-generator + creative-designer: add_text_overlay — feed text inset corrected to pad on every side (was 60 / max(pad, 60), mislabeled as "safe zone"). Meta safe zones are Stories/Reels-only — feed posts use a pad design inset so text reads in IG/FB tile views and survives IG profile-grid 3:4 cropping. 9:16 18%/13% safe zones unchanged.',
-      'content-generator + creative-designer: add_text_overlay — scrim max-alpha 200→230 + brightness threshold 0.45→0.40. Heavier scrim flattens busy and light backgrounds enough that the dark-pink subline stays legible (IG Story subline was barely visible at the previous 200/0.45 settings).',
-      'content-generator + creative-designer: add_logo — flat margin = max(int(w * 0.03), 30) on every canvas. Removed the 9:16 safe-zone inheritance that pushed the logo 269 px from top + 140 px from sides — logos were floating mid-canvas instead of anchored to the corner. Dropped bottom-right/bottom-left dict entries (already marked NEVER USE).',
-      'content-generator: Step 4a safe-zone table rewritten — 9:16 row reflects platform UI; feed row labeled as design inset (not a platform safe zone); logo flat-margin and gradient-to-canvas-bottom rules stated explicitly. Step 4b note clarified that the 18% offset applies to 9:16 only.',
-      'content-generator: Step 4h visual verification rewritten — feed pad inset, gradient-reaches-canvas-bottom, logo-anchored-to-corner checks added; fix table updated for the four new symptoms.',
-      'creative-designer: Layout rules section rewritten — 9:16 / feed / logo / gradient blocks brought into sync with the new implementation; replaced the "60 px rendering buffer" claim with the pad design inset framing. Step 3b checklist + fix table mirror content-generator.',
     ],
   },
 ];

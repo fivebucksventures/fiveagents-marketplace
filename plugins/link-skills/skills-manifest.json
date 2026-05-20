@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.7.1"
+    "version": "v2.8.0"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.7.1"
+    "version": "v2.8.0"
   },
   {
     "name": "background-generator",
@@ -43,13 +43,13 @@
       ],
       "files": [
         "brand.md",
-        "design-system/ (opt — informs Gemini prompt palette when present, brand.md fallback otherwise)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": [
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.7.0"
+    "version": "v2.8.0"
   },
   {
     "name": "campaign-presenter",
@@ -66,11 +66,11 @@
         "audience.md",
         "product.md",
         "competitors.md",
-        "design-system/ (opt — informs Canva brand-kit selection + slide visual choices when present, brand.md fallback otherwise)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": []
     },
-    "version": "v2.2.6"
+    "version": "v2.3.0"
   },
   {
     "name": "content-creation",
@@ -87,11 +87,11 @@
         "audience.md",
         "product.md",
         "competitors.md",
-        "design-system/ (opt)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": []
     },
-    "version": "v2.7.0"
+    "version": "v2.8.0"
   },
   {
     "name": "content-generator",
@@ -113,14 +113,14 @@
         "brand.md",
         "audience.md",
         "product.md",
-        "design-system/ (opt)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": [
         "`${BRAND}_NOTION_DB`",
         "`${BRAND}_LATE_FB/IG/LI`"
       ]
     },
-    "version": "v2.7.0"
+    "version": "v2.8.0"
   },
   {
     "name": "creative-designer",
@@ -138,12 +138,12 @@
       "files": [
         "brand.md",
         "audience.md",
-        "design-system/ (opt — falls back to brand.md colors/fonts)",
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)",
         "avatars.md (opt — only for Reel/Argil video path)"
       ],
       "env": []
     },
-    "version": "v2.7.0"
+    "version": "v2.8.0"
   },
   {
     "name": "data-analysis",
@@ -334,13 +334,13 @@
         "product.md",
         "brand.md",
         "audience.md",
-        "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": [
         "`${BRAND}_CRM_DB`"
       ]
     },
-    "version": "v2.4.1"
+    "version": "v2.5.0"
   },
   {
     "name": "churn-predictor",
@@ -413,13 +413,13 @@
       "files": [
         "finance.md",
         "brand.md",
-        "design-system/ (opt — informs Gamma deck visual identity)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": [
         "`${BRAND}_REPORTS_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v2.4.1"
+    "version": "v2.5.0"
   },
   {
     "name": "invoice-collector",
@@ -505,14 +505,14 @@
         "finance.md",
         "brand.md",
         "product.md",
-        "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": [
         "`${BRAND}_CRM_DB`",
         "`${BRAND}_REPORTS_DB`"
       ]
     },
-    "version": "v2.5.0"
+    "version": "v2.6.0"
   },
   {
     "name": "meeting-analyzer",

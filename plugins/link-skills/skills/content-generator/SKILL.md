@@ -7,7 +7,7 @@ use_for: "Daily automated content production — generate copy and images from N
 deps:
   mcp: ["Notion", "Slack"]
   gateway: ["Gemini", "Argil", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
-  files: ["brand.md", "audience.md", "product.md", "design-system/ (opt)"]
+  files: ["brand.md", "audience.md", "product.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_LATE_FB/IG/LI`"]
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.7.0 | May 20, 2026 |
+| Link | v2.8.0 | May 20, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.8.0** — May 20, 2026
+- Brand palette resolution for the Gemini image-path is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
 
 **v2.7.0** — May 20, 2026
 - **Render pipeline migrated to fb.ai (`fivebucks_*` gateway tools).** The old `template_list` / `template_render` flow (Gemini base64 → presign Zernio slots → server-side render) is gone — it targeted a gateway API that no longer exists. Step 4c-template now: `fivebucks_list_templates` (cache) → read manifest → `fivebucks_create_post` (copy + direction + optional `media:{fileId}` photos) → `fivebucks_render_post` → 1-hour signed PNG URLs → re-host on Zernio (`late_presign_upload`) → `late_create_post`. Templates live on fb.ai (uploaded via the dashboard in brand-setup Step 4c), discovered by `type` (meta-carousel | meta-story | linkedin-post | meta-post) — no local `social-meta-*-template/` folders.
@@ -133,10 +136,13 @@ Read before writing any copy:
 - `brands/{brand}/product.md` — features, pricing, differentiators
 
 Read before generating any image — **all optional, never block on missing folders:**
-- `brands/{brand}/design-system/` — Claude Design visual system (colors, fonts, components, spacing). When present, informs the Gemini-only image-path's prompt aesthetic. When absent, fall back to the Colors and Voice & Tone sections of `brands/{brand}/brand.md` plus the Google Font names captured in brand-setup Step 4.
+- **Brand visual identity for the Gemini-only image-path** — resolve the color/font source in this 3-tier order, feeding the Gemini prompt aesthetic:
+  1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`. If it returns non-null, use its color tokens (HEX) + typography as the authoritative source — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, fonts from `tokens.fonts.heading`/`body`; the kit has no separate `secondary` or font weight scale). Returns null when no kit is uploaded — fall through to tier 2.
+  2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — Claude Design visual system (colors, fonts, components, spacing). When present, informs the Gemini-only image-path's prompt aesthetic.
+  3. **brands/{brand}/brand.md** — the Colors and Voice & Tone sections plus the Google Font names captured in brand-setup Step 4. Universal fallback when neither of the above is available.
 - **Social templates on fb.ai** — the brand's Claude-designed social templates live on fb.ai (uploaded via the dashboard in brand-setup Step 4c), **not on disk**. Discover them with the gateway tool `fivebucks_list_templates` (needs the brand's fb.ai key in the vault under service `fivebucks` — `FIVEBUCKS_API_KEY`). Each entry has an `id`, a `type` (`meta-carousel` | `meta-story` | `linkedin-post` | `meta-post`), `dimensions`, and a `manifest` (editable fields + image slots + slide IDs). Used by Step 4c-template; **cache the list for the whole run** (don't call per post).
 
-If `design-system/` is absent AND no matching fb.ai template exists for the post's format, fall back to the Gemini-only path (Step 4c-image) using brand.md colors/voice. Never log a `failed` run for missing visual assets.
+If no matching fb.ai template exists for the post's format, fall back to the Gemini-only path (Step 4c-image) — sourcing colors/fonts via the same 3-tier order (fb.ai brand kit when the key is set → local `design-system/` → brand.md colors/voice). Never log a `failed` run for missing visual assets.
 
 ---
 
@@ -458,8 +464,8 @@ with open('brands/{brand}/backgrounds/{descriptive_filename}.png', 'wb') as f:
 
 **Prompt rules:**
 - Always include "no text, no people" — text and logo are added in Steps 4d/4e
-- Match the brand's visual style and color palette — **read order: `brands/{brand}/design-system/` first when present (extract the primary/secondary/background HEX tokens and inject them into the prompt as "warm tones around #ec4899 / muted slate around #0f172a" style guidance), `brands/{brand}/brand.md` Colors section as the fallback when design-system is absent.** Same Visual consistency rule as `agents/link.md` — never hardcode from memory.
-- Pillow text rendering in Step 4d uses `DejaVuSans-Bold` as a stable cross-platform rasterizer; the design-system font names live in the design-system files for reference (Canva / HTML mockups consume them, this image path does not). Colors on text are picked adaptively from the Gemini background, which is why getting the brand palette into the Gemini prompt at this step matters.
+- Match the brand's visual style and color palette — **3-tier read order: (1) fb.ai brand kit via `fivebucks_get_brand_kit` when `FIVEBUCKS_API_KEY` is set; (2) `brands/{brand}/design-system/` when the kit is null or the key is unset; (3) `brands/{brand}/brand.md` Colors section as the universal fallback.** Extract the primary/accent/background HEX tokens from whichever source applied and inject them into the prompt as "warm tones around #ec4899 / muted slate around #0f172a" style guidance — when the fb.ai kit is the source, resolve roles via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`; the kit has no separate `secondary` token). Same Visual consistency rule as `agents/link.md` — never hardcode from memory.
+- Pillow text rendering in Step 4d uses `DejaVuSans-Bold` as a stable cross-platform rasterizer; the brand font names (fb.ai brand kit / design-system files) are for reference only (Canva / HTML mockups consume them, this image path does not). Colors on text are picked adaptively from the Gemini background, which is why getting the brand palette into the Gemini prompt at this step matters.
 - Keep it clean and uncluttered — the text overlay needs readable space at the top or bottom (per the day-of-week `text_position` from Step 4b)
 
 ### Step 4d — Apply text overlay — USE PILLOW
@@ -914,7 +920,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] All "Planned" posts for today processed
 - [ ] Copy matches persona voice and brand tone
 - [ ] Hook is scroll-stopping; CTA is specific
-- [ ] `brands/{brand}/design-system/` was read when present (informs Gemini prompt aesthetic); fallback to `brand.md` colors/voice when absent — never block on missing design-system
+- [ ] Brand visual source resolved in 3-tier order (informs Gemini prompt aesthetic): fb.ai brand kit (`fivebucks_get_brand_kit`, checked first when `FIVEBUCKS_API_KEY` set) → local `brands/{brand}/design-system/` (when present) → `brand.md` colors/voice; never blocked on a missing key or design-system
 - [ ] Image dimensions are correct for platform/format
 - [ ] Template-path used when a matching fb.ai template exists for the format; image-path used otherwise (no `failed` run for missing templates)
 - [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)

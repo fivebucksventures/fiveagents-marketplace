@@ -7,7 +7,7 @@ use_for: "Generate branded sales proposal from a deal record. Gamma deck or Goog
 deps:
   mcp: ["Stripe", "Gamma", "Google Drive", "Gmail", "Notion", "Slack"]
   gateway: []
-  files: ["sales.md", "product.md", "brand.md", "audience.md", "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"]
+  files: ["sales.md", "product.md", "brand.md", "audience.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_CRM_DB`"]
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.1 | May 12, 2026 |
+| Link | v2.5.0 | May 20, 2026 |
 
 **Description:** Generate a branded sales proposal from a CRM deal record — packaged as a Gamma deck (or Google Doc fallback) with embedded Stripe payment link, emailed to the prospect via Gmail draft. On-demand per deal.
 
 ### Change Log
+
+**v2.5.0** — May 20, 2026
+- Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. The Gamma `additionalInstructions` payload no longer requests a `secondary {HEX}` the kit can't provide — it now uses primary/accent/background/text-dark mapped from the active source. Trimmed duplicated design-system reading boilerplate.
 
 **v2.4.1** — May 12, 2026
 - Step 1 (Read Brand Context) — restructured with a leading "Brand visual identity" block. design-system/ probed first (extract HEX color tokens + typography + component patterns), brand.md visual identity as fallback. Strategic + commercial context (product.md, audience.md, sales.md) now grouped under their own subhead. Abort behavior clarified: only `brand.md`/`product.md`/`audience.md`/`sales.md` missing aborts; design-system/ missing is a graceful fallback.
@@ -80,11 +83,12 @@ Before starting, confirm these inputs with the user:
 
 ### Step 1 — Read Brand Context
 
-**Brand visual identity — read FIRST so the Gamma deck inherits the right palette:**
-- `brands/{brand}/design-system/` *(optional but authoritative when present)* — Claude Design system. If the folder exists and is non-empty, list its files and read the entry HTML/CSS (typically `index.html`, `styles.css`, or `tokens.json`). Extract color tokens (HEX), typography (font-family + weight scale), and any component patterns you'll reference in the Gamma `additionalInstructions` at Step 5. Takes precedence over `brand.md` colors/fonts when both are present.
-- `brands/{brand}/brand.md` — visual identity (colors, fonts, logo URL), voice, locale, currency, approved phrases. The Colors + Google Font sections are the universal fallback when `design-system/` is absent. Never block on a missing design-system; brand.md is always available.
+**Brand visual identity — read FIRST so the Gamma deck inherits the right palette. Resolve the source in this 3-tier order:**
+1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`. If it returns non-null, use its color tokens (HEX) + typography as the authoritative source for the Gamma `additionalInstructions` at Step 5 — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, fonts from `tokens.fonts.heading`/`body`; the kit has no separate `secondary` or font weight scale). Returns null when no kit is uploaded — fall through to tier 2.
+2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — read per link.md tier 2 (HEX color tokens + typography); also note any component patterns you'll reference in the Gamma `additionalInstructions` at Step 5.
+3. **brands/{brand}/brand.md** — visual identity (colors, fonts, logo URL), voice, locale, currency, approved phrases. The Colors + Google Font sections are the universal fallback when neither of the above is available. Never block on a missing fb.ai key or design-system; brand.md is always available.
 
-Same Visual consistency rule as `agents/link.md` — derive from `design-system/` (preferred) or `brand.md` (fallback), never hardcode brand colors/fonts from memory.
+Same Visual consistency rule as `agents/link.md` — derive from the fb.ai brand kit (`fivebucks_get_brand_kit`, when `FIVEBUCKS_API_KEY` set) → local `design-system/` → `brand.md` (fallback), never hardcode brand colors/fonts from memory.
 
 **Strategic + commercial context:**
 - `brands/{brand}/product.md` — pricing tiers, features per tier, differentiators, add-ons
@@ -144,13 +148,13 @@ Keep total content under 1200 words for a deck (Gamma renders best in this range
 ```
 Use mcp__claude_ai_Gamma__generate_from_template:
 - inputText: <full proposal content from Step 4, structured as section headings>
-- additionalInstructions: "Brand: {brand}. Voice: {voice from brand.md}. Use brand colors: primary {HEX}, secondary {HEX}, accent {HEX}, background {HEX} (from design-system/ when present, brand.md Colors section when fallback — never invent). Typography: {font-family} (from design-system/ when present, brand.md Google Font when fallback). Logo: {logo URL from brand.md}. Persona: {persona}."
+- additionalInstructions: "Brand: {brand}. Voice: {voice from brand.md}. Use brand colors: primary {HEX}, accent {HEX}, background {HEX}, text/dark {HEX} (map each from the active source per the Brand kit field map in agents/link.md — fb.ai kit provides primary/accent/dark/background; local design-system/ or brand.md when the kit is null — never invent). Typography: heading {font-family} + body {font-family} (family names from fb.ai kit / local design-system/ when present, brand.md Google Font when fallback; font weight scale comes only from the local design-system, not the kit). Logo: {logo URL from brand.md}. Persona: {persona}."
 - format: "presentation"
 - numCards: 8
 - exportAs: "pdf"
 ```
 
-Build the `additionalInstructions` string from the values extracted at Step 1 — design-system tokens win when present, brand.md fallback otherwise. The explicit HEX + font-family line is what makes Gamma generate a deck that matches the brand instead of defaulting to its own templates.
+Build the `additionalInstructions` string from the values extracted at Step 1 — fb.ai brand kit tokens win when present, then local design-system/, brand.md fallback otherwise. The explicit HEX + font-family line is what makes Gamma generate a deck that matches the brand instead of defaulting to its own templates.
 
 Capture the returned `gammaUrl` and `pdfUrl`.
 
@@ -333,7 +337,7 @@ Status: Draft Sent | Sent | Failed
 Before finalizing:
 
 - [ ] Deal page parent DB matches `${BRAND}_CRM_DB` — no cross-brand contamination
-- [ ] `brands/{brand}/design-system/` was read at Step 1 when present; brand.md Colors + Google Font used as fallback when absent — never blocked on missing design-system
+- [ ] Brand visual source resolved in 3-tier order at Step 1: fb.ai brand kit (`fivebucks_get_brand_kit`, checked first when `FIVEBUCKS_API_KEY` set) → local `brands/{brand}/design-system/` (when present) → `brand.md` Colors + Google Font; never blocked on a missing key or design-system
 - [ ] Gamma `additionalInstructions` carries explicit HEX values + font-family extracted at Step 1 (or the Google Doc fallback styles the cover/section headings to match) — never invented from memory
 - [ ] All pricing comes from `brands/{brand}/product.md` — no invented prices or tiers
 - [ ] Plan tier matches `sales.md` Default tier per persona unless user explicitly overrode

@@ -7,7 +7,7 @@ use_for: "Monthly investor update — branded Gamma deck (Google Doc fallback) p
 deps:
   mcp: ["Xero", "Stripe", "PostHog", "Notion", "Gmail", "Slack", "Gamma", "Google Drive (fallback when Gamma fails)"]
   gateway: []
-  files: ["investors.md", "finance.md", "brand.md", "product.md", "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"]
+  files: ["investors.md", "finance.md", "brand.md", "product.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_CRM_DB`", "`${BRAND}_REPORTS_DB`"]
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.0 | May 12, 2026 |
+| Link | v2.6.0 | May 20, 2026 |
 
 **Description:** Compose a monthly investor update — pull financials from Xero, MRR/churn from Stripe, product KPIs from PostHog, customer wins from Notion CRM, prior-update context from investors.md. Drafts in founder's voice, redacts per investors.md OMIT rules, packages as a branded Gamma deck (Google Doc fallback), and dispatches a Gmail cover note per investor (or BCC list) linking to the deck. Monthly cron (5th of month for prior month) or on-demand.
 
 ### Change Log
+
+**v2.6.0** — May 20, 2026
+- Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. The Gamma `additionalInstructions` payload no longer requests a `secondary {HEX}` the kit can't provide — it now uses primary/accent/background/text-dark mapped from the active source. Trimmed duplicated design-system reading boilerplate.
 
 **v2.5.0** — May 12, 2026
 - **NEW Step 9 — Generate the Branded Deck.** Gamma deck is now the primary deliverable (Google Doc fallback when Gamma is unavailable or errors). Previous flow dispatched a Gmail draft with markdown body and a Google Doc archive copy — investors got a wall of email. New flow: local markdown audit → Gamma `generate_from_template` with brand HEX colors + font-family in `additionalInstructions` → fall back to Google Doc on Gamma failure → abort entirely (no drafts sent) only if BOTH paths error. Mirrors `proposal-generator` Step 5 and `financial-reporter` Step 6.
@@ -84,11 +87,12 @@ Before starting, confirm these inputs with the user:
 
 ### Step 1 — Read Brand Context
 
-**Brand visual identity — read FIRST so the Gamma deck at Step 9 inherits the right palette:**
-- `brands/{brand}/design-system/` *(optional but authoritative when present)* — Claude Design system. If the folder exists and is non-empty, list its files and read the entry HTML/CSS (typically `index.html`, `styles.css`, or `tokens.json`). Extract color tokens (HEX), typography (font-family + weight scale), and any component patterns you'll reference in the Gamma `additionalInstructions` at Step 9. Takes precedence over `brand.md` colors/fonts when both are present.
-- `brands/{brand}/brand.md` — voice, locale, currency, founder name, sender email. Colors + Google Font sections are the universal fallback when `design-system/` is absent. Never block on a missing design-system; brand.md is always available.
+**Brand visual identity — read FIRST so the Gamma deck at Step 9 inherits the right palette. Resolve the source in this 3-tier order:**
+1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`. If it returns non-null, use its color tokens (HEX) + typography as the authoritative source for the Gamma `additionalInstructions` at Step 9 — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, fonts from `tokens.fonts.heading`/`body`; the kit has no separate `secondary` or font weight scale). Returns null when no kit is uploaded — fall through to tier 2.
+2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — read per link.md tier 2 (HEX color tokens + typography); also note any component patterns you'll reference for the Gamma deck at Step 9.
+3. **brands/{brand}/brand.md** — voice, locale, currency, founder name, sender email. Colors + Google Font sections are the universal fallback when neither of the above is available. Never block on a missing fb.ai key or design-system; brand.md is always available.
 
-Same Visual consistency rule as `agents/link.md` — derive from `design-system/` (preferred) or `brand.md` (fallback), never hardcode brand colors/fonts from memory.
+Same Visual consistency rule as `agents/link.md` — derive from the fb.ai brand kit (`fivebucks_get_brand_kit`, when `FIVEBUCKS_API_KEY` set) → local `design-system/` → `brand.md` (fallback), never hardcode brand colors/fonts from memory.
 
 **Strategic + financial context:**
 - `brands/{brand}/product.md` — KPI definitions: what counts as "active user", DAU/WAU/MAU windows, feature adoption metrics, plan tier list
@@ -251,7 +255,7 @@ Use mcp__claude_ai_Gamma__generate_from_template:
 - text_options: { "amount": "preserve", "tone": "<from brand.md voice>", "language": "en" }
 - card_options: { "dimensions": "16x9" }
 - theme_name: "<brand theme if available, else default>"
-- additionalInstructions: "Brand: {brand}. Use brand colors: primary {HEX}, secondary {HEX}, accent {HEX}, background {HEX} (from design-system/ when present, brand.md Colors section when fallback — never invent). Typography: {font-family} (from design-system/ when present, brand.md Google Font when fallback). Voice: {voice from brand.md}. The deck is a monthly investor update — KPI tables on the KPIs card, bullet wins/lowlights, callout style for the Asks card. Keep visual identity tight to the brand throughout."
+- additionalInstructions: "Brand: {brand}. Use brand colors: primary {HEX}, accent {HEX}, background {HEX}, text/dark {HEX} (map each from the active source per the Brand kit field map in agents/link.md — fb.ai kit provides primary/accent/dark/background; local design-system/ or brand.md when the kit is null — never invent). Typography: heading {font-family} + body {font-family} (family names from fb.ai kit / local design-system/ when present, brand.md Google Font when fallback; font weight scale comes only from the local design-system, not the kit). Voice: {voice from brand.md}. The deck is a monthly investor update — KPI tables on the KPIs card, bullet wins/lowlights, callout style for the Asks card. Keep visual identity tight to the brand throughout."
 - format: "presentation"
 - exportAs: "pdf"
 ```
@@ -476,8 +480,8 @@ Before finalizing:
 - [ ] Gmail drafts saved (not auto-sent) unless user explicitly approved sending
 - [ ] Recipients count matches `investors.md` Investor List filtered by frequency for this period
 - [ ] **Branded deck produced** — Gamma (primary) or Google Doc (fallback); `deck_url` captured. If both paths failed, agent aborted with `failed` log and did NOT send drafts.
-- [ ] **`brands/{brand}/design-system/` was read at Step 1 when present**; brand.md Colors + Google Font used as fallback when absent — never blocked on missing design-system
-- [ ] **Gamma `additionalInstructions` carried explicit HEX values + font-family extracted at Step 1** — deck visual identity matches the brand, not Gamma defaults. (N/A when the GDoc fallback path was used.)
+- [ ] **Brand visual source resolved in 3-tier order at Step 1**: fb.ai brand kit (`fivebucks_get_brand_kit`, checked first when `FIVEBUCKS_API_KEY` set) → local `brands/{brand}/design-system/` (when present) → `brand.md` Colors + Google Font; never blocked on a missing key or design-system
+- [ ] **Gamma `additionalInstructions` carried explicit HEX values + font-family extracted at Step 1** (from fb.ai brand kit / design-system / brand.md) — deck visual identity matches the brand, not Gamma defaults. (N/A when the GDoc fallback path was used.)
 - [ ] Gmail body is a tight cover note (opener + TL;DR + deck link + reply CTA) — NOT a paste of the full markdown source; the deck is the deliverable
 - [ ] Notion archive entry includes `deck_url`, `deck_format`, and `pdf_url` (when Gamma)
 - [ ] Slack notification sent to `$SLACK_NOTIFY_USER` with the deck URL

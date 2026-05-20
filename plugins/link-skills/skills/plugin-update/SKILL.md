@@ -13,11 +13,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.7.1 | May 20, 2026 |
+| Link | v2.8.0 | May 20, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.8.0** — May 20, 2026
+- **Step 3b (design-system)** restored to the local copy flow (Claude Design → export → unzip → move into `brands/{brand}/design-system/`) + an optional fb.ai brand-kit upload (`/dashboard/social-posts/api-keys` → `/dashboard/social-posts/brand-kit`); the fb.ai upload is opt-in (paid plan), the local copy is the baseline.
+- **New Step 3d — optional fb.ai media library** check (`fivebucks_list_media_folders`); offers upload at `/dashboard/social-posts/media` when empty. Subsequent sub-steps renumbered 3e–3k.
 
 **v2.7.1** — May 20, 2026
 - Step 4b readiness now reads each skill's `area` / `deps` from the **pre-generated `skills-manifest.json`** (not by parsing the link.md table), matching brand-setup Step 8d-iv. The manifest ships with the plugin (generated + sync-verified at release time by `commit-to-git` Step 4f); plugin-update **reads** it and does not run the generator in Cowork — it's plain JSON. Part of Phase 0 (generated registry for scaling to 300+ skills).
@@ -459,13 +463,19 @@ If yes, walk the user through `brand-setup` Step 4b:
 
 Verify `brands/{brand}/design-system/` exists and is non-empty before marking complete. If the user skips, mark as ⏭ — not a gap that blocks any skill.
 
+**Optional fb.ai upload:** after the local copy is in place, ask whether the user also wants to upload the design system to fb.ai (only useful with a paid fb.ai plan — lets fb.ai social templates render with the brand's colors/fonts). If yes:
+1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys — generate API Key if not done yet *(skip if already generated)*
+2. Go to https://www.fivebucks.ai/dashboard/social-posts/brand-kit — click **Upload Design System Zip** and upload the ZIP.
+
+The fb.ai upload is optional — the local `design-system/` already works everywhere. Skip is fine.
+
 ### 3c. Optional fb.ai social templates (offer, don't force)
 
 From Step 1h you know which of the four `type`s exist on fb.ai. For any **missing** type the brand would benefit from, offer to set it up — but accept "skip":
 
 > Want to set up any optional social templates? Pick any of the four: Meta Carousel (IG/FB carousel), Meta Story / Reel (IG/FB 9:16), LinkedIn Post (LinkedIn single-image), Meta Post (IG/FB single-image). They make published content more polished and need a paid fb.ai plan. Skip any channel you don't publish on — it falls back to Gemini + Pillow.
 
-If yes, walk through the matching brand-setup sub-step (each = author in Claude Design → upload to the **fb.ai dashboard** → verify via `fivebucks_list_templates`):
+If yes, walk through the matching brand-setup sub-step (each = author in Claude Design → generate API Key at https://www.fivebucks.ai/dashboard/social-posts/api-keys if not done yet → upload ZIP at https://www.fivebucks.ai/dashboard/social-posts/templates → verify via `fivebucks_list_templates`):
 - Meta Carousel → `brand-setup` Step 4c-i
 - Meta Story → `brand-setup` Step 4c-ii
 - LinkedIn Post → `brand-setup` Step 4c-iii
@@ -473,14 +483,27 @@ If yes, walk through the matching brand-setup sub-step (each = author in Claude 
 
 There is **no** local copy, version hash, or gateway-upload step to reconcile — templates live on fb.ai and are detected live. If `FIVEBUCKS_API_KEY` isn't set, skip this step (the brand uses the Gemini + Pillow fallback).
 
-### 3d. brand.md sections (only the missing ones)
+### 3d. Optional fb.ai media library (offer, don't force)
+
+Check whether the brand has any media folders via `fivebucks_list_media_folders`. If the media library is empty and the user wants on-brand photos in generated posts, offer to set it up:
+
+> The fb.ai media library is empty. Uploading brand photos lets skills pick on-brand visuals automatically. Want to add some now? You can always skip and upload later.
+
+If yes:
+> 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys — generate API Key if not done yet *(skip if already generated)*
+> 2. Go to https://www.fivebucks.ai/dashboard/social-posts/media
+> 3. Click **Add New Folder** to organise your media, then **Upload Media** to add your photos.
+
+If the user skips, mark as ⏭ — skills fall back to Gemini image generation. If `FIVEBUCKS_API_KEY` isn't set, skip this step entirely.
+
+### 3e. brand.md sections (only the missing ones)
 
 For each missing section header in `brand.md`, append it without rewriting existing content:
 
 - **Locale missing** — extract Currency / Timezone / Meta USD exchange rate from the website (re-use Step 4 logic). Append a `## Locale` section to `brand.md`.
 - **Social Publishing missing** — re-run `brand-setup` Step 7b Step D (auto-discover Zernio profile + connected accounts via `late_list_profiles` + `late_list_accounts`). Append a `## Social Publishing` section.
 
-### 3e. Env vars (only the missing ones)
+### 3f. Env vars (only the missing ones)
 
 For each missing required env var, ask the user for the value and append/update `.claude/settings.local.json` under `env`. Preserve all existing keys — never overwrite the file wholesale.
 
@@ -540,7 +563,7 @@ For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`
 
 Surface this informationally in the gap report — do not flag as a required gap.
 
-### 3f. MCP connectors
+### 3g. MCP connectors
 
 **For every MCP flagged ❌ or ⏭ in Step 1e, walk the user through the specific connector flow below — do not just list them in the gap report and move on.** The user's brand-setup run is the only place these prompts appear in full; if plugin-update silently skips them, the user will end up with skills that error on first use because their MCP isn't connected.
 
@@ -610,7 +633,7 @@ Iterate through the missing MCPs in this order. For each one, post the prompt ve
 
 After every walkthrough, re-run the corresponding probe from Step 1e and only mark the gap closed when the probe succeeds. If the user said "skip", record it as ⏭ in the final summary so they can revisit later.
 
-### 3g. CLAUDE.md (re-run brand-setup Step 9)
+### 3h. CLAUDE.md (re-run brand-setup Step 9)
 
 **First — always re-embed the full `agents/link.md` body between the BEGIN/END markers, regardless of any other CLAUDE.md gaps. Refreshing the stamp comment alone is wrong — after a `git pull` that adds new skills (e.g. v2.4.0's 10 business-ops skills), the stamp will read "v2.4.0" while the embedded body still describes v2.3.x as a "marketing agent" with no Apollo / Stripe / Xero / etc. mentions. Always replace the body too.**
 
@@ -684,7 +707,7 @@ This runs unconditionally every time plugin-update executes — it is the equiva
 
 Show a unified diff to the user before writing any changes to CLAUDE.md.
 
-### 3h. Settings (manual)
+### 3i. Settings (manual)
 
 For UI-only settings, show a checklist and ask the user to confirm each one:
 
@@ -694,11 +717,11 @@ For UI-only settings, show a checklist and ask the user to confirm each one:
 > - [ ] Project → Permission = Act without asking
 > Reply "all set" when done.
 
-### 3i. Funnel TBD events
+### 3j. Funnel TBD events
 
 If `funnel.md` had `TBD` entries in Step 1c and Windsor.ai is now connected, re-run the GA4 event-discovery flow from `brand-setup` Step 8 #16 and patch in the confirmed event names.
 
-### 3j. Version-specific brand actions
+### 3k. Version-specific brand actions
 
 For each skill/agent flagged as changed in Step 1j, read its `### Change Log` bullets and map them to required brand configuration actions. Use this decision table:
 

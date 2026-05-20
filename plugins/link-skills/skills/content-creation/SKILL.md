@@ -7,7 +7,7 @@ use_for: "Write persona-targeted marketing copy — landing pages, emails, ad co
 deps:
   mcp: []
   gateway: ["fivebucks (opt — fb.ai template manifest shapes `_copy.json`)"]
-  files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt)"]
+  files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.7.0 | May 20, 2026 |
+| Link | v2.8.0 | May 20, 2026 |
 
 **Description:** Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
 
 ### Change Log
+
+**v2.8.0** — May 20, 2026
+- Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
 
 **v2.7.0** — May 20, 2026
 - `_copy.json` contracts now key off **fb.ai templates** (detected via `fivebucks_list_templates`), not local `social-meta-*-template/` folders. Keys are the template's **manifest field keys** (fed to `fivebucks_create_post` overrides). Added **linkedin-post** and **meta-post** single-image contracts alongside meta-carousel and meta-story. Fallback unchanged: no matching template → `_copy.json` optional, Gemini + Pillow reads `_copy.md`.
@@ -92,7 +95,10 @@ Always read before writing:
 - **brands/{brand}/audience.md** — Target persona pain points, objections, buying triggers, language notes
 - **brands/{brand}/product.md** — Features, pricing, differentiators to cite
 - **brands/{brand}/competitors.md** — If a competitive angle is needed
-- **brands/{brand}/design-system/** — Read when present; informs voice / tonal alignment for copy paired with visuals. When absent, fall back to `brand.md` Voice & Tone.
+- **Brand visual identity** — resolve in 3-tier order; informs voice / tonal alignment + any visual specs for copy paired with visuals:
+  1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`; if non-null, use its color tokens + typography — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, fonts from `tokens.fonts.heading`/`body`; the kit has no separate `secondary` or font weight scale). Returns null when no kit is uploaded — fall through to tier 2.
+  2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — read when present.
+  3. **brands/{brand}/brand.md** — Colors + Google Font + Voice & Tone. Universal fallback when neither of the above is available. Never block on a missing key or design-system. Same Visual consistency rule as `agents/link.md`.
 
 When the brief is for a format that has a matching **fb.ai template** (Carousel → `meta-carousel`, Story/Reel → `meta-story`, LinkedIn single-image → `linkedin-post`, IG/FB single-image → `meta-post`), copy must be produced as a **structured JSON artifact** matching the template's manifest field keys — content-generator passes those keys to `fivebucks_create_post` as overrides at render time. Save the JSON next to the markdown copy file as `_copy.json`. (Template existence is detected via `fivebucks_list_templates`; if none, `_copy.json` is optional — see below.)
 
@@ -364,7 +370,7 @@ Before finalizing any content output:
 - [ ] Voice follows brands/{brand}/brand.md (practical, confident, not hypey)
 - [ ] Approved phrases used where appropriate
 - [ ] Do/Don't list followed
-- [ ] Brand colors and typography referenced correctly if visual specs included — derive from `brands/{brand}/design-system/` when present, `brand.md` otherwise; never from memory
+- [ ] Brand colors and typography referenced correctly if visual specs included — derive in 3-tier order: fb.ai brand kit (`fivebucks_get_brand_kit`, checked first when `FIVEBUCKS_API_KEY` set) → local `brands/{brand}/design-system/` (when present) → `brand.md`; never from memory; never blocked on a missing key or design-system
 - [ ] When the brand has a matching fb.ai template (`fivebucks_list_templates`): `_copy.json` produced with that type's manifest field keys (meta-carousel cover_*/s2-5_*/cta_*; meta-story s1_*–s6_*; linkedin-post eyebrow/headline/body/stat_*/quote/attribution/cta_*; meta-post eyebrow/headline/body/quote/attribution/b1-b5/cta_*); per-key character budgets respected
 - [ ] Direction NOT set in `_copy.json` — that's social-calendar's responsibility (lives in the Notion calendar entry's Direction column)
 

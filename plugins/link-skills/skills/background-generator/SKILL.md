@@ -7,7 +7,7 @@ use_for: "Generate 20 background images per brand for Reel video production. Run
 deps:
   mcp: ["Notion"]
   gateway: ["Gemini"]
-  files: ["brand.md", "design-system/ (opt — informs Gemini prompt palette when present, brand.md fallback otherwise)"]
+  files: ["brand.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_NOTION_DB`"]
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.7.0 | May 20, 2026 |
+| Link | v2.8.0 | May 20, 2026 |
 
 **Description:** Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
 
 ### Change Log
+
+**v2.8.0** — May 20, 2026
+- Brand palette resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
 
 **v2.7.0** — May 20, 2026
 - Dropped the "Claude Design shell collections" relationship note that referenced local `social-meta-*-template/` folders. Social-post templates now live on fb.ai (rendered via `fivebucks_*`); this skill's `backgrounds/` library remains an independent, general-purpose set for Reels + the Gemini fallback.
@@ -101,11 +104,12 @@ Extract all unique `ImageBrief` values (column index 8). These are the prompts.
 
 ## Step 2 — Build prompt list (20 per brand)
 
-**Read brand visual identity FIRST so every prompt is palette-aware:**
-- **brands/{brand}/design-system/** *(optional but authoritative when present)* — list its files and read the entry HTML/CSS or `tokens.json` for the primary / secondary / background HEX values.
-- **brands/{brand}/brand.md** — Colors section. Universal fallback when `design-system/` is absent. Never block on missing design-system; brand.md is always available.
+**Read brand visual identity FIRST so every prompt is palette-aware. Resolve the source in this 3-tier order:**
+1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`. If it returns non-null, use its color tokens (primary / accent / background HEX) as the authoritative source — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`; the kit has no separate `secondary` token). Returns null when no kit is uploaded — fall through to tier 2.
+2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — read per link.md tier 2 for the brand HEX palette.
+3. **brands/{brand}/brand.md** — Colors section. Universal fallback when neither of the above is available. Never block on a missing fb.ai key or design-system; brand.md is always available.
 
-Same Visual consistency rule as `agents/link.md` — derive from `design-system/` (preferred) or `brand.md` (fallback), never hardcode brand colors from memory.
+Same Visual consistency rule as `agents/link.md` — derive from the fb.ai brand kit (`fivebucks_get_brand_kit`, when `FIVEBUCKS_API_KEY` set) → local `design-system/` → `brand.md` (fallback), never hardcode brand colors from memory.
 
 Take up to 20 unique ImageBriefs from Step 1. If fewer than 20, create variations of existing briefs by changing:
 - Lighting (morning light, golden hour, dim ambient, bright studio)
@@ -114,7 +118,7 @@ Take up to 20 unique ImageBriefs from Step 1. If fewer than 20, create variation
 
 **Prompt rules:**
 - Use the `ImageBrief` exactly as written in the calendar
-- **Append a brand-palette hint to every prompt** using the HEX values from the design-system read above — phrased as ambient mood, e.g. `", warm tones around #ec4899 with muted slate (#0f172a) shadows"` or `", rich teal accents (#0d9488) on a near-black background (#0a0a0a)"`. This keeps the library on-brand without baking literal HEX swatches into the image. Skip the hint only when `design-system/` AND the `brand.md` Colors section are both empty (rare — brand-setup writes brand.md Colors on every run).
+- **Append a brand-palette hint to every prompt** using the HEX values from the brand-visual read above (fb.ai brand kit / local design-system/ when present, brand.md when fallback) — phrased as ambient mood, e.g. `", warm tones around #ec4899 with muted slate (#0f172a) shadows"` or `", rich teal accents (#0d9488) on a near-black background (#0a0a0a)"`. This keeps the library on-brand without baking literal HEX swatches into the image. Skip the hint only when the fb.ai kit, `design-system/`, AND the `brand.md` Colors section are all empty (rare — brand-setup writes brand.md Colors on every run).
 - NEVER use the word "portrait" — Gemini generates actual portrait photos
 - Every prompt must end with: "No text. No logos. No watermarks."
 
@@ -184,8 +188,8 @@ Location: brands/{brand}/backgrounds/
 - [ ] Filenames are descriptive (content-generator can pick by Topic)
 - [ ] No "portrait" in any prompt
 - [ ] All prompts end with "No text. No logos. No watermarks."
-- [ ] `brands/{brand}/design-system/` was read at Step 2 when present; brand.md Colors used as fallback when absent — never blocked on missing design-system
-- [ ] Every Gemini prompt carries a brand-palette hint (HEX values from design-system or brand.md, phrased as ambient mood) — library is on-brand
+- [ ] Brand visual source resolved in 3-tier order at Step 2: fb.ai brand kit (`fivebucks_get_brand_kit`, checked first when `FIVEBUCKS_API_KEY` set) → local `brands/{brand}/design-system/` (when present) → `brand.md` Colors; never blocked on a missing key or design-system
+- [ ] Every Gemini prompt carries a brand-palette hint (HEX values from fb.ai brand kit / design-system / brand.md, phrased as ambient mood) — library is on-brand
 - [ ] 6-second delay between image generation calls
 - [ ] Existing images NOT deleted (library grows)
 - [ ] Slack notification sent

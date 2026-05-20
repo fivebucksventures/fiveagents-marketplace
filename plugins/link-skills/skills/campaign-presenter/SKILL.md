@@ -7,7 +7,7 @@ use_for: "Package marketing strategies into presentation decks — campaign deck
 deps:
   mcp: ["Canva"]
   gateway: []
-  files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt — informs Canva brand-kit selection + slide visual choices when present, brand.md fallback otherwise)"]
+  files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.6 | May 12, 2026 |
+| Link | v2.3.0 | May 20, 2026 |
 
 **Description:** Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks for any active brand
 
 ### Change Log
+
+**v2.3.0** — May 20, 2026
+- Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
 
 **v2.2.6** — May 12, 2026
 - Step 1 (Read relevant context files) — restructured with a leading "Brand visual system" block. Probes `brands/{brand}/design-system/` (preferred — extract HEX color tokens + typography) then `brand.md` Colors + Google Font (fallback). Strategic-context files (audience.md, competitors.md, product.md) now grouped under their own subhead.
@@ -117,16 +120,17 @@ Every campaign deck must follow this narrative arc — adapt the slide count, no
 
 ### Step 1: Read relevant context files
 
-**Brand visual system — read FIRST so colors and typography are settled before any Canva call:**
-- **brands/{brand}/design-system/** *(optional but authoritative when present)* — Claude Design visual system. If the folder exists and is non-empty, list its files and read the entry HTML/CSS (typically `index.html`, `styles.css`, or `tokens.json`). Extract: color tokens (HEX values for primary/secondary/background/text), typography (font-family + weight scale), and any component styles you'll reference in `visual_note` fields. These take precedence over `brand.md` colors/fonts when both are present.
-- **brands/{brand}/brand.md** — Voice, positioning, approved phrases. Also the canonical Colors and Google Font sections — these are the universal fallback when `design-system/` is absent. Never block on a missing design-system; brand.md is always available.
+**Brand visual system — read FIRST so colors and typography are settled before any Canva call. Resolve the source in this 3-tier order:**
+1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`. If it returns non-null, use its color tokens (HEX for primary/secondary/background/text) + typography as the authoritative source — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, fonts from `tokens.fonts.heading`/`body`; the kit has no separate `secondary` or font weight scale). Returns null when no kit is uploaded — fall through to tier 2.
+2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — read per link.md tier 2 (HEX color tokens + typography); for this skill, also pull any component styles you'll reference in `visual_note` fields.
+3. **brands/{brand}/brand.md** — Voice, positioning, approved phrases. Also the canonical Colors and Google Font sections — the universal fallback when neither of the above is available. Never block on a missing fb.ai key or design-system; brand.md is always available.
 
 **Strategic context:**
 - **brands/{brand}/audience.md** — Target persona for this campaign
 - **brands/{brand}/competitors.md** — Market context and opportunity framing
 - **brands/{brand}/product.md** — Features and capabilities to highlight
 
-> Never hardcode colors or fonts from memory. Derive from `design-system/` (preferred) or `brand.md` (fallback) — same global rule as the rest of the Link agent (see `agents/link.md` Visual consistency rule).
+> Never hardcode colors or fonts from memory. Derive from the fb.ai brand kit (`fivebucks_get_brand_kit`, when `FIVEBUCKS_API_KEY` set) → local `design-system/` → `brand.md` (fallback) — same global rule as the rest of the Link agent (see `agents/link.md` Visual consistency rule).
 
 ### Step 1b: Research market data via WebSearch (MANDATORY — do not skip)
 
@@ -162,7 +166,7 @@ Use the **Canva MCP connector** to create a professional presentation:
 ```
 Use Canva MCP tool `generate-design`:
 - design_type: "presentation"
-- query: Build from the slide outline in Step 3. Include all slide titles, body bullets, and visual notes in the query. Mention the brand name and tone (from brand.md). Inject the brand's visual identity into the query — explicit color HEX values + font family from Step 1 (design-system/ when present, brand.md when fallback). Canva picks templates that match the declared palette, so a clear "Use primary #2563eb, accent #f59e0b, headings in Inter Bold, body in Inter Regular" line in the query produces decks that match the brand without manual recolor.
+- query: Build from the slide outline in Step 3. Include all slide titles, body bullets, and visual notes in the query. Mention the brand name and tone (from brand.md). Inject the brand's visual identity into the query — explicit color HEX values + font family from Step 1 (fb.ai brand kit / local design-system/ when present, brand.md when fallback). Canva picks templates that match the declared palette, so a clear "Use primary #2563eb, accent #f59e0b, headings in Inter Bold, body in Inter Regular" line in the query produces decks that match the brand without manual recolor.
 - brand_kit_id: Use `list-brand-kits` first to find the client's Canva brand kit (if they have one) — a brand kit overrides the color/font line in the query, so prefer the kit when available.
 ```
 
@@ -267,10 +271,10 @@ Before finalizing any deck output:
 - [ ] No guaranteed promises or timeframes (unless documented in product.md)
 
 **Visual identity:**
-- [ ] `brands/{brand}/design-system/` was read at Step 1 when present; colors and fonts extracted before the Canva call
-- [ ] When `design-system/` was absent, `brand.md` Colors + Google Font sections were used as fallback — never hardcoded from memory
+- [ ] Brand visual source resolved in 3-tier order at Step 1: fb.ai brand kit (`fivebucks_get_brand_kit`, checked first when `FIVEBUCKS_API_KEY` set) → local `brands/{brand}/design-system/` (when present) → `brand.md`; colors and fonts extracted before the Canva call
+- [ ] When the fb.ai kit was null/unavailable and `design-system/` was absent, `brand.md` Colors + Google Font sections were used as fallback — never hardcoded from memory; never blocked on a missing key or design-system
 - [ ] The Canva `generate-design` query named the brand's primary/accent colors (HEX) and font family explicitly, OR a Canva brand kit was attached via `brand_kit_id`
-- [ ] Final deck visually matches the brand's design-system / brand.md palette (no off-brand template colors carried over from Canva defaults)
+- [ ] Final deck visually matches the brand's fb.ai brand kit / design-system / brand.md palette (no off-brand template colors carried over from Canva defaults)
 
 **Output:**
 - [ ] Saved to outputs/{brand}/presentations/ with correct naming and metadata

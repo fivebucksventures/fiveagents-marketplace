@@ -7,7 +7,7 @@ use_for: "Monthly P&L, cashflow forecast, runway, top movers. Investor-ready Gam
 deps:
   mcp: ["Xero", "Gamma", "Notion", "Slack", "Stripe (opt — degrades to Xero-only invoice data when absent)", "PayPal (opt — adds PayPal revenue when connected)", "Google Drive (opt — fallback when Gamma fails)"]
   gateway: []
-  files: ["finance.md", "brand.md", "design-system/ (opt — informs Gamma deck visual identity)"]
+  files: ["finance.md", "brand.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_REPORTS_DB` (auto-bootstraps)"]
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.1 | May 12, 2026 |
+| Link | v2.5.0 | May 20, 2026 |
 
 **Description:** Monthly P&L, cashflow forecast, runway calculation, and top movers. Investor-ready Gamma deck plus Slack summary, archived to Notion.
 
 ### Change Log
+
+**v2.5.0** — May 20, 2026
+- Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. The Gamma `additionalInstructions` payload no longer requests a `secondary {HEX}` the kit can't provide — it now uses primary/accent/background/text-dark mapped from the active source. Trimmed duplicated design-system reading boilerplate.
 
 **v2.4.1** — May 12, 2026
 - Step 6 (Generate the report deck via Gamma) — restructured with an explicit "Brand visual identity — read FIRST" block. design-system/ probed first (extract HEX color tokens + typography), brand.md Colors + Google Font as fallback. Same Visual consistency rule as `agents/link.md`.
@@ -237,11 +240,12 @@ Build a `breaches[]` list (each: `{rule, metric, value, threshold, severity}`) �
 
 ### Step 6: Generate the report deck via Gamma
 
-**Brand visual identity — read FIRST so the deck matches the brand instead of Gamma defaults:**
-- `brands/{brand}/design-system/` *(optional but authoritative when present)* — list its files and read the entry HTML/CSS or `tokens.json` for color HEX tokens (primary/secondary/accent/background) and typography (font-family + weight scale).
-- `brands/{brand}/brand.md` — Colors section + Google Font name + Voice & Tone + Approved phrases. Universal fallback when `design-system/` is absent. Never block on missing design-system.
+**Brand visual identity — read FIRST so the deck matches the brand instead of Gamma defaults. Resolve the source in this 3-tier order:**
+1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`. If it returns non-null, use its color HEX tokens + typography as the authoritative source — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, fonts from `tokens.fonts.heading`/`body`; the kit has no separate `secondary` or font weight scale). Returns null when no kit is uploaded — fall through to tier 2.
+2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — read per link.md tier 2 (HEX color tokens + typography).
+3. **brands/{brand}/brand.md** — Colors section + Google Font name + Voice & Tone + Approved phrases. Universal fallback when neither of the above is available. Never block on a missing fb.ai key or design-system.
 
-Same Visual consistency rule as `agents/link.md` — derive from `design-system/` (preferred) or `brand.md` (fallback), never hardcode brand colors/fonts from memory. The values from this read feed the Gamma `additionalInstructions` below.
+Same Visual consistency rule as `agents/link.md` — derive from the fb.ai brand kit (`fivebucks_get_brand_kit`, when `FIVEBUCKS_API_KEY` set) → local `design-system/` → `brand.md` (fallback), never hardcode brand colors/fonts from memory. The values from this read feed the Gamma `additionalInstructions` below.
 
 ```
 Use mcp__claude_ai_Gamma__generate_from_template:
@@ -249,7 +253,7 @@ Use mcp__claude_ai_Gamma__generate_from_template:
 - text_options: { "amount": "preserve", "tone": "<from brand.md voice>", "language": "en" }
 - card_options: { "dimensions": "16x9" }
 - theme_name: "<brand theme if available, else default>"
-- additionalInstructions: "Brand: {brand}. Use brand colors: primary {HEX}, secondary {HEX}, accent {HEX}, background {HEX} (from design-system/ when present, brand.md Colors section when fallback). Typography: {font-family} (from design-system/ when present, brand.md Google Font when fallback). Voice: {voice from brand.md}. The deck is an investor-ready monthly financial report — keep visual identity tight to the brand throughout."
+- additionalInstructions: "Brand: {brand}. Use brand colors: primary {HEX}, accent {HEX}, background {HEX}, text/dark {HEX} (map each from the active source per the Brand kit field map in agents/link.md — fb.ai kit provides primary/accent/dark/background; local design-system/ or brand.md when the kit is null). Typography: heading {font-family} + body {font-family} (family names from fb.ai kit / local design-system/ when present, brand.md Google Font when fallback; font weight scale comes only from the local design-system, not the kit). Voice: {voice from brand.md}. The deck is an investor-ready monthly financial report — keep visual identity tight to the brand throughout."
 - format: "presentation"
 ```
 
@@ -471,8 +475,8 @@ Before finalizing any monthly report:
 - [ ] Top 5 revenue movers and top 5 expense movers each tagged (`new` / `expansion` / `contraction` / `churn` for revenue; absolute delta sort for expenses)
 - [ ] Currency conversions use Xero month-end rate; reporting currency matches `finance.md` Reporting Currency
 - [ ] Gamma deck (or Google Doc fallback) generated and PDF export URL captured
-- [ ] `brands/{brand}/design-system/` was read at Step 6 when present; brand.md Colors + Google Font used as fallback when absent — never blocked on missing design-system
-- [ ] Gamma `additionalInstructions` carried explicit HEX values + font-family extracted at Step 6 — deck visual identity matches the brand, not Gamma defaults
+- [ ] Brand visual source resolved in 3-tier order at Step 6: fb.ai brand kit (`fivebucks_get_brand_kit`, checked first when `FIVEBUCKS_API_KEY` set) → local `brands/{brand}/design-system/` (when present) → `brand.md` Colors + Google Font; never blocked on a missing key or design-system
+- [ ] Gamma `additionalInstructions` carried explicit HEX values + font-family extracted at Step 6 (from fb.ai brand kit / design-system / brand.md) — deck visual identity matches the brand, not Gamma defaults
 - [ ] Notion archive row created in `${BRAND}_REPORTS_DB` with Status="Final" and all KPI columns populated
 - [ ] Local backup saved to `outputs/{brand}/finance/Report_{YYYYMM}.md` with full source-attribution map
 - [ ] Slack summary delivered with vs-prior arrows, runway, top movers, breach flags, and three deliverable links
