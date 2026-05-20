@@ -2,6 +2,13 @@
 name: outreach-sequencer
 description: Send personalized cold email sequences via Gmail (self-managed loop), track replies, schedule follow-ups, and route booked meetings to Calendly. Runs daily on cron schedule.
 allowed-tools: Read, Grep, Glob, Bash
+area: Sales
+use_for: "Self-managed Gmail cold-email sequences. Tracks replies, schedules follow-ups, books meetings via Calendly"
+deps:
+  mcp: ["Calendly", "Gmail", "Notion", "Slack"]
+  gateway: ["email"]
+  files: ["sales.md", "audience.md", "product.md", "brand.md"]
+  env: ["`${BRAND}_CRM_DB` (must be bootstrapped by `apollo-lead-prospector` first)"]
 ---
 
 ## Maintenance

@@ -1,0 +1,543 @@
+[
+  {
+    "name": "brand-setup",
+    "area": "Setup",
+    "use_for": "Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files",
+    "description": "Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files",
+    "deps": {
+      "mcp": [
+        "all (this is the setup skill — it walks the user through connecting everything)"
+      ],
+      "gateway": [],
+      "files": [],
+      "env": []
+    },
+    "version": "v2.7.1"
+  },
+  {
+    "name": "plugin-update",
+    "area": "Setup",
+    "use_for": "Bring an existing brand's setup up to date with the latest plugin version — detects gaps since last brand-setup run and fills only what's missing (idempotent)",
+    "description": "Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively.",
+    "deps": {
+      "mcp": [
+        "all (this is the audit skill — it probes everything)"
+      ],
+      "gateway": [],
+      "files": [],
+      "env": []
+    },
+    "version": "v2.7.1"
+  },
+  {
+    "name": "background-generator",
+    "area": "Marketing",
+    "use_for": "Generate 20 background images per brand for Reel video production. Run manually or schedule externally",
+    "description": "Generate 20 background images per brand for Reel video production. Run manually or schedule externally.",
+    "deps": {
+      "mcp": [
+        "Notion"
+      ],
+      "gateway": [
+        "Gemini"
+      ],
+      "files": [
+        "brand.md",
+        "design-system/ (opt — informs Gemini prompt palette when present, brand.md fallback otherwise)"
+      ],
+      "env": [
+        "`${BRAND}_NOTION_DB`"
+      ]
+    },
+    "version": "v2.7.0"
+  },
+  {
+    "name": "campaign-presenter",
+    "area": "Marketing",
+    "use_for": "Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks",
+    "description": "Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks for any active brand",
+    "deps": {
+      "mcp": [
+        "Canva"
+      ],
+      "gateway": [],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "product.md",
+        "competitors.md",
+        "design-system/ (opt — informs Canva brand-kit selection + slide visual choices when present, brand.md fallback otherwise)"
+      ],
+      "env": []
+    },
+    "version": "v2.2.6"
+  },
+  {
+    "name": "content-creation",
+    "area": "Marketing",
+    "use_for": "Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy",
+    "description": "Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (opt — fb.ai template manifest shapes `_copy.json`)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "product.md",
+        "competitors.md",
+        "design-system/ (opt)"
+      ],
+      "env": []
+    },
+    "version": "v2.7.0"
+  },
+  {
+    "name": "content-generator",
+    "area": "Marketing",
+    "use_for": "Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack",
+    "description": "Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack. Runs daily on cron schedule.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [
+        "Gemini",
+        "Argil",
+        "Zernio",
+        "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "product.md",
+        "design-system/ (opt)"
+      ],
+      "env": [
+        "`${BRAND}_NOTION_DB`",
+        "`${BRAND}_LATE_FB/IG/LI`"
+      ]
+    },
+    "version": "v2.7.0"
+  },
+  {
+    "name": "creative-designer",
+    "area": "Marketing",
+    "use_for": "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding",
+    "description": "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "Gemini",
+        "Argil",
+        "Zernio",
+        "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "design-system/ (opt — falls back to brand.md colors/fonts)",
+        "avatars.md (opt — only for Reel/Argil video path)"
+      ],
+      "env": []
+    },
+    "version": "v2.7.0"
+  },
+  {
+    "name": "data-analysis",
+    "area": "Marketing",
+    "use_for": "Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis",
+    "description": "Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand",
+    "deps": {
+      "mcp": [
+        "Windsor.ai"
+      ],
+      "gateway": [
+        "Zernio (ads) (opt — fallback data pull + act-on-findings)"
+      ],
+      "files": [
+        "brand.md",
+        "funnel.md"
+      ],
+      "env": [
+        "`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)",
+        "`${BRAND}_LATE_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)",
+        "`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair)"
+      ]
+    },
+    "version": "v2.3.3"
+  },
+  {
+    "name": "digital-marketing-analyst",
+    "area": "Marketing",
+    "use_for": "Daily and weekly paid ads analysis — Google Ads, Meta Ads, LinkedIn Ads (opt), GA4 funnel analysis with structured JSON email briefs",
+    "description": "Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs for any active brand",
+    "deps": {
+      "mcp": [
+        "Windsor.ai",
+        "Slack",
+        "Gmail (opt — fallback when fiveagents_send_email returns 403)",
+        "Meta Ads MCP (opt — Windsor covers Meta when absent)"
+      ],
+      "gateway": [
+        "email",
+        "Zernio (ads) (opt — Windsor fallback data pull; Phase 4 ads actions)"
+      ],
+      "files": [
+        "brand.md",
+        "funnel.md"
+      ],
+      "env": [
+        "`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)",
+        "`${BRAND}_LATE_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)",
+        "`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair; gates Phase 2.5 and weekly Step 1d)"
+      ]
+    },
+    "version": "v2.3.3"
+  },
+  {
+    "name": "research-strategy",
+    "area": "Marketing",
+    "use_for": "Market research, ICP definition, positioning, competitive analysis, campaign briefs",
+    "description": "Market research, ICP definition, positioning, competitive analysis, campaign briefs for any active brand",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "DataforSEO (opt)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "product.md",
+        "competitors.md"
+      ],
+      "env": []
+    },
+    "version": "v2.2.5"
+  },
+  {
+    "name": "social-calendar",
+    "area": "Marketing",
+    "use_for": "Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule",
+    "description": "Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand. Runs weekly on Sunday cron schedule.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "product.md",
+        "competitors.md"
+      ],
+      "env": [
+        "`${BRAND}_NOTION_DB`"
+      ]
+    },
+    "version": "v2.7.0"
+  },
+  {
+    "name": "social-publisher",
+    "area": "Marketing",
+    "use_for": "Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio",
+    "description": "Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand",
+    "deps": {
+      "mcp": [
+        "Slack"
+      ],
+      "gateway": [
+        "Zernio"
+      ],
+      "files": [
+        "brand.md"
+      ],
+      "env": [
+        "`${BRAND}_LATE_FB`",
+        "`${BRAND}_LATE_IG`",
+        "`${BRAND}_LATE_LI` (per-platform; only required for platforms the brand publishes to)"
+      ]
+    },
+    "version": "v2.2.5"
+  },
+  {
+    "name": "apollo-lead-prospector",
+    "area": "Sales",
+    "use_for": "Daily prospect search via Apollo against the brand's ICP, with deduplication, ICP fit scoring, and Notion CRM dropoff",
+    "description": "Daily B2B prospect search via Apollo against the brand's ICP, with deduplication, scoring, and Notion CRM dropoff. Runs daily on cron schedule.",
+    "deps": {
+      "mcp": [
+        "Apollo.io",
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [],
+      "files": [
+        "sales.md",
+        "audience.md",
+        "competitors.md",
+        "brand.md"
+      ],
+      "env": [
+        "`${BRAND}_CRM_DB` (auto-bootstraps on first run)"
+      ]
+    },
+    "version": "v2.4.0"
+  },
+  {
+    "name": "outreach-sequencer",
+    "area": "Sales",
+    "use_for": "Self-managed Gmail cold-email sequences. Tracks replies, schedules follow-ups, books meetings via Calendly",
+    "description": "Send personalized cold email sequences via Gmail (self-managed loop), track replies, schedule follow-ups, and route booked meetings to Calendly. Runs daily on cron schedule.",
+    "deps": {
+      "mcp": [
+        "Calendly",
+        "Gmail",
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [
+        "email"
+      ],
+      "files": [
+        "sales.md",
+        "audience.md",
+        "product.md",
+        "brand.md"
+      ],
+      "env": [
+        "`${BRAND}_CRM_DB` (must be bootstrapped by `apollo-lead-prospector` first)"
+      ]
+    },
+    "version": "v2.4.0"
+  },
+  {
+    "name": "proposal-generator",
+    "area": "Sales",
+    "use_for": "Generate branded sales proposal from a deal record. Gamma deck or Google Doc with embedded Stripe payment link",
+    "description": "Generate a branded sales proposal from a CRM deal record — packaged as a Gamma deck (or Google Doc fallback) with embedded Stripe payment link, emailed to the prospect via Gmail draft. On-demand per deal.",
+    "deps": {
+      "mcp": [
+        "Stripe",
+        "Gamma",
+        "Google Drive",
+        "Gmail",
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [],
+      "files": [
+        "sales.md",
+        "product.md",
+        "brand.md",
+        "audience.md",
+        "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"
+      ],
+      "env": [
+        "`${BRAND}_CRM_DB`"
+      ]
+    },
+    "version": "v2.4.1"
+  },
+  {
+    "name": "churn-predictor",
+    "area": "Customer Success",
+    "use_for": "Daily customer health-scoring via PostHog usage signals + Stripe subscription state. Alerts on at-risk transitions",
+    "description": "Daily customer health scoring across the active book of business. Pulls usage signals from PostHog and subscription state from Stripe, scores each active customer per the brand's customer-success playbook, updates the Notion customer DB, and Slack-alerts on at-risk transitions. Runs daily on cron schedule.",
+    "deps": {
+      "mcp": [
+        "PostHog",
+        "Stripe",
+        "Gmail",
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [],
+      "files": [
+        "customer-success.md",
+        "audience.md",
+        "product.md"
+      ],
+      "env": [
+        "`${BRAND}_CUSTOMER_DB`"
+      ]
+    },
+    "version": "v2.4.0"
+  },
+  {
+    "name": "customer-onboarder",
+    "area": "Customer Success",
+    "use_for": "Drive new-customer setup checklist. Welcome email, kickoff scheduling, shared Notion workspace, milestone tracking",
+    "description": "Drive new-customer setup checklist — welcome email, kickoff scheduling, shared Notion workspace, Slack notification, milestone tracking. Event-triggered on Stripe checkout success or CRM Stage=\"Closed Won\".",
+    "deps": {
+      "mcp": [
+        "Stripe",
+        "Calendly",
+        "Gmail",
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [],
+      "files": [
+        "customer-success.md",
+        "brand.md",
+        "product.md",
+        "audience.md (opt — used only when persona is on the customer record)"
+      ],
+      "env": [
+        "`${BRAND}_CRM_DB`",
+        "`${BRAND}_CUSTOMER_DB` (auto-bootstraps)"
+      ]
+    },
+    "version": "v2.4.0"
+  },
+  {
+    "name": "financial-reporter",
+    "area": "Finance",
+    "use_for": "Monthly P&L, cashflow forecast, runway, top movers. Investor-ready Gamma deck + Slack summary",
+    "description": "Monthly P&L, cashflow forecast, runway calculation, and top movers. Investor-ready Gamma deck plus Slack summary, archived to Notion. Runs monthly on a 1st-of-month cron schedule.",
+    "deps": {
+      "mcp": [
+        "Xero",
+        "Gamma",
+        "Notion",
+        "Slack",
+        "Stripe (opt — degrades to Xero-only invoice data when absent)",
+        "PayPal (opt — adds PayPal revenue when connected)",
+        "Google Drive (opt — fallback when Gamma fails)"
+      ],
+      "gateway": [],
+      "files": [
+        "finance.md",
+        "brand.md",
+        "design-system/ (opt — informs Gamma deck visual identity)"
+      ],
+      "env": [
+        "`${BRAND}_REPORTS_DB` (auto-bootstraps)"
+      ]
+    },
+    "version": "v2.4.1"
+  },
+  {
+    "name": "invoice-collector",
+    "area": "Finance",
+    "use_for": "Daily check for overdue Xero invoices. Sends polite reminders escalating in tone over time",
+    "description": "Daily overdue-invoice chaser. Pulls receivables from Xero, escalates reminder tone over time per the brand's finance playbook, drafts/sends Gmail reminders, tracks chase state in Notion, and posts a daily Slack digest. Runs daily on cron schedule.",
+    "deps": {
+      "mcp": [
+        "Xero",
+        "Gmail",
+        "Notion",
+        "Slack",
+        "Stripe (opt — payment-link fallback when Xero `payment_url` missing)"
+      ],
+      "gateway": [
+        "email (opt — only when finance.md `Send Mode: auto`)"
+      ],
+      "files": [
+        "finance.md",
+        "brand.md"
+      ],
+      "env": [
+        "`${BRAND}_INVOICE_TRACKER_DB` (auto-bootstraps)"
+      ]
+    },
+    "version": "v2.4.0"
+  },
+  {
+    "name": "competitor-monitor",
+    "area": "Strategy",
+    "use_for": "Weekly diff of competitor websites, pricing, blogs, careers. Alerts on price changes, exec moves, new features",
+    "description": "Weekly diff of competitor websites, pricing pages, blogs, careers pages, and exec movements. Classifies and scores every change, archives to Notion, alerts Slack on high-signal events. Runs weekly on Monday morning cron schedule.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [],
+      "files": [
+        "competitors.md (with v2.4.0 extension fields: `monitor_urls`, `track_pages`, `exec_team`)",
+        "brand.md"
+      ],
+      "env": [
+        "`${BRAND}_COMPETITOR_DB` (auto-bootstraps)"
+      ]
+    },
+    "version": "v2.4.0"
+  },
+  {
+    "name": "decision-advisor",
+    "area": "Strategy",
+    "use_for": "Structure a hard business decision — frame the choice, score options against weighted criteria, run a pre-mortem + stress-test, produce a recommendation + decision record",
+    "description": "Structure a hard business decision — frame the choice, score options against weighted criteria, run a pre-mortem and stress-test, and produce a recommendation + decision record for any active brand",
+    "deps": {
+      "mcp": [],
+      "gateway": [],
+      "files": [
+        "brand.md (+ audience.md / product.md / competitors.md / finance.md / funnel.md as relevant, all opt)"
+      ],
+      "env": []
+    },
+    "version": "v2.8.0"
+  },
+  {
+    "name": "investor-update-writer",
+    "area": "Strategy",
+    "use_for": "Monthly investor update — branded Gamma deck (Google Doc fallback) plus per-investor Gmail draft. Combines Xero financials + PostHog product KPIs + CRM wins, drafts in founder voice",
+    "description": "Compose a monthly investor update — pull financials from Xero, MRR/churn from Stripe, product KPIs from PostHog, customer wins from Notion CRM, prior-update context from investors.md. Drafts in founder's voice, redacts per investors.md OMIT rules, packages as a branded Gamma deck (Google Doc fallback), and dispatches a Gmail cover note per investor (or BCC list) linking to the deck. Monthly cron (5th of month for prior month) or on-demand.",
+    "deps": {
+      "mcp": [
+        "Xero",
+        "Stripe",
+        "PostHog",
+        "Notion",
+        "Gmail",
+        "Slack",
+        "Gamma",
+        "Google Drive (fallback when Gamma fails)"
+      ],
+      "gateway": [],
+      "files": [
+        "investors.md",
+        "finance.md",
+        "brand.md",
+        "product.md",
+        "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"
+      ],
+      "env": [
+        "`${BRAND}_CRM_DB`",
+        "`${BRAND}_REPORTS_DB`"
+      ]
+    },
+    "version": "v2.5.0"
+  },
+  {
+    "name": "meeting-analyzer",
+    "area": "Productivity",
+    "use_for": "Process meeting transcripts into structured action items + decisions. Routes owners, syncs Notion, drafts follow-ups",
+    "description": "Process a meeting transcript (Google Drive file URL or pasted text) into structured action items + decisions. Routes owners per operations.md, syncs to Notion `${BRAND}_MEETINGS_DB` + `${BRAND}_ACTIONS_DB`, sends Slack DMs to owners, drafts follow-up Gmail for client/sales meetings. Event-triggered (new transcript lands in Google Drive) or on-demand.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack",
+        "Google Drive",
+        "Gmail"
+      ],
+      "gateway": [],
+      "files": [
+        "operations.md (opt — falls back to Unassigned owner)",
+        "brand.md",
+        "audience.md (opt — only for client/sales meetings)",
+        "sales.md (opt — Sender Persona signature block)"
+      ],
+      "env": [
+        "`${BRAND}_MEETINGS_DB`",
+        "`${BRAND}_ACTIONS_DB` (both auto-bootstrap)"
+      ]
+    },
+    "version": "v2.4.0"
+  }
+]

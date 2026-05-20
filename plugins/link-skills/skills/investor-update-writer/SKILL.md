@@ -2,6 +2,13 @@
 name: investor-update-writer
 description: Compose a monthly investor update — pull financials from Xero, MRR/churn from Stripe, product KPIs from PostHog, customer wins from Notion CRM, prior-update context from investors.md. Drafts in founder's voice, redacts per investors.md OMIT rules, packages as a branded Gamma deck (Google Doc fallback), and dispatches a Gmail cover note per investor (or BCC list) linking to the deck. Monthly cron (5th of month for prior month) or on-demand.
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, mcp__claude_ai_Xero, mcp__claude_ai_Stripe, mcp__claude_ai_PostHog, mcp__claude_ai_Notion, mcp__claude_ai_Gmail, mcp__claude_ai_Gamma, mcp__claude_ai_Google_Drive, mcp__claude_ai_Slack
+area: Strategy
+use_for: "Monthly investor update — branded Gamma deck (Google Doc fallback) plus per-investor Gmail draft. Combines Xero financials + PostHog product KPIs + CRM wins, drafts in founder voice"
+deps:
+  mcp: ["Xero", "Stripe", "PostHog", "Notion", "Gmail", "Slack", "Gamma", "Google Drive (fallback when Gamma fails)"]
+  gateway: []
+  files: ["investors.md", "finance.md", "brand.md", "product.md", "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"]
+  env: ["`${BRAND}_CRM_DB`", "`${BRAND}_REPORTS_DB`"]
 ---
 
 ## Maintenance

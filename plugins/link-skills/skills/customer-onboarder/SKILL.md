@@ -2,6 +2,13 @@
 name: customer-onboarder
 description: Drive new-customer setup checklist — welcome email, kickoff scheduling, shared Notion workspace, Slack notification, milestone tracking. Event-triggered on Stripe checkout success or CRM Stage="Closed Won".
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
+area: Customer Success
+use_for: "Drive new-customer setup checklist. Welcome email, kickoff scheduling, shared Notion workspace, milestone tracking"
+deps:
+  mcp: ["Stripe", "Calendly", "Gmail", "Notion", "Slack"]
+  gateway: []
+  files: ["customer-success.md", "brand.md", "product.md", "audience.md (opt — used only when persona is on the customer record)"]
+  env: ["`${BRAND}_CRM_DB`", "`${BRAND}_CUSTOMER_DB` (auto-bootstraps)"]
 ---
 
 ## Maintenance

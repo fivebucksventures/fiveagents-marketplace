@@ -2,6 +2,13 @@
 name: financial-reporter
 description: Monthly P&L, cashflow forecast, runway calculation, and top movers. Investor-ready Gamma deck plus Slack summary, archived to Notion. Runs monthly on a 1st-of-month cron schedule.
 allowed-tools: Read, Grep, Glob, Bash
+area: Finance
+use_for: "Monthly P&L, cashflow forecast, runway, top movers. Investor-ready Gamma deck + Slack summary"
+deps:
+  mcp: ["Xero", "Gamma", "Notion", "Slack", "Stripe (opt — degrades to Xero-only invoice data when absent)", "PayPal (opt — adds PayPal revenue when connected)", "Google Drive (opt — fallback when Gamma fails)"]
+  gateway: []
+  files: ["finance.md", "brand.md", "design-system/ (opt — informs Gamma deck visual identity)"]
+  env: ["`${BRAND}_REPORTS_DB` (auto-bootstraps)"]
 ---
 
 ## Maintenance

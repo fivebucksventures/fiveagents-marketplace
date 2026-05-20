@@ -2,6 +2,13 @@
 name: social-calendar
 description: Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand. Runs weekly on Sunday cron schedule.
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
+area: Marketing
+use_for: "Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule"
+deps:
+  mcp: ["Notion", "Slack"]
+  gateway: []
+  files: ["brand.md", "audience.md", "product.md", "competitors.md"]
+  env: ["`${BRAND}_NOTION_DB`"]
 ---
 
 ## Maintenance

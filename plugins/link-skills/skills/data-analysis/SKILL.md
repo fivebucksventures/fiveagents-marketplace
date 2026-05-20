@@ -2,6 +2,13 @@
 name: data-analysis
 description: Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+area: Marketing
+use_for: "Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis"
+deps:
+  mcp: ["Windsor.ai"]
+  gateway: ["Zernio (ads) (opt — fallback data pull + act-on-findings)"]
+  files: ["brand.md", "funnel.md"]
+  env: ["`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)", "`${BRAND}_LATE_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)", "`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair)"]
 ---
 
 ## Maintenance

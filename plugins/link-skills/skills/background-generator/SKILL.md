@@ -2,6 +2,13 @@
 name: background-generator
 description: Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
 allowed-tools: Read, Grep, Glob, Bash
+area: Marketing
+use_for: "Generate 20 background images per brand for Reel video production. Run manually or schedule externally"
+deps:
+  mcp: ["Notion"]
+  gateway: ["Gemini"]
+  files: ["brand.md", "design-system/ (opt — informs Gemini prompt palette when present, brand.md fallback otherwise)"]
+  env: ["`${BRAND}_NOTION_DB`"]
 ---
 
 ## Maintenance

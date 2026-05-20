@@ -2,6 +2,13 @@
 name: creative-designer
 description: Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+area: Marketing
+use_for: "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding"
+deps:
+  mcp: []
+  gateway: ["Gemini", "Argil", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
+  files: ["brand.md", "audience.md", "design-system/ (opt — falls back to brand.md colors/fonts)", "avatars.md (opt — only for Reel/Argil video path)"]
+  env: []
 ---
 
 ## Maintenance

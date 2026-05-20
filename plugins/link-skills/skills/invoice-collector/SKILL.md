@@ -2,6 +2,13 @@
 name: invoice-collector
 description: Daily overdue-invoice chaser. Pulls receivables from Xero, escalates reminder tone over time per the brand's finance playbook, drafts/sends Gmail reminders, tracks chase state in Notion, and posts a daily Slack digest. Runs daily on cron schedule.
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
+area: Finance
+use_for: "Daily check for overdue Xero invoices. Sends polite reminders escalating in tone over time"
+deps:
+  mcp: ["Xero", "Gmail", "Notion", "Slack", "Stripe (opt — payment-link fallback when Xero `payment_url` missing)"]
+  gateway: ["email (opt — only when finance.md `Send Mode: auto`)"]
+  files: ["finance.md", "brand.md"]
+  env: ["`${BRAND}_INVOICE_TRACKER_DB` (auto-bootstraps)"]
 ---
 
 ## Maintenance

@@ -2,6 +2,13 @@
 name: digital-marketing-analyst
 description: Daily and weekly paid ads analysis — Google Ads, Meta Ads, GA4 funnel analysis with structured JSON email briefs for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
+area: Marketing
+use_for: "Daily and weekly paid ads analysis — Google Ads, Meta Ads, LinkedIn Ads (opt), GA4 funnel analysis with structured JSON email briefs"
+deps:
+  mcp: ["Windsor.ai", "Slack", "Gmail (opt — fallback when fiveagents_send_email returns 403)", "Meta Ads MCP (opt — Windsor covers Meta when absent)"]
+  gateway: ["email", "Zernio (ads) (opt — Windsor fallback data pull; Phase 4 ads actions)"]
+  files: ["brand.md", "funnel.md"]
+  env: ["`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)", "`${BRAND}_LATE_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)", "`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair; gates Phase 2.5 and weekly Step 1d)"]
 ---
 
 ## Maintenance

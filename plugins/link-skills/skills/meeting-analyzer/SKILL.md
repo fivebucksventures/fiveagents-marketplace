@@ -2,6 +2,13 @@
 name: meeting-analyzer
 description: Process a meeting transcript (Google Drive file URL or pasted text) into structured action items + decisions. Routes owners per operations.md, syncs to Notion `${BRAND}_MEETINGS_DB` + `${BRAND}_ACTIONS_DB`, sends Slack DMs to owners, drafts follow-up Gmail for client/sales meetings. Event-triggered (new transcript lands in Google Drive) or on-demand.
 allowed-tools: Read, Grep, Glob, Bash, mcp__claude_ai_Google_Drive, mcp__claude_ai_Notion, mcp__claude_ai_Slack, mcp__claude_ai_Gmail
+area: Productivity
+use_for: "Process meeting transcripts into structured action items + decisions. Routes owners, syncs Notion, drafts follow-ups"
+deps:
+  mcp: ["Notion", "Slack", "Google Drive", "Gmail"]
+  gateway: []
+  files: ["operations.md (opt — falls back to Unassigned owner)", "brand.md", "audience.md (opt — only for client/sales meetings)", "sales.md (opt — Sender Persona signature block)"]
+  env: ["`${BRAND}_MEETINGS_DB`", "`${BRAND}_ACTIONS_DB` (both auto-bootstrap)"]
 ---
 
 ## Maintenance

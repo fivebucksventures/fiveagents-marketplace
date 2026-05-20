@@ -2,6 +2,13 @@
 name: apollo-lead-prospector
 description: Daily B2B prospect search via Apollo against the brand's ICP, with deduplication, scoring, and Notion CRM dropoff. Runs daily on cron schedule.
 allowed-tools: Read, Grep, Glob, Bash
+area: Sales
+use_for: "Daily prospect search via Apollo against the brand's ICP, with deduplication, ICP fit scoring, and Notion CRM dropoff"
+deps:
+  mcp: ["Apollo.io", "Notion", "Slack"]
+  gateway: []
+  files: ["sales.md", "audience.md", "competitors.md", "brand.md"]
+  env: ["`${BRAND}_CRM_DB` (auto-bootstraps on first run)"]
 ---
 
 ## Maintenance

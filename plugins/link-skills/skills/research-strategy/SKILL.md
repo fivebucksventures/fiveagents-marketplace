@@ -2,6 +2,13 @@
 name: research-strategy
 description: Market research, ICP definition, positioning, competitive analysis, campaign briefs for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+area: Marketing
+use_for: "Market research, ICP definition, positioning, competitive analysis, campaign briefs"
+deps:
+  mcp: []
+  gateway: ["DataforSEO (opt)"]
+  files: ["brand.md", "audience.md", "product.md", "competitors.md"]
+  env: []
 ---
 
 ## Maintenance

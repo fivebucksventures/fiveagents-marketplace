@@ -1,0 +1,30 @@
+name: skills-registry-check
+
+# Drift gate: fails if the committed skill registry (skills-manifest.json, SKILLS.md,
+# and the generated domain map in agents/link.md) is out of sync with each skill's
+# SKILL.md frontmatter. Fix locally by running:
+#   python plugins/link-skills/scripts/gen_skills_index.py
+# then commit the regenerated files.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "plugins/link-skills/skills/**/SKILL.md"
+      - "plugins/link-skills/agents/link.md"
+      - "plugins/link-skills/skills-manifest.json"
+      - "plugins/link-skills/SKILLS.md"
+      - "plugins/link-skills/scripts/gen_skills_index.py"
+      - ".github/workflows/skills-registry-check.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Verify skills registry is in sync with skill frontmatter
+        run: python plugins/link-skills/scripts/gen_skills_index.py --check

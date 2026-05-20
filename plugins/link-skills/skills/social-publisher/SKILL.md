@@ -2,6 +2,13 @@
 name: social-publisher
 description: Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand
 allowed-tools: Read, Grep, Glob, Bash
+area: Marketing
+use_for: "Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio"
+deps:
+  mcp: ["Slack"]
+  gateway: ["Zernio"]
+  files: ["brand.md"]
+  env: ["`${BRAND}_LATE_FB`", "`${BRAND}_LATE_IG`", "`${BRAND}_LATE_LI` (per-platform; only required for platforms the brand publishes to)"]
 ---
 
 ## Maintenance

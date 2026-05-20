@@ -1,16 +1,26 @@
 ---
 description: Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively.
+area: Setup
+use_for: "Bring an existing brand's setup up to date with the latest plugin version — detects gaps since last brand-setup run and fills only what's missing (idempotent)"
+deps:
+  mcp: ["all (this is the audit skill — it probes everything)"]
+  gateway: []
+  files: []
+  env: []
 ---
 
 ## Maintenance
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.7.0 | May 20, 2026 |
+| Link | v2.7.1 | May 20, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.7.1** — May 20, 2026
+- Step 4b readiness now reads each skill's `area` / `deps` from the **pre-generated `skills-manifest.json`** (not by parsing the link.md table), matching brand-setup Step 8d-iv. The manifest ships with the plugin (generated + sync-verified at release time by `commit-to-git` Step 4f); plugin-update **reads** it and does not run the generator in Cowork — it's plain JSON. Part of Phase 0 (generated registry for scaling to 300+ skills).
 
 **v2.7.0** — May 20, 2026
 - **Social-template detection migrated to fb.ai (`fivebucks_*`).** Step 1h now calls `fivebucks_list_templates` to see which `type`s (meta-carousel / meta-story / linkedin-post / meta-post) exist on fb.ai — replacing the dead local-folder + `template_list` + `version_hash` hash-drift reconciliation. Step 3c collapsed to a single "offer missing types → brand-setup Step 4c (Claude Design → fb.ai dashboard upload)" flow; dropped the upload/hash-drift/download Cases. Removed the local `social-meta-*-template/` rows from Step 1a and the Step 3j template change-log rows. Needs `FIVEBUCKS_API_KEY`; absent → templates skipped, Gemini + Pillow fallback used.
@@ -328,6 +338,8 @@ Using the data collected in Step 0, build a version table:
 | `meeting-analyzer` | v2.4.0 | ✅ yes (new) |
 
 Flag any skill that is entirely **new** (folder exists on disk but `last_applied` predates its introduction). For each changed/new skill, extract the relevant changelog bullets from its `### Change Log` section — these drive Step 3j.
+
+**Registry source.** Read the plugin's `skills-manifest.json` — it ships **pre-generated** from each skill's frontmatter, and its sync is enforced at release time by `commit-to-git` Step 4f. plugin-update runs in the user's Cowork project and does **not** regenerate or `--check` it (that's a maintainer/CI step) — it just reads the shipped manifest for each skill's `area` / `deps`. Reading the manifest needs no tooling; it's plain JSON.
 
 ---
 
@@ -752,7 +764,7 @@ This is the **diagnostic** view — useful for "what changed?" but not what the 
 
 The "what was fixed" table answers a technical question. The owner wants the business answer: *which agents will run on my brand starting today, which still need a fix, and which did I skip?* Step 4b produces that answer.
 
-**Build the readiness matrix using the exact spec in `brand-setup` Step 8d** (translation table, status rules, display format, JSON schema, and the 8d-iv rule for deriving `connected_tools[]` from `agents/link.md` Deps). The only difference is where the inputs come from:
+**Build the readiness matrix using the exact spec in `brand-setup` Step 8d** (translation table, status rules, display format, JSON schema, and the 8d-iv rule for deriving `connected_tools[]` from the generated `skills-manifest.json`). The only difference is where the inputs come from:
 
 | Input | brand-setup Step 8d source | plugin-update Step 4b source |
 |---|---|---|

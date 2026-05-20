@@ -2,6 +2,13 @@
 name: campaign-presenter
 description: Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+area: Marketing
+use_for: "Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks"
+deps:
+  mcp: ["Canva"]
+  gateway: []
+  files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt — informs Canva brand-kit selection + slide visual choices when present, brand.md fallback otherwise)"]
+  env: []
 ---
 
 ## Maintenance

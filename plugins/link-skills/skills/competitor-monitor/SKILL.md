@@ -2,6 +2,13 @@
 name: competitor-monitor
 description: Weekly diff of competitor websites, pricing pages, blogs, careers pages, and exec movements. Classifies and scores every change, archives to Notion, alerts Slack on high-signal events. Runs weekly on Monday morning cron schedule.
 allowed-tools: Read, Grep, Glob, Bash
+area: Strategy
+use_for: "Weekly diff of competitor websites, pricing, blogs, careers. Alerts on price changes, exec moves, new features"
+deps:
+  mcp: ["Notion", "Slack"]
+  gateway: []
+  files: ["competitors.md (with v2.4.0 extension fields: `monitor_urls`, `track_pages`, `exec_team`)", "brand.md"]
+  env: ["`${BRAND}_COMPETITOR_DB` (auto-bootstraps)"]
 ---
 
 ## Maintenance

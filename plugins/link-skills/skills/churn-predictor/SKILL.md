@@ -2,6 +2,13 @@
 name: churn-predictor
 description: Daily customer health scoring across the active book of business. Pulls usage signals from PostHog and subscription state from Stripe, scores each active customer per the brand's customer-success playbook, updates the Notion customer DB, and Slack-alerts on at-risk transitions. Runs daily on cron schedule.
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
+area: Customer Success
+use_for: "Daily customer health-scoring via PostHog usage signals + Stripe subscription state. Alerts on at-risk transitions"
+deps:
+  mcp: ["PostHog", "Stripe", "Gmail", "Notion", "Slack"]
+  gateway: []
+  files: ["customer-success.md", "audience.md", "product.md"]
+  env: ["`${BRAND}_CUSTOMER_DB`"]
 ---
 
 ## Maintenance

@@ -2,6 +2,13 @@
 name: proposal-generator
 description: Generate a branded sales proposal from a CRM deal record — packaged as a Gamma deck (or Google Doc fallback) with embedded Stripe payment link, emailed to the prospect via Gmail draft. On-demand per deal.
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
+area: Sales
+use_for: "Generate branded sales proposal from a deal record. Gamma deck or Google Doc with embedded Stripe payment link"
+deps:
+  mcp: ["Stripe", "Gamma", "Google Drive", "Gmail", "Notion", "Slack"]
+  gateway: []
+  files: ["sales.md", "product.md", "brand.md", "audience.md", "design-system/ (opt — informs Gamma deck visual identity when present, brand.md fallback otherwise)"]
+  env: ["`${BRAND}_CRM_DB`"]
 ---
 
 ## Maintenance

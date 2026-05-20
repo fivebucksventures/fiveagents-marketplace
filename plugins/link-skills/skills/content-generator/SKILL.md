@@ -2,6 +2,13 @@
 name: content-generator
 description: Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack. Runs daily on cron schedule.
 allowed-tools: Read, Grep, Glob, Bash
+area: Marketing
+use_for: "Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack"
+deps:
+  mcp: ["Notion", "Slack"]
+  gateway: ["Gemini", "Argil", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
+  files: ["brand.md", "audience.md", "product.md", "design-system/ (opt)"]
+  env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_LATE_FB/IG/LI`"]
 ---
 
 ## Maintenance

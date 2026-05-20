@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.7.0';
+const DEFAULT_VERSION = 'v2.8.0';
 const DEFAULT_DATE = 'May 20, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.8.0',
+    date: 'May 20, 2026',
+    changes: [
+      'NEW skill decision-advisor (v2.8.0, Strategy area): structures a hard business decision — frame → options → weighted-criteria scoring → pre-mortem/stress-test → recommendation + decision record. No external integrations (reads brand context files). MIT-attributed patterns (alirezarezvani/claude-skills).',
+      'Phase 0 — generated skill registry (foundation for scaling to 300+ skills). Each SKILL.md now carries area/use_for/deps frontmatter as the single source of truth; scripts/gen_skills_index.py generates skills-manifest.json (machine) + SKILLS.md (full human table) + the domain map in agents/link.md. brand-setup Step 8d + plugin-update read the committed manifest (the generator is build/CI-time only — never run in Cowork). CI drift gate (.github/workflows/skills-registry-check.yml) + formatter-exclusion (.prettierignore) protect the generated artifacts.',
+      'Phase 1 — thinned the CLAUDE.md embed. agents/link.md (embedded into every brand CLAUDE.md) now carries a compact domain map (areas + counts + names) instead of the full per-skill table; the embedded block dropped ~12x (~9 KB → ~0.7 KB at 23 skills). Full per-skill table moved to the generated, non-embedded SKILLS.md.',
+      'agents/link.md v2.10.0: Working discipline section added; compact domain map between generated markers; decision-advisor row + chain; fivebucks_* tool references.',
+      'brand-setup v2.7.1: Step 8d readiness reads skills-manifest.json (Phase 0); 8d-i translation table fivebucks label fix (stale gateway: templates row → gateway: fivebucks). plugin-update v2.7.1: reads the pre-generated manifest (no generator run in Cowork).',
+    ],
+  },
   {
     version: 'v2.7.0',
     date: 'May 20, 2026',
@@ -160,26 +171,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator: Step 4a safe-zone table rewritten — 9:16 row reflects platform UI; feed row labeled as design inset (not a platform safe zone); logo flat-margin and gradient-to-canvas-bottom rules stated explicitly. Step 4b note clarified that the 18% offset applies to 9:16 only.',
       'content-generator: Step 4h visual verification rewritten — feed pad inset, gradient-reaches-canvas-bottom, logo-anchored-to-corner checks added; fix table updated for the four new symptoms.',
       'creative-designer: Layout rules section rewritten — 9:16 / feed / logo / gradient blocks brought into sync with the new implementation; replaced the "60 px rendering buffer" claim with the pad design inset framing. Step 3b checklist + fix table mirror content-generator.',
-    ],
-  },
-  {
-    version: 'v2.4.4',
-    date: 'May 07, 2026',
-    changes: [
-      'plugin metadata sync — plugin.json description and keywords were stuck on the v2.4.0 expansion gap (still said "Marketing agent — research, create, design, analyze, publish content"; keywords missed sales/customer-success/finance/strategy/productivity). Updated description to match link.md frontmatter ("Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand") and extended keywords. Same fix applied to .claude-plugin/marketplace.json (top-level metadata.description and per-plugin description + keywords).',
-      'plugin.json + marketplace.json: bumped version field from 1.0.0 (had been stuck since launch) to 2.4.4 — now in lockstep with version.ts. Bug surfaced during v2.4.3 release: drift between version.ts (vN) and plugin.json/marketplace.json (1.0.0) meant marketplace consumers never saw a version bump.',
-      'commit-to-git workflow: Step 5b rewritten — now requires updating all three version files in lockstep (version.ts, plugin.json, marketplace.json metadata.version + plugin entry version). Quality checklist extended with three new boxes covering the metadata files. Step 6 stage command extended to include .claude-plugin/marketplace.json. Prevents the version-drift bug from recurring.',
-    ],
-  },
-  {
-    version: 'v2.4.3',
-    date: 'May 07, 2026',
-    changes: [
-      'agents/link.md: one-time audit of every skill\'s Deps cell against actual tool calls in each SKILL.md — 19 of 22 skill rows corrected. Stale claims removed: data-analysis (PostHog), campaign-presenter (Gamma), outreach-sequencer (Apollo.io), investor-update-writer (Gamma), meeting-analyzer (Calendly). Missing tokens added: MCP: Slack on 6 skills (social-publisher, digital-marketing-analyst, social-calendar, proposal-generator, churn-predictor, outreach-sequencer), Gateway: Argil on creative-designer + content-generator, MCP: Notion on background-generator, MCP: Google Drive + Gmail on meeting-analyzer, MCP: PayPal (opt) + Notion + Google Drive (opt) on financial-reporter, Gateway: email on outreach-sequencer, MCP: Gmail on churn-predictor, MCP: Stripe (opt) + Gateway: email (opt) on invoice-collector. Missing Files refs added across most skills (audience.md, product.md, competitors.md, design-system/ opt). Companion fix: removed MCP: Notion from social-publisher row (initial cleanup that motivated the audit).',
-      'brand-setup: Step 10 email payload — added top-level brand_name field. Display name (e.g. "Five Agents"), read from the first # heading in brands/{brand}/brand.md. Lets the server-side template render the brand\'s actual name in the email title instead of the slug.',
-      'brand-setup: Step 8d-iv — clarified that connected_tools[] derivation reads agents/link.md Deps as the single source of truth (no per-agent table here).',
-      'brand-setup: Step 8d-i translation table — added "PayPal MCP → PayPal (revenue)" row to match link.md\'s expanded Deps vocabulary (financial-reporter now lists PayPal opt).',
-      'plugin-update: Step 5b email payload — added top-level brand_name field, mirrors the same field added to brand-setup Step 10 so the upgrade email title also renders the display name.',
     ],
   },
 ];

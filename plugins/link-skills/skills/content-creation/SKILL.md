@@ -2,6 +2,13 @@
 name: content-creation
 description: Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+area: Marketing
+use_for: "Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy"
+deps:
+  mcp: []
+  gateway: ["fivebucks (opt — fb.ai template manifest shapes `_copy.json`)"]
+  files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt)"]
+  env: []
 ---
 
 ## Maintenance
