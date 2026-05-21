@@ -197,7 +197,7 @@ If a skill is in the file table below but missing from link.md's Skills table, t
 
 For each item in the inventory:
 
-- **Row exists** (matched by name) → update: Version, Last Changed, Last Changelog. Also re-write Area / Description / Tools when the agents/link.md Skills table value differs from the current Notion value (catches link.md edits that didn't change the skill's own Maintenance section).
+- **Row exists** (matched by name) → update ALL of: Version, Last Changed, Last Changelog, Area, Description, Tools. All six fields must be written on every touched row — do not skip Description/Tools even when only the Maintenance section changed. (Rationale: Description/Tools come from `agents/link.md` which is the single source-of-truth; keeping them in sync on every touch prevents silent drift.)
 - **Row missing** → create new page with all fields including `#` (use the table row number above)
 
 ```
@@ -212,6 +212,8 @@ Use Notion MCP tool notion-update-page (existing) or notion-create-pages (new):
 - "Last Changelog":   {the most recent changelog block — version header + bullet points, plain text}
 ```
 
+> ⚠️ **All six fields — every time.** Do not split the update into "version fields" and "documentation fields". Write Version + Last Changed + Last Changelog + Area + Description + Tools in a single `notion-update-page` call per row. Omitting Description/Tools is a common mistake when the SKILL.md was the only file touched.
+
 **Optimization:** if the skill's Maintenance section was NOT touched in this commit (no version bump for that skill), and link.md's Skills table row for that skill also wasn't touched, you can skip the upsert for that row entirely. Most commits only touch 1–4 of the 23 rows.
 
 **Do not proceed to Step 5 until every row in the table above that was touched is present and up to date in Notion.**
@@ -220,19 +222,19 @@ Use Notion MCP tool notion-update-page (existing) or notion-create-pages (new):
 
 ## Step 5 — Sync to Notion Skills Documentation
 
-The **Skills Documentation** DB is the human-curated documentation surface for each skill/agent (one Notion page per skill, with prose written by the team). The Agents Library DB (Step 4) tracks release metadata; this one tracks the actual docs.
+The **Skills Documentation** DB is the documentation surface for each skill/agent — one Notion page per skill. The Agents Library DB (Step 4) tracks release metadata; this one tracks the human-readable docs and is updated every release.
 
-The schema is intentionally minimal:
+The schema:
 
 | Property | Type | Purpose |
 |---|---|---|
-| `Name` | title | Skill/agent display name (e.g. `data-analysis`) |
+| `Name` | title | Skill/agent display name (e.g. `content-generator`) |
 | `Slug` | text | Folder slug — exactly matches the skill directory name |
 | `Area` | select | `General` / `Setup` / `Marketing` / `Sales` / `Customer Success` / `Finance` / `Strategy` / `Productivity` (no `All` option — use `General` for the Link agent) |
-| `Status` | select | `Draft` / `In Review` / `Published` — **human-managed**, never overwritten by this workflow |
+| `Status` | select | `Draft` / `In Review` / `Published` — **never overwrite on existing rows** |
 | `Last edited time` | auto | Notion sets this |
 
-Page body is also human-managed — never overwrite existing body content.
+Page body holds the skill's documentation content — **update it on every touched row** (see 5d).
 
 ### 5a. Find or create the database
 
@@ -294,31 +296,54 @@ Build a map of existing rows **keyed by `Slug`** (the canonical join key — sur
 
 Use the same 23-row file table from Step 4c. **Only consider rows whose SKILL.md or `agents/link.md` row was modified in this commit** — most commits touch 1–4 rows. If neither the skill's SKILL.md nor its `link.md` row was touched, skip it entirely (no Notion call).
 
-For each touched row, gather:
+For each touched row, gather from `plugins/link-skills/agents/link.md` Skills table and the skill's `## Maintenance` block:
 
-- **`Name`** — skill folder name verbatim (e.g. `data-analysis`). For the Link agent, use `Link`.
+- **`Name`** — skill folder name verbatim (e.g. `content-generator`). For the Link agent, use `Link`.
 - **`Slug`** — same as `Name` for skills; for the Link agent use `link`.
-- **`Area`** — read from `plugins/link-skills/agents/link.md` Skills table `Area` column. Map `All` → `General` (the Skills Documentation DB has no `All` option; `General` is the equivalent catch-all for the Link agent itself).
+- **`Area`** — from link.md Skills table `Area` column. Map `All` → `General`.
+- **`Use For`** — the "Use For" cell from link.md Skills table (one-line description).
+- **`Deps`** — the "Deps" cell from link.md Skills table (MCP:/Gateway:/Files:/Env: prefixes stripped).
+- **`Version`** — from the skill's `## Maintenance` block.
+- **`Latest changelog entry`** — the most recent `**vX.X.X**` block from the skill's `### Change Log`.
 
 ### 5d. Upsert each touched row into Notion
 
-For each item in the inventory:
+> ⚠️ **This step is mandatory and must not be skipped.** Every touched skill gets a full property update AND a body content update. Skipping body updates leaves the documentation stale.
 
-- **Row exists** (matched by Slug, falling back to Name) → update **only** `Name`, `Slug`, `Area`. **Do not touch `Status`.** **Do not touch the page body.** Both are human-managed.
-- **Row missing** → create a new page with `Name`, `Slug`, `Area` set, and `Status: "Draft"`. Leave the page body empty — the team will write the documentation prose in Notion directly. Notify the user once per newly-created row:
-  > Created new Skills Documentation page **{name}** (Status: Draft) — fill in the body in Notion when ready.
+**Properties to update (existing rows):**
 
 ```
-Use Notion MCP tool notion-update-page (existing) or notion-create-pages (new):
+Use Notion MCP tool notion-update-page with command: "update_properties":
 - "Name":   {skill folder name}
 - "Slug":   {skill folder slug}
 - "Area":   {General | Setup | Marketing | Sales | Customer Success | Finance | Strategy | Productivity}
-- "Status": "Draft"   ← only on create; OMIT this property on updates so Notion preserves the existing value
 ```
 
-**Why no Status / body overwrite:** the team curates documentation manually. If commit-to-git overwrote `Status` back to `Draft` on every release, published docs would silently regress. If it overwrote the body, hand-written prose would be lost.
+Do NOT write `Status` on existing rows — preserve whatever the team set.
 
-**Do not proceed to Step 6 until every touched row exists in the Skills Documentation DB with the correct `Area`.**
+**Body content to update (existing rows):**
+
+Fetch the current page body first (`notion-fetch` on the page ID). Then use `update_content` or `replace_content` to write the following structure:
+
+```markdown
+## What it does
+{Use For — one sentence from link.md Skills table}
+
+## Dependencies
+{Deps — from link.md Skills table, MCP:/Gateway:/Files:/Env: prefixes stripped}
+
+## Latest changes
+{Latest changelog entry — version header + bullet points, plain text}
+```
+
+Use `replace_content` if the page already has this structure (safe to overwrite — it is generated content, not hand-written prose). Use `insert_content` at the start if the page is empty.
+
+**New rows:**
+
+Create a new page with `Name`, `Slug`, `Area`, `Status: "Draft"` and the body structure above pre-populated. Notify the user once:
+> Created new Skills Documentation page **{name}** (Status: Draft).
+
+**Do not proceed to Step 6 until every touched row has updated properties AND updated body content.**
 
 ---
 
@@ -578,9 +603,9 @@ git ls-remote --tags origin | grep {new_version}
 - [ ] All modified SKILL.md / link.md files have updated maintenance sections (Version + Last Changed + Changelog entry for the new version)
 - [ ] Every `### Change Log` section (in `plugins/link-skills/agents/link.md` AND every `plugins/link-skills/skills/*/SKILL.md`) contains at most 5 entries (newest at top, oldest trimmed) — Step 3c
 - [ ] No skill or agent was left with a stale "Last Changed" date
-- [ ] Notion Agents Library DB (resolved via `AGENTS_LIBRARY_DB` env var or fuzzy name search) is fully up to date — all 23 rows present, and every touched row has correct Version / Last Changed / Last Changelog **plus** Area / Description / Tools (the latter three sourced from `agents/link.md` Skills table)
+- [ ] Notion Agents Library DB (resolved via `AGENTS_LIBRARY_DB` env var or fuzzy name search) is fully up to date — all 23 rows present, and every touched row has correct **Version / Last Changed / Last Changelog / Area / Description / Tools** (all six fields sourced from the skill's Maintenance section + `agents/link.md` Skills table; Description and Tools must be written even when only the Maintenance section changed)
 - [ ] If `agents/link.md` Skills table changed in this commit (Area / "Use For" / Deps columns), the corresponding Notion row's Area / Description / Tools were re-synced — even if the skill's own Maintenance section wasn't bumped
-- [ ] Notion Skills Documentation DB (resolved via `SKILLS_DOCUMENTATION_DB` env var or fuzzy name search) — every touched skill has a row with correct Name / Slug / Area. **Status and page body must NOT be overwritten on existing rows.** New rows are created with Status=`Draft` and empty body
+- [ ] Notion Skills Documentation DB (resolved via `SKILLS_DOCUMENTATION_DB` env var or fuzzy name search) — every touched skill has **properties updated** (Name / Slug / Area, never Status) AND **body content updated** (What it does / Dependencies / Latest changes sections, sourced from link.md Use For + Deps + SKILL.md changelog)
 - [ ] If `agents/link.md` Skills table `Area` column changed for a skill, the Skills Documentation row's Area was re-synced (mapping `All` → `General` for the Link agent)
 - [ ] If this commit introduces a new MCP / gateway tool (or a new skill that uses a not-already-tracked tool), Notion Tool Reference DB (resolved via `TOOL_REFERENCE_DB` env var or fuzzy name search) gained a stub row with `Tool` + `Role` populated, and the user was notified to fill the compliance fields (Company / Data Location / GDPR DPA / Privacy Policy URL / Last Verified). **Existing row compliance fields and Role text must NOT be auto-overwritten** — surface drift advisories instead
 - [ ] `skills-manifest.json` is up to date — `python scripts/gen_skills_index.py` was run before staging and reported no unexpected changes (or changes were staged)
