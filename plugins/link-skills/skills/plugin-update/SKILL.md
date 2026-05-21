@@ -13,11 +13,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.8.1 | May 20, 2026 |
+| Link | v2.10.1 | May 21, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.10.1** — May 21, 2026
+- **New Step 1i — fb.ai media library detection.** `fivebucks_list_media_folders` now called during the Step 1 inspection sweep; result (populated / empty) reported in the Step 2 gap report between the social-templates row and `brand.md sections`. Consistent with how Steps 1a (design-system/) and 1h (social templates) are handled. Steps renumbered: 1i (Notion DB) → 1j, 1j (version audit) → 1k; all cross-references updated.
+- **Step 3h — Visual System block refresh added (brand-setup Step 9c equivalent).** Runs unconditionally on every plugin-update execution. Probes `design-system/` locally, `fivebucks_get_brand_kit`, `fivebucks_list_templates`, and `fivebucks_list_media_folders`, then idempotently replaces the `<!-- BEGIN/END visual-system -->` markers in `CLAUDE.md` (or appends if absent). Fixes stale blocks for brands set up before Step 9c was introduced or before the media library row was added in v2.8.0.
 
 **v2.8.1** — May 20, 2026
 - Added the same **fb.ai paid-product context** before any `fivebucks.ai` link in Step 3b.
@@ -33,35 +37,6 @@ deps:
 **v2.7.0** — May 20, 2026
 - **Social-template detection migrated to fb.ai (`fivebucks_*`).** Step 1h now calls `fivebucks_list_templates` to see which `type`s (meta-carousel / meta-story / linkedin-post / meta-post) exist on fb.ai — replacing the dead local-folder + `template_list` + `version_hash` hash-drift reconciliation. Step 3c collapsed to a single "offer missing types → brand-setup Step 4c (Claude Design → fb.ai dashboard upload)" flow; dropped the upload/hash-drift/download Cases. Removed the local `social-meta-*-template/` rows from Step 1a and the Step 3j template change-log rows. Needs `FIVEBUCKS_API_KEY`; absent → templates skipped, Gemini + Pillow fallback used.
 
-**v2.5.2** — May 16, 2026
-- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
-
-**v2.5.1** — May 15, 2026
-- Step 1d optional env vars table — Google Ads row split: the single v2.5.0 `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` is now the pair `${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (Zernio Google Ads tools need both `account_id` and `ad_account_id` or they return empty results; the legacy var is auto-migrated by Step 3e's rename handler). Added a new LinkedIn Ads row (`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID`) marked optional per brand.
-- Step 3e auto-discover restructured into 4 sub-steps: (1) SocialAccount IDs via `late_list_accounts` (Google + Meta + LinkedIn), (2) Google Ads customer ID via `late_list_ad_accounts` with 429/empty → user prompt fallback, (3) LinkedIn sponsored account ID via the same call (gated on `${BRAND}_LATE_LINKEDIN_ADS` being set), (4) legacy rename handler — auto-migrates `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` → `${BRAND}_LATE_GOOGLE_ADS` and then runs Step 2 to populate `_CID`.
-- Step 3j checklist row extended with the two LinkedIn Ads env vars and a callout that both Google vars and both LinkedIn vars are required pairs for Zernio ads calls.
-
-**v2.5.0** — May 14, 2026
-- Step 1d — added two new optional env vars: `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` and `${BRAND}_LATE_META_ADS_ACCOUNT_ID`. Required for the Windsor.ai fallback in `digital-marketing-analyst` and `data-analysis`; set by brand-setup v2.5.0 Step 7b Step D.
-- Step 3e — added fill handler for the two new ads account ID env vars: auto-discover via `late_list_ad_accounts` (same flow as brand-setup Step 7b Step D).
-- Step 3j — added changelog → brand-action mapping row for v2.5.0 (ads account ID env vars).
-
-**v2.4.3** — May 07, 2026
-- Step 5b email payload — added top-level `brand_name` field. Display name (e.g. `Five Agents`), read from the first `# ` heading in `brands/{brand}/brand.md`. Mirrors the same field added to brand-setup Step 10 so the server-side template renders the brand's actual name in the upgrade email title.
-- `agents/link.md` companion fix — `MCP: Notion` removed from the `social-publisher` Deps row (single source of truth for `connected_tools[]` per brand-setup Step 8d-iv). Social-publisher publishes content passed in by the caller via Zernio; it does not independently read Notion.
-
-**v2.4.2** — May 07, 2026
-- Step 4b — references brand-setup Step 8d-iv derivation rule for `connected_tools[]` (pulled from `agents/link.md` Deps + 8d-i translation) instead of a separate mapping table
-- Step 5b Slack DM "no fixes needed" line synchronized with brand-setup Step 10 — "configured and ready to run" instead of "ready to run on schedule"
-
-**v2.4.1** — May 07, 2026
-- Step 1e — added MCP probe rows for PostHog, Gamma, and Meta Ads MCP (optional). Now matches every connector validated by brand-setup Step 8c-bis.
-- Step 2 — gap report example expanded to surface the new business-operations MCPs and the 5 v2.4.0 brand-context files (sales/CS/finance/investors/operations)
-- Step 3a — added top-of-section pre-fill rule + per-bullet pre-fill summaries for the 5 v2.4.0 files. Plugin-update context guarantees v2.0 source files exist, so pre-fill is essentially mandatory; agent reads brand.md/product.md/audience.md/etc. and drafts answers instead of asking from scratch
-- Step 3f — rewrote MCP gap-fill flow with explicit per-MCP walkthrough prompts for **all 14 MCPs** (was only Windsor + Playwright). Closes the gap where business-ops MCPs flagged in Step 1e were silently skipped during interactive fill.
-- **Step 3g — fixed CLAUDE.md re-embed bug.** Previous version only refreshed the `<!-- link.md version: ... -->` stamp comment, leaving the embedded `agents/link.md` body unchanged. After a `git pull` that brought new content (e.g. v2.4.0's 10 business-ops skills), CLAUDE.md would stamp `v2.4.0` while its embedded body still described v2.3.x. New logic strips link.md's frontmatter, builds a full BEGIN/END block (stamp + body), and atomically replaces everything between the markers. Added post-write verification: grep for a string unique to the new version (e.g. `apollo-lead-prospector` after a v2.4.0 upgrade) to confirm the body was actually swapped.
-- **Step 4b (NEW) — Agent Readiness Summary** using the canonical spec from brand-setup Step 8d. Same translation table, status rules, display format. Inputs come from Step 1 audit overlaid with Step 3 fix outcomes, so the matrix reflects post-fix state.
-- Step 5b — email payload + Slack DM use the same readiness-first format as brand-setup Step 10. Top 3 fixes inline, full list in email.
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 
@@ -307,7 +282,19 @@ Use gateway MCP tool fivebucks_list_templates:
 
 Record which of the four `type`s are present: `meta-carousel`, `meta-story`, `linkedin-post`, `meta-post`. If `FIVEBUCKS_API_KEY` isn't set (no fb.ai plan), skip this step — the brand uses the Gemini + Pillow fallback for all formats. Missing types are an install opportunity, not a failure (see Step 3c).
 
-### 1i. Notion DB for social calendar
+### 1i. fb.ai media library
+
+Check whether the brand has any media uploaded via `fivebucks_list_media_folders`. If `FIVEBUCKS_API_KEY` isn't set, skip — record as N/A.
+
+```
+Use gateway MCP tool fivebucks_list_media_folders:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+```
+
+- Result is non-empty → ✅ media library populated.
+- Result is empty → ⏭ no brand photos uploaded (offer to set up in Step 3d; skills fall back to Gemini image generation when empty).
+
+### 1j. Notion DB for social calendar
 
 If `{BRAND}_NOTION_DB` is set:
 - `notion-fetch` it. If success and the returned object is a database with `Name` (title) property → OK.
@@ -315,7 +302,7 @@ If `{BRAND}_NOTION_DB` is set:
 
 If `{BRAND}_NOTION_DB` is unset → mark as missing (social-calendar will bootstrap on first run, but we offer to do it now).
 
-### 1j. Skill and agent version audit
+### 1k. Skill and agent version audit
 
 Using the data collected in Step 0, build a version table:
 
@@ -345,7 +332,7 @@ Using the data collected in Step 0, build a version table:
 | `investor-update-writer` | v2.4.0 | ✅ yes (new) |
 | `meeting-analyzer` | v2.4.0 | ✅ yes (new) |
 
-Flag any skill that is entirely **new** (folder exists on disk but `last_applied` predates its introduction). For each changed/new skill, extract the relevant changelog bullets from its `### Change Log` section — these drive Step 3j.
+Flag any skill that is entirely **new** (folder exists on disk but `last_applied` predates its introduction). For each changed/new skill, extract the relevant changelog bullets from its `### Change Log` section — these drive Step 3k.
 
 **Registry source.** Read the plugin's `skills-manifest.json` — it ships **pre-generated** from each skill's frontmatter, and its sync is enforced at release time by `commit-to-git` Step 4f. plugin-update runs in the user's Cowork project and does **not** regenerate or `--check` it (that's a maintainer/CI step) — it just reads the shipped manifest for each skill's `area` / `deps`. Reading the manifest needs no tooling; it's plain JSON.
 
@@ -383,6 +370,9 @@ Brand context files
 
 fb.ai social templates (Step 1h — needs FIVEBUCKS_API_KEY)
   ⏭ meta-carousel / meta-story / linkedin-post / meta-post — which exist on fb.ai? (install via Step 3c)
+
+fb.ai media library (Step 1i — needs FIVEBUCKS_API_KEY)
+  ⏭ no media folders found — upload brand photos via Step 3d
 
 brand.md sections
   ✅ Tagline / Voice & Tone / Colors / Approved Phrases / Do NOT Say
@@ -719,6 +709,41 @@ This runs unconditionally every time plugin-update executes — it is the equiva
 
 Show a unified diff to the user before writing any changes to CLAUDE.md.
 
+**Finally — refresh the `## Visual System` block in `CLAUDE.md` (equivalent of brand-setup Step 9c).** This runs unconditionally every time plugin-update executes — it brings stale or missing Visual System blocks up to date (e.g. brands set up before Step 9c was introduced, or before the media library row was added in v2.8.0).
+
+Detection (best-effort — skip any call that requires `FIVEBUCKS_API_KEY` when the key is unset):
+
+```python
+from pathlib import Path
+
+brand_root = Path("brands") / brand  # `brand` is the active brand slug
+
+def folder_status(name):
+    p = brand_root / name
+    return "installed" if (p.is_dir() and any(p.iterdir())) else "not installed"
+
+design_system_status = folder_status("design-system")   # local — the crucial baseline
+
+# Optional fb.ai mirror — call fivebucks_get_brand_kit (skip if FIVEBUCKS_API_KEY unset).
+# design_system_fbai = "uploaded" if result is non-null, else "not uploaded"
+
+# Social templates — call fivebucks_list_templates; collect each returned `type` (skip if no key).
+fb_template_types = []   # e.g. ["meta-carousel", "linkedin-post"], or [] if none / no fb.ai key
+
+# Media library — call fivebucks_list_media_folders (skip if no key).
+# media_status = "installed" if any folders exist, else "not installed"
+```
+
+Build the block using the same template as brand-setup Step 9c (substituting `{design_system_status}`, `{design_system_fbai}`, `{fb_template_types}`, `{media_status}`), then inject idempotently:
+- If `CLAUDE.md` already contains `<!-- BEGIN visual-system (managed by brand-setup Step 9c) -->` and `<!-- END visual-system (managed by brand-setup Step 9c) -->` markers, replace everything between (and including) those markers with the freshly built block.
+- Otherwise, append the new block to the end of `CLAUDE.md` preceded by a blank line.
+
+Show the user a concise status line:
+> ✅ `CLAUDE.md` Visual System section refreshed:
+> - design-system (local): **{design_system_status}** · fb.ai mirror: **{design_system_fbai}**
+> - fb.ai social templates: {fb_template_types or "none"}
+> - media library: **{media_status}**
+
 ### 3i. Settings (manual)
 
 For UI-only settings, show a checklist and ask the user to confirm each one:
@@ -735,7 +760,7 @@ If `funnel.md` had `TBD` entries in Step 1c and Windsor.ai is now connected, re-
 
 ### 3k. Version-specific brand actions
 
-For each skill/agent flagged as changed in Step 1j, read its `### Change Log` bullets and map them to required brand configuration actions. Use this decision table:
+For each skill/agent flagged as changed in Step 1k, read its `### Change Log` bullets and map them to required brand configuration actions. Use this decision table:
 
 | Changelog entry | Brand action required |
 |---|---|
@@ -890,14 +915,16 @@ Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; 
 - [ ] Step 1d checked the 7 new auto-bootstrapped DB env vars without flagging missing ones as required gaps
 - [ ] Step 1e probed all 7 v2.4.0 / v2.2.13 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional Meta Ads MCP)
 - [ ] Step 3f walked the user through every ❌/⏭ MCP with the explicit per-MCP prompt — never silently skipped a missing connector
-- [ ] Step 1j produced a version table showing which skills/agents changed since `last_applied`
+- [ ] Step 1i probed `fivebucks_list_media_folders` (when `FIVEBUCKS_API_KEY` set) and recorded media library state
+- [ ] Step 1k produced a version table showing which skills/agents changed since `last_applied`
 - [ ] Step 2 gap report opened with the version delta block (updated skills listed with changelog summaries)
 - [ ] Step 3 only walked through items marked ❌ or offered ⏭ — never re-asked for known-good state
 - [ ] Step 3a fill handlers ran the matching brand-setup Step 5g–5l sub-step for any missing brand context file
-- [ ] Step 3j mapped changelog entries to brand actions and only surfaced rows requiring action
-- [ ] Step 3j changelog → brand-action mapping covered all 10 new skills
+- [ ] Step 3k mapped changelog entries to brand actions and only surfaced rows requiring action
+- [ ] Step 3k changelog → brand-action mapping covered all 10 new skills
 - [ ] All file writes were patches (preserve existing content), not full rewrites
 - [ ] Step 3g refreshed the `<!-- link.md version: ... -->` stamp in CLAUDE.md unconditionally
+- [ ] Step 3h refreshed the `## Visual System` block in CLAUDE.md (brand-setup Step 9c equivalent) — probed design-system/, fivebucks_get_brand_kit, fivebucks_list_templates, fivebucks_list_media_folders and injected/replaced the markers
 - [ ] CLAUDE.md `link.md` path is absolute (`os.path.isabs == True`) after the run
 - [ ] `.claude/settings.local.json` retained all pre-existing keys
 - [ ] Re-validation in Step 4 only tested touched integrations

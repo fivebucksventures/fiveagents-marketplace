@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.10.0';
-const DEFAULT_DATE = 'May 20, 2026';
+const DEFAULT_VERSION = 'v2.10.1';
+const DEFAULT_DATE = 'May 21, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.10.1',
+    date: 'May 21, 2026',
+    changes: [
+      'plugin-update Step 1: new Step 1i probes fivebucks_list_media_folders during the inspection sweep; media library state reported in Step 2 gap report. Steps 1i→1j (Notion DB) and 1j→1k (version audit) renumbered; cross-references updated.',
+      'plugin-update Step 3h: Visual System block refresh added (brand-setup Step 9c equivalent) — probes design-system/, fivebucks_get_brand_kit, fivebucks_list_templates, fivebucks_list_media_folders and idempotently replaces BEGIN/END visual-system markers in CLAUDE.md on every run. Fixes stale blocks for brands set up before Step 9c or before media library row was added in v2.8.0.',
+    ],
+  },
   {
     version: 'v2.10.0',
     date: 'May 20, 2026',
@@ -161,17 +169,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator + creative-designer: add_text_overlay — bottom inset tuned to push text closer to the natural edge. 9:16 (Story/Reel): safe_bottom_px = int(target_h * 0.13), down from 0.18 — now matches Meta\'s published safe zone (central 1080x1420 of a 1080x1920 frame, ~250 px from bottom). Text moves 96 px lower; still clears the Reels UI stack.',
       'content-generator + creative-designer: add_text_overlay — feed bottom inset halved: safe_bottom_px = pad // 2 (was pad). Side inset stays at pad. Feed text now sits ~32-36 px above the natural edge (down from ~65-72 px). The asymmetry is deliberate: Meta has no bottom safe zone for feed posts, but IG profile-grid 3:4 cropping (~34 px side trim) is real, so sides keep the larger inset.',
       'content-generator Step 4a + Step 4h + creative-designer Layout rules + Step 3b: tables, checklists, and fix-table rows updated to reflect the new 13% / pad // 2 values. Rationale rewritten to cite Meta docs for 9:16 and explain the feed bottom-vs-sides asymmetry.',
-    ],
-  },
-  {
-    version: 'v2.4.7',
-    date: 'May 08, 2026',
-    changes: [
-      'content-generator + creative-designer: add_text_overlay — geometry fix. Text bottom now anchored directly via text_y = (target_h - safe_bottom_px) - block_h. The previous scrim_h = block_h + 2*pad framing left an extra pad of empty gradient below text on every canvas (feed text drifted up to ~77% down on LinkedIn 1200x628 instead of hugging the bottom; 9:16 text sat one pad above the safe-zone boundary instead of at it). Feed text now sits exactly pad above the natural edge; 9:16 text sits exactly at the 18% safe-zone boundary.',
-      'content-generator + creative-designer: add_text_overlay — brightness sample now reads the actual text zone (text_y to text_bottom) instead of the upper half of the old scrim_h slot. Sample area shrinks from "top half of scrim region" to "exact text region" — adaptive color picks become more accurate.',
-      'content-generator + creative-designer: add_text_overlay — runtime asserts added inside the function: text_y + block_h == target_h - safe_bottom_px, scrim_top + pad == text_y, scrim_bottom == target_h, text_y >= 0. Geometric regressions now raise AssertionError at execution time instead of silently shipping a misplaced text block. Each assert message names the exact mismatch.',
-      'content-generator + creative-designer: add_logo — runtime asserts added: cropped logo has non-zero dimensions; resize aspect-ratio matches cropped aspect within 1%. Catches anyone who reorders the crop/resize sequence and re-introduces the v2.4.5 logo-distortion bug.',
-      'content-generator Step 4h + creative-designer Step 3b fix tables: replaced "Headline cut off at bottom of scrim" (stale wording from the old scrim_h geometry where the scrim was a tight block_h + 2*pad slot) with "Headline clipped at top of canvas (block too tall for canvas)" — under the new geometry the scrim runs to target_h regardless and any clipping happens at the canvas top, not the scrim bottom.',
     ],
   },
 ];
