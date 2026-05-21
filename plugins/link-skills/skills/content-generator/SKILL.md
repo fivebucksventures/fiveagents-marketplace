@@ -15,11 +15,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.10.0 | May 20, 2026 |
+| Link | v2.11.0 | May 21, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.11.0** — May 21, 2026
+- **Story publish split**: `meta-story` renders now call `late_create_post` once per slide (6 calls per platform) using the Supabase signed URL directly — no `late_presign_upload`/PUT required (Zernio auto-proxies Supabase URLs). `meta-carousel` and single-image types keep the existing re-host flow. Step 4c-template §7 rewritten.
+- **`slide_ids` removed for all template types** — fb.ai now filters single-image templates (`linkedin-post`, `meta-post`) by the `direction` override server-side. `fivebucks_render_post` always omits `slide_ids`; Step 4c-template §6 rewritten. Calendar table 12 → 11 columns (SlideId column removed; Status moves to `[10]`).
 
 **v2.10.0** — May 20, 2026
 - **`fivebucks_render_post` slide selection is now template-type-specific** (Step 4c-template §6). Single-image types (`linkedin-post`, `meta-post`) render all three direction artboards into the DOM and fb.ai applies no direction filter for them, so the skill now **passes `slide_ids`** for them. The slide is resolved by the Direction's **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]` — authoritative — with the calendar `SlideId` cell as a fast path. Expected labels differ by type: `linkedin-post` A→`01 Hook Headline`/B→`02 Stat Hero`/C→`03 Pull Quote` (verified live); `meta-post` A→`01 Hero Visual`/B→`02 Quote Card`/C→`03 Listicle Teaser`. Omitting `slide_ids` for these renders all 3 (or errors). Multi-slide types are unchanged — `meta-story` omits `slide_ids` and sets `_direction`; `meta-carousel` omits `slide_ids` and rotates `coverVariant`/`bodyVariant`.
@@ -33,11 +37,6 @@ deps:
 - **All four template types are template-path now.** Added IG/FB single-image (`meta-post`) and LinkedIn single-image (`linkedin-post`) routing. meta-story uses `_direction` (A/B/C, default A — never `all`); single-image types use the un-prefixed `direction`.
 - Requires the brand's fb.ai key (`FIVEBUCKS_API_KEY`, vault service `fivebucks`) — see brand-setup Step 7.
 
-**v2.5.4** — May 16, 2026
-- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
-
-**v2.4.8 – v2.5.3** — May 2026 (image-path tuning, condensed)
-- Step 4c-image Pillow overlay hardening: per-canvas named insets (`top/bottom/side_inset`, `scrim_fade`); 9:16 uses Meta safe zones (14%/13%/13%), feed uses asymmetric insets (top/bottom `pad // 2`, **sides `pad + pad // 2`** to survive IG's profile-grid 4:5 recrop — do not re-align feed text sides to `pad // 2`); `text_position` top/bottom rotation with scrim following the text; brand palette injected into the Gemini prompt as ambient mood (never hardcode HEX from memory); Story/Reel full-frame guard.
 
 # SKILL.md — Content Generator
 
@@ -113,7 +112,7 @@ Use `mcp__claude_ai_Notion__notion-fetch` with the page ID to retrieve the page 
 **1c. Parse rows into post objects:**
 
 Each table row has cells in this order (column index):
-`[0] Date`, `[1] Platform`, `[2] Format`, `[3] Topic`, `[4] Persona`, `[5] ContentAngle`, `[6] CTA`, `[7] Hashtags`, `[8] ImageBrief`, `[9] Direction`, `[10] SlideId`, `[11] Status`
+`[0] Date`, `[1] Platform`, `[2] Format`, `[3] Topic`, `[4] Persona`, `[5] ContentAngle`, `[6] CTA`, `[7] Hashtags`, `[8] ImageBrief`, `[9] Direction`, `[10] Status`
 
 `Direction` is set by `social-calendar` at planning time and tells content-generator which template variant to use:
 - **Story format** (`meta-story`): one of `"A"` (Spotlight Dark, brand-led), `"B"` (Editorial Stat, single big claim), `"C"` (Cream Press, case studies / testimonials). Maps to the `_direction` override.
@@ -121,9 +120,7 @@ Each table row has cells in this order (column index):
 - **Single-image formats** (`linkedin-post`, `meta-post`): `"A"` / `"B"` / `"C"` — maps to the un-prefixed `direction` override.
 - **Reel(Argil)** and formats with no matching fb.ai template: leave blank — Direction does not apply.
 
-`SlideId` (cell `[10]`) is set by `social-calendar` for **single-image posts only** (`linkedin-post`, `meta-post`) — the slide to render, with **per-type** labels (`linkedin-post` → Hook Headline / Stat Hero / Pull Quote; `meta-post` → Hero Visual / Quote Card / Listicle Teaser). It is the fast path for `slide_ids` at render time, resolved by Direction position against the manifest (Step 4c-template §6). Blank for every other format.
-
-If Direction is blank for a Story / Carousel / single-image post, default to `"A"` (story / single-image) or `"type-allnumbers"` (carousel) and log a warning — the calendar should have assigned one. If `SlideId` is blank for a `linkedin-post` / `meta-post`, resolve it at render time by the Direction's **position** against `manifest.slides[]` (A=1st, B=2nd, C=3rd) — see Step 4c-template §6. The per-type label fast paths are `linkedin-post` A→`01 Hook Headline`/B→`02 Stat Hero`/C→`03 Pull Quote` and `meta-post` A→`01 Hero Visual`/B→`02 Quote Card`/C→`03 Listicle Teaser`.
+If Direction is blank for a Story / Carousel / single-image post, default to `"A"` (story / single-image) or `"type-allnumbers"` (carousel) and log a warning — the calendar should have assigned one. There is no separate slide column: fb.ai selects the slide(s) from the direction override at render time (see Step 4c-template §6).
 
 Skip the header row (index 0). Filter rows where:
 - `Date` matches today's date (in brand timezone)
@@ -339,48 +336,52 @@ Use gateway MCP tool fivebucks_create_post:
 
 To adjust copy or add photos after creating, call `fivebucks_update_post` (post_id, overrides) — overrides merge.
 
-#### 6. Render — slide selection is template-type-specific
+#### 6. Render — fb.ai selects the slides from the Direction
 
-**Whether you pass `slide_ids` depends on the template `type`.** Single-image templates render all three direction artboards into the DOM, and fb.ai applies a direction filter **only** for `meta-story` — so for single-image you MUST pass `slide_ids` to screenshot the one slide for the chosen Direction. Multi-slide templates pick their slides from the direction/variant overrides; passing `slide_ids` over-constrains them and can return the wrong slides.
+**Omit `slide_ids` for every template type.** fb.ai filters direction-based templates by the post's direction override **server-side** and screenshots only the right slide(s). You set the direction in `overrides` (Step 3); `fivebucks_render_post` returns the correct PNGs in slide order. Don't pass `slide_ids` to choose a direction — that's fb.ai's job now (`slide_ids` remains only as an optional way to render a specific subset, which you never need here).
 
-| Template `type` | Pass `slide_ids`? | How the right slides are selected |
+| Template `type` | Direction override (set in Step 3) | What fb.ai renders |
 |---|---|---|
-| `linkedin-post` | **Yes — required** | `slide_ids=[SlideId]` from the calendar row (the slide's `data-export-id`). Omitting it renders all 3 direction artboards. |
-| `meta-post` | **Yes — required** | Same as `linkedin-post`. |
-| `meta-story` | **No — omit** | `_direction` (A/B/C) in overrides → fb.ai screenshots that direction's 6 slides. |
-| `meta-carousel` | **No — omit** | Renders all 6 slides; `coverVariant`/`bodyVariant` change layout, not slide count. |
+| `meta-story` | `_direction` = A/B/C | that direction's 6 slides (`all` = 18 — **never** use) |
+| `meta-carousel` | `coverVariant`/`bodyVariant` (style) | all 6 slides |
+| `linkedin-post` | `direction` = A/B/C | the 1 slide for that direction |
+| `meta-post` | `direction` = A/B/C | the 1 slide for that direction |
 
-**For `linkedin-post` / `meta-post` (pass `slide_ids`):**
-```
-Use gateway MCP tool fivebucks_render_post:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- post_id: "<id from step 5>"
-- slide_ids: ["<SlideId from the calendar row, cell [10]>"]   # REQUIRED — never omit for these types
-→ Returns one 1-hour signed PNG URL for that slide
-```
-**Resolving the slide id (position is authoritative).** The Direction maps to a slide by **position**: `A` = 1st, `B` = 2nd, `C` = 3rd entry in `manifest.slides[]`. Always resolve like this:
-1. Read the calendar's `SlideId` cell. If it's a non-empty value **and** it appears in `manifest.slides[].id`, use it directly (fast path).
-2. Otherwise (blank, or not found in the manifest), pass `manifest.slides[index].id` where `index` is the Direction's position (A=0, B=1, C=2).
-
-This self-corrects when a brand's template labels its slides differently from the expected defaults. Expected labels by type (what `social-calendar` writes, and what the seed templates use):
-
-| Direction | `linkedin-post` (verified live) | `meta-post` (per brand-setup) |
-|---|---|---|
-| `A` | `01 Hook Headline` | `01 Hero Visual` |
-| `B` | `02 Stat Hero` | `02 Quote Card` |
-| `C` | `03 Pull Quote` | `03 Listicle Teaser` |
-
-**For `meta-story` / `meta-carousel` (omit `slide_ids`):**
 ```
 Use gateway MCP tool fivebucks_render_post:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - post_id: "<id from step 5>"
 - (omit slide_ids)
-→ Returns 1-hour signed PNG URLs, one per slide, in slide order
+→ Returns 1-hour signed PNG URL(s), one per rendered slide, in slide order
 ```
-meta-story renders the 6 slides of the `_direction` set (A/B/C — **never `all`**, which renders 18 slides and burns the same 1.0 quota). meta-carousel renders all 6. fb.ai resolves any `"media:{fileId}"` overrides server-side and the template renders the photo natively — nothing else to wire.
+meta-story renders the 6 slides of the `_direction` set (A/B/C — **never `all`**, which renders 18 slides and burns the same 1.0 quota). meta-carousel renders all 6. linkedin-post / meta-post each return the single slide matching `direction`. fb.ai resolves any `"media:{fileId}"` overrides server-side and the template renders the photo natively — nothing else to wire.
 
-#### 7. Re-host on Zernio, then publish
+#### 7. Publish — Story vs other formats
+
+Publishing from the template-path splits on template type: `meta-story` posts each slide as a separate Story directly from the signed URL; all other types re-host on Zernio first.
+
+**`meta-story` (6 slides → 6 separate Story posts per platform):**
+
+Zernio auto-proxies Supabase storage URLs, so the signed URLs from `fivebucks_render_post` can be passed directly to `late_create_post` — no `late_presign_upload` and no PUT required.
+
+```python
+for signed_url in render_urls:   # slide-1 through slide-6, in order
+    late_create_post(
+        fiveagents_api_key=API_KEY,
+        media_items=[{"type": "image", "url": signed_url}],
+        platforms=[
+            {"platform": "facebook",  "accountId": LATE_ACCOUNTS["facebook"],
+             "platformSpecificData": {"contentType": "story"}},
+            {"platform": "instagram", "accountId": LATE_ACCOUNTS["instagram"],
+             "platformSpecificData": {"contentType": "story"}},
+        ],
+        publish_now=True,
+    )
+```
+
+This produces 6 separate Story posts per platform — one per slide, in slide order.
+
+**`meta-carousel` and single-image types (`linkedin-post`, `meta-post`) — re-host then publish:**
 
 The fb.ai signed URLs are short-lived (1 h), so re-host each PNG on Zernio before publishing:
 ```python
@@ -397,7 +398,9 @@ for i, signed_url in enumerate(render_urls, start=1):
     media_urls.append(presign["publicUrl"])
 ```
 
-Pass `media_urls` (in slide order) as `media_items` in `late_create_post` (Step 5) — a carousel becomes multiple `media_items`; single-image types are one. **Skip Steps 4d, 4e, 4f, 4g** — no Pillow overlays, no local tmp files. Day-of-week `text_align` / `logo_position` rotations apply only to Step 4c-image.
+Pass `media_urls` (in slide order) as `media_items` in `late_create_post` (Step 5) — a carousel becomes multiple `media_items`; single-image types are one.
+
+**Skip Steps 4d, 4e, 4f, 4g** — no Pillow overlays, no local tmp files. Day-of-week `text_align` / `logo_position` rotations apply only to Step 4c-image.
 
 **On quota / subscription error** (`fivebucks_render_post` returns 402/403 with a quota body): surface the upgrade message in the Slack notification, set the Notion status to `"Draft Ready"`, and fall back to **Step 4c-image** for this post.
 
@@ -883,7 +886,7 @@ Then call `late_create_post` with the assembled platform object, media URL from 
 
 ## Step 6 — Update Social Calendar status in Notion
 
-Set Status (cell index 11) based on what was actually done in Step 5:
+Set Status (cell index 10) based on what was actually done in Step 5:
 
 | Step 5 action | Notion status |
 |---|---|
@@ -900,8 +903,8 @@ Use mcp__claude_ai_Notion__notion-update-page:
 - command: "update_content"
 - content_updates: [
     {
-      "old_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | <SlideId> | Planned |",
-      "new_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | <SlideId> | Published |"
+      "old_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | Planned |",
+      "new_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | Published |"
     }
   ]
 ```
@@ -909,7 +912,7 @@ Use mcp__claude_ai_Notion__notion-update-page:
 - If published live → new status = `"Published"`
 - If saved as draft → new status = `"Draft Ready"`
 
-The 12 columns in the table are: `[0] Date, [1] Platform, [2] Format, [3] Topic, [4] Persona, [5] ContentAngle, [6] CTA, [7] Hashtags, [8] ImageBrief, [9] Direction, [10] SlideId, [11] Status`. The `old_str` MUST match the row exactly as it appears in the page (whitespace and pipe characters preserved); reconstruct it from the values you parsed in Step 1c (single-image rows carry a SlideId; other rows leave that cell blank but still keep the pipe). Run one `update_content` operation per published post — or batch all updates into a single call by passing multiple entries in `content_updates`.
+The 11 columns in the table are: `[0] Date, [1] Platform, [2] Format, [3] Topic, [4] Persona, [5] ContentAngle, [6] CTA, [7] Hashtags, [8] ImageBrief, [9] Direction, [10] Status`. The `old_str` MUST match the row exactly as it appears in the page (whitespace and pipe characters preserved); reconstruct it from the values you parsed in Step 1c. Run one `update_content` operation per published post — or batch all updates into a single call by passing multiple entries in `content_updates`.
 
 ---
 
@@ -961,8 +964,8 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Template-path used when a matching fb.ai template exists for the format; image-path used otherwise (no `failed` run for missing templates)
 - [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)
 - [ ] **Template-path:** `overrides` map copy → manifest field keys (skip `bound:false`, `select` values from `options`); direction set (`_direction` A/B/C for meta-story — never `all`; `direction` for single-image types)
-- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; signed PNGs re-hosted on Zernio and passed as `media_items` to `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
-- [ ] **Template-path:** `slide_ids` passed for `linkedin-post`/`meta-post` (= calendar `SlideId`, or derived from Direction) and **omitted** for `meta-story`/`meta-carousel`
+- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: all 6 signed URLs passed directly to `late_create_post` one-per-slide (6 posts per platform — no `late_presign_upload`, no PUT; Zernio auto-proxies Supabase URLs); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`late_presign_upload` + PUT) then passed as `media_items` to a single `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
+- [ ] **Template-path:** `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
 - [ ] **Template-path (failure):** quota/5xx falls back to Step 4c-image; Notion status set to `"Draft Ready"`; Slack warning logged
 - [ ] **Image-path (Gemini-only):** Story/Reel full-frame guard applied — `image_brief` passed to Gemini contains `"fills the ENTIRE frame"` (either from `social-calendar` or wrapped by the guard)
 - [ ] **Image-path (Gemini-only):** Pillow text overlay (Step 4d) AND logo overlay (Step 4e) BOTH applied — Gemini background has no logo

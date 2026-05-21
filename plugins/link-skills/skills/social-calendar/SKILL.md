@@ -15,11 +15,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.10.0 | May 20, 2026 |
+| Link | v2.11.0 | May 21, 2026 |
 
 **Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
 
 ### Change Log
+
+**v2.11.0** — May 21, 2026
+- **SlideId column removed (12 → 11 columns)** — fb.ai now filters `linkedin-post` and `meta-post` by the post's `direction` override server-side, returning only the matching slide. `content-generator` no longer passes `slide_ids`; social-calendar no longer needs to pre-resolve slide labels. Direction is all you need for single-image types.
+- **Direction rotation guidance added** — spread A/B/C across same-format posts for variety; avoid long runs of the same Direction in one platform's feed.
 
 **v2.10.0** — May 20, 2026
 - **New `SlideId` column** (calendar table 11 → 12 columns) for the two single-image fb.ai template types (`linkedin-post`, `meta-post`). These templates render all three direction artboards into the DOM and fb.ai applies no direction filter for them, so `content-generator` must pass `slide_ids` to render the one slide for the chosen Direction. social-calendar writes the slide label **per type** (the labels differ between the two templates):
@@ -38,16 +42,6 @@ deps:
 **v2.4.0** — May 07, 2026
 - Notion MCP tool prefix normalized — `mcp__notion__notion-*` → `mcp__claude_ai_Notion__notion-*` (matches the actual registered tool names; old shorter form was working via undocumented fuzzy matching)
 
-**v2.2.15** — May 05, 2026
-- Direction column added to planning table — picker rules per format (Carousel/Story/LinkedIn)
-- Notion table column count 10 → 11
-- Quality Checklist requires Direction populated
-
-**v2.2.9** — April 30, 2026
-- Replaced "Ken Burns background video (pre-stored images)" references with "Gemini-generated images"
-
-**v2.2.5** — April 26, 2026
-- Added "Before Executing" section — reads agents/link.md before starting
 
 # SKILL.md — Social Calendar
 
@@ -140,12 +134,13 @@ Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table,
 | Hashtags | 3–5 hashtags |
 | Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." For Story/Reel posts the raw scene is automatically wrapped in the full-frame composition template (see "Story/Reel image_brief wrapping" below) before saving to Notion. |
 | Direction | Template variant for the post — see "Direction selection" below. Required for any format with a matching fb.ai template (IG/FB Carousel, Story/Reel, IG/FB single-image, LinkedIn single-image); leave blank for Reel(Argil) or formats with no matching fb.ai template. |
-| SlideId | **Single-image templates only** (`linkedin-post`, `meta-post`). The slide to render, derived from Direction **per type**: `linkedin-post` A→`01 Hook Headline` / B→`02 Stat Hero` / C→`03 Pull Quote`; `meta-post` A→`01 Hero Visual` / B→`02 Quote Card` / C→`03 Listicle Teaser`. `content-generator` uses this as a fast path and falls back to the Direction position against the manifest. Leave blank for Carousel, Story/Reel, Reel(Argil), and any non-template format. |
 | Status | Planned |
 
 ### Direction selection — pick the template variant per post
 
 The `Direction` field tells `content-generator` which template variant to render at production time. Direction is your responsibility (planning); content-generator just applies what you set.
+
+**Rotate Direction for variety — don't let the audience get bored.** Pick by content type first (rules below), but when several posts of the same format/platform fit the same type, spread the Direction across `A`/`B`/`C` (and rotate the carousel `coverVariant-bodyVariant` combos) instead of repeating one. Aim for a varied mix across the week — avoid long runs of the same Direction in a single platform's feed.
 
 **For Carousel posts** — combine the carousel template's two variant axes as `coverVariant-bodyVariant`:
 - `type-allnumbers` — default. Big typographic cover, all sign slides have large kicker numerals (01/02/03/04). Good for educational carousels with strong listicle structure.
@@ -181,30 +176,9 @@ Pick by content type:
 
 If you assign a Direction the brand's template doesn't support, content-generator falls back to the template defaults and logs a warning — so before assigning, check the template's `manifest` (via `fivebucks_get_template`) for the `direction` / `coverVariant` / `bodyVariant` `options` the brand's template actually exposes.
 
-### SlideId — single-image templates only (`linkedin-post`, `meta-post`)
+### Single-image templates — Direction is all you need
 
-Single-image templates render **all three** direction artboards into the page, and fb.ai applies no direction filter for them (that filter exists only for `meta-story`). So `content-generator` must tell `fivebucks_render_post` which one slide to screenshot via `slide_ids`. Populate the `SlideId` column from the Direction so it has the value ready. **The two single-image templates use different slide labels** — pick the map for the post's platform:
-
-**LinkedIn Post → `linkedin-post`** (verified against the live fb.ai manifest):
-
-| Direction | SlideId |
-|---|---|
-| `A` | `01 Hook Headline` |
-| `B` | `02 Stat Hero` |
-| `C` | `03 Pull Quote` |
-
-**IG / FB Post → `meta-post`** (matches brand-setup's meta-post directions — Hero Visual / Quote Card / Listicle Teaser):
-
-| Direction | SlideId |
-|---|---|
-| `A` | `01 Hero Visual` |
-| `B` | `02 Quote Card` |
-| `C` | `03 Listicle Teaser` |
-
-These are the template's `data-export-id` slide labels. They are a fast path — `content-generator` ultimately resolves the slide by the Direction's **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`, so a brand whose template uses other labels still renders correctly. Set `SlideId` only for `linkedin-post` and `meta-post` posts. Leave it blank for:
-- **meta-story** (Story / non-Argil Reel) — the chosen Direction maps to `_direction` (A/B/C), which fb.ai uses to render the 6 slides itself; no `slide_ids`.
-- **meta-carousel** (Carousel) — renders all 6 slides; rotation is via the `coverVariant-bodyVariant` Direction value, no `slide_ids`.
-- **Reel(Argil)** and any format with no matching fb.ai template.
+fb.ai's renderer filters `linkedin-post` and `meta-post` by the post's `direction` (A/B/C) **server-side** and screenshots the one matching slide. So for these types just set **Direction** (above) — there is no separate slide column to fill, and `content-generator` no longer passes `slide_ids`. Same for `meta-story` (`_direction` → 6 slides) and `meta-carousel` (renders all 6). Slide selection is fb.ai's job; your job is picking the Direction.
 
 ### Content mix across 14 posts:
 
@@ -269,14 +243,14 @@ if format.lower() in ("story", "reel"):
 
 Run this check on **every row** before proceeding to Step 3. Fix any failing row in place — do not save until all rows pass.
 
-| Format | Platform | Direction required | Valid Direction values | SlideId required | SlideId values |
-|---|---|---|---|---|---|
-| LinkedIn Post | LinkedIn | ✅ Yes | `A` / `B` / `C` | ✅ Yes | A→`01 Hook Headline` · B→`02 Stat Hero` · C→`03 Pull Quote` |
-| LinkedIn Carousel | LinkedIn | ❌ No | *(blank)* | ❌ No | *(blank)* |
-| Meta Post (FB or IG) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` | ✅ Yes | A→`01 Hero Visual` · B→`02 Quote Card` · C→`03 Listicle Teaser` |
-| Meta Story / Reel (non-Argil) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` | ❌ No | *(blank)* |
-| Meta Carousel (FB or IG) | Facebook / Instagram | ✅ Yes | `type-allnumbers` / `sticker-editorial` / `editorial-mixed` | ❌ No | *(blank)* |
-| Reel (Argil) | Facebook / Instagram | ❌ No | *(blank)* | ❌ No | *(blank)* |
+| Format | Platform | Direction required | Valid Direction values |
+|---|---|---|---|
+| LinkedIn Post | LinkedIn | ✅ Yes | `A` / `B` / `C` |
+| LinkedIn Carousel | LinkedIn | ❌ No | *(blank)* |
+| Meta Post (FB or IG) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` |
+| Meta Story / Reel (non-Argil) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` |
+| Meta Carousel (FB or IG) | Facebook / Instagram | ✅ Yes | `type-allnumbers` / `sticker-editorial` / `editorial-mixed` |
+| Reel (Argil) | Facebook / Instagram | ❌ No | *(blank)* |
 
 **Golden rule: every row must have Direction populated unless it is `LinkedIn Carousel` or `Reel (Argil)`.**
 
@@ -368,10 +342,10 @@ Save local backup first: `outputs/{brand}/strategy/SocialCalendar_[DDMon]-[DDMon
    - parent: { "database_id": "${BRAND}_NOTION_DB" }
    - pages: [{
        "properties": { "Name": "SocialCalendar_[DDMon]-[DDMonYYYY]", "Status": "Planned", "Posts": 14 },
-       "content": "<markdown of the calendar — heading + 12-column table + content mix + persona distribution>"
+       "content": "<markdown of the calendar — heading + 11-column table + content mix + persona distribution>"
      }]
    ```
-   The `content` field accepts markdown. Use a markdown table with **12 columns** — Date, Platform, Format, Topic, Persona, Content Angle, CTA, Hashtags, Image Brief, Direction, SlideId, Status. The Notion connector converts markdown headings, tables, and paragraphs into the appropriate block types automatically.
+   The `content` field accepts markdown. Use a markdown table with **11 columns** — Date, Platform, Format, Topic, Persona, Content Angle, CTA, Hashtags, Image Brief, Direction, Status. The Notion connector converts markdown headings, tables, and paragraphs into the appropriate block types automatically.
 
 4. **If the page already exists → update it in place:**
    ```
@@ -401,11 +375,11 @@ Notion: {url}
 
 # Social Calendar: [Mon DD Mon] – [Sat DD Mon YYYY]
 
-| Date | Platform | Format | Topic | Persona | Content Angle | CTA | Hashtags | Image Brief | Direction | SlideId | Status |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 06 Apr 2026 | LinkedIn | Post | ... | ... | ... | ... | ... | ... | A | 01 Hook Headline | Planned |
-| 06 Apr 2026 | Facebook | Post | ... | ... | ... | ... | ... | ... | B | 02 Quote Card | Planned |
-| 08 Apr 2026 | Instagram | Carousel | ... | ... | ... | ... | ... | ... | type-allnumbers | (blank) | Planned |
+| Date | Platform | Format | Topic | Persona | Content Angle | CTA | Hashtags | Image Brief | Direction | Status |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 06 Apr 2026 | LinkedIn | Post | ... | ... | ... | ... | ... | ... | A | Planned |
+| 06 Apr 2026 | Facebook | Post | ... | ... | ... | ... | ... | ... | B | Planned |
+| 08 Apr 2026 | Instagram | Carousel | ... | ... | ... | ... | ... | ... | type-allnumbers | Planned |
 ... (14 data rows)
 
 ## Content Mix
@@ -454,7 +428,8 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 - [ ] Content mix is research-driven (Step 1b) — if research was available, mix reflects findings; if research was unavailable, default mix used (5 edu / 3 proof / 3 product / 2 CTA / 1 engage); at minimum 2 Direct CTA posts present
 - [ ] All raw scene descriptions (before wrapping) end with "No text. No logos. No watermarks."
 - [ ] Story and Reel (non-Argil) image briefs are wrapped in the full-frame composition template before saving to Notion — the saved `Image Brief` cell must contain "fills the ENTIRE frame"; `Reel (Argil)`, LinkedIn, and Carousel briefs are saved verbatim (no wrapping)
-- [ ] **Step 2b verification passed** — every row passed the format-rules table (Direction + SlideId correct per format type; no row missing Direction except `LinkedIn Carousel` and `Reel (Argil)`)
+- [ ] **Step 2b verification passed** — every row passed the format-rules table (Direction correct per format type; no row missing Direction except `LinkedIn Carousel` and `Reel (Argil)`)
+- [ ] **Direction rotated for variety** — same-format posts spread across `A`/`B`/`C` (and carousel `coverVariant-bodyVariant` combos); no long runs of the same Direction in one platform's feed
 - [ ] Notion page URL logged to memory
 - [ ] Agent run logged to dashboard
 

@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.8.1"
+    "version": "v2.8.2"
   },
   {
     "name": "plugin-update",
@@ -120,7 +120,7 @@
         "`${BRAND}_LATE_FB/IG/LI`"
       ]
     },
-    "version": "v2.10.0"
+    "version": "v2.11.0"
   },
   {
     "name": "creative-designer",
@@ -143,7 +143,7 @@
       ],
       "env": []
     },
-    "version": "v2.10.0"
+    "version": "v2.11.0"
   },
   {
     "name": "data-analysis",
@@ -238,7 +238,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.10.0"
+    "version": "v2.11.0"
   },
   {
     "name": "social-publisher",

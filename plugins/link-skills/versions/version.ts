@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.10.1';
+const DEFAULT_VERSION = 'v2.11.0';
 const DEFAULT_DATE = 'May 21, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,16 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.11.0',
+    date: 'May 21, 2026',
+    changes: [
+      'content-generator v2.11.0 + creative-designer v2.11.0: Story publish split — meta-story renders call late_create_post once per slide (6 calls per platform pair) using the Supabase signed URL directly; Zernio auto-proxies Supabase storage URLs so no late_presign_upload/PUT step is needed. meta-carousel and single-image types keep the existing re-host flow.',
+      'content-generator v2.11.0 + creative-designer v2.11.0: slide_ids removed for all template types — fb.ai now filters single-image templates (linkedin-post, meta-post) by the direction override server-side; fivebucks_render_post always omits slide_ids. Calendar table 12 → 11 columns (SlideId removed; Status at [10]).',
+      'social-calendar v2.11.0: SlideId column removed (12 → 11 columns) — direction is all you need; fb.ai applies server-side direction filtering for single-image types. Direction rotation guidance (spread A/B/C for variety) added.',
+      'brand-setup v2.8.2: Step 4c export-marker contract rewritten — renderer captures data-export-id at manifest canvas size (no fragile off-screen mirror needed); Story/Carousel/LinkedIn/Meta Post export prompts updated accordingly.',
+    ],
+  },
   {
     version: 'v2.10.1',
     date: 'May 21, 2026',
@@ -160,15 +170,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'creative-designer bug fix: broken cross-references "(Step 4f)" (line 273) and "(Step 4d)"/"(Step 4e)" (lines 275, 815) pointed to step IDs that exist in content-generator but not creative-designer; rewritten to refer to the actual sections inside creative-designer.',
       'creative-designer bug fix: rotation-rule sentences referenced only text_align and logo_position; added text_position to match the new rotation.',
       'content-generator Step 4h fix table "Logo over busy image area" reworded as a last-resort fallback that explicitly overrides the day-of-week rotation, used only when contrast cannot be salvaged via scrim alpha or backing.',
-    ],
-  },
-  {
-    version: 'v2.4.8',
-    date: 'May 08, 2026',
-    changes: [
-      'content-generator + creative-designer: add_text_overlay — bottom inset tuned to push text closer to the natural edge. 9:16 (Story/Reel): safe_bottom_px = int(target_h * 0.13), down from 0.18 — now matches Meta\'s published safe zone (central 1080x1420 of a 1080x1920 frame, ~250 px from bottom). Text moves 96 px lower; still clears the Reels UI stack.',
-      'content-generator + creative-designer: add_text_overlay — feed bottom inset halved: safe_bottom_px = pad // 2 (was pad). Side inset stays at pad. Feed text now sits ~32-36 px above the natural edge (down from ~65-72 px). The asymmetry is deliberate: Meta has no bottom safe zone for feed posts, but IG profile-grid 3:4 cropping (~34 px side trim) is real, so sides keep the larger inset.',
-      'content-generator Step 4a + Step 4h + creative-designer Layout rules + Step 3b: tables, checklists, and fix-table rows updated to reflect the new 13% / pad // 2 values. Rationale rewritten to cite Meta docs for 9:16 and explain the feed bottom-vs-sides asymmetry.',
     ],
   },
 ];

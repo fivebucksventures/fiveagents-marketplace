@@ -15,11 +15,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.10.0 | May 20, 2026 |
+| Link | v2.11.0 | May 21, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.11.0** — May 21, 2026
+- **Story publish split** (Step 4a, mirrors content-generator): `meta-story` renders pass each of the 6 signed URLs directly to `late_create_post` per slide (no `late_presign_upload`/PUT — Zernio proxies Supabase URLs); single-image/carousel types re-host on Zernio first. Post-template-path continuation note updated to skip the upload step below.
+- **`slide_ids` removed for all types** (Step 4a bullet 4) — fb.ai selects slides from the direction override server-side; `fivebucks_render_post` always omits `slide_ids` for every template type.
 
 **v2.10.0** — May 20, 2026
 - **Step 4a render: `slide_ids` is now template-type-specific** (mirrors content-generator Step 4c-template §6). Single-image types (`linkedin-post`, `meta-post`) require `slide_ids` — they render all 3 direction artboards and fb.ai applies no direction filter for them. The slide is resolved by Direction **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`, with per-type label fast paths (`linkedin-post`: Hook Headline/Stat Hero/Pull Quote; `meta-post`: Hero Visual/Quote Card/Listicle Teaser). Multi-slide types omit `slide_ids` (`meta-story` uses `_direction`; `meta-carousel` renders all 6 and rotates `coverVariant`/`bodyVariant`).
@@ -32,36 +36,6 @@ deps:
 
 **v2.5.4** — May 16, 2026
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
-
-**v2.5.3** — May 12, 2026
-- Step 4b Image prompt guidelines — new bullet enforces injecting the brand palette into the Gemini prompt using HEX tokens from Step 1 (design-system/ first when present, brand.md Colors fallback). Phrasing rules included (ambient-mood style, not literal swatches). Same Visual consistency rule as `agents/link.md` — never hardcode brand colors from memory.
-- Step 4b Image prompt guidelines — clarifying callout added below the bullets: explains why the Pillow path uses `DejaVuSans-Bold` regardless of brand (universal rasterizer) and why colors are the lever for on-brand output here (adaptive sampling on the Gemini background).
-- Why this matters: Step 1 already read design-system, but the Gemini prompt-construction guide didn't tell the model to use it. Closes the loop so design-system actually influences final image output.
-
-**v2.5.2** — May 12, 2026
-- `add_text_overlay` — feed `side_inset` increased from `pad // 2` to `pad + pad // 2` (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram's profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at `pad // 2`. **Reason:** v2.5.0's "uniform `pad // 2` on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced — symptom was headlines hugging the canvas edge on square feed posts (worse on IG than LinkedIn because LinkedIn doesn't aggressively recrop). Mirror of content-generator v2.5.2.
-- `add_logo` — **unchanged.** Feed branch still uses uniform `pad // 2` on all four sides; logo padding is correct as-is. Text and logo feed insets now diverge on sides by design.
-- Layout rules + Step 3b checklist + fix table — rewritten to reflect text/logo divergence on feed sides. Removed claims that "text and logo both" use the same feed inset. Any future "simplification" that re-aligns text feed sides with logo feed sides will reintroduce the bug — see this entry.
-
-**v2.5.1** — May 10, 2026
-- Step 4b (Gemini image generation) — defensive full-frame guard added for Story/Reel prompts: if the `image_brief` / prompt does not already contain `"fills the ENTIRE frame"`, wrap it in the Story composition template before calling `gemini_generate_image`. Prevents the bottom-void bug on any image generated via creative-designer directly (not routed through content-generator).
-
-**v2.5.0** — May 08, 2026
-- `add_text_overlay` — new `text_position` parameter (`'bottom'` default or `'top'`). Text and scrim anchor per position; gradient direction flips so the dark end is always on the same end as the text. Asserts are position-aware.
-- `add_text_overlay` — refactored to **named per-canvas insets**: `top_inset`, `bottom_inset`, `side_inset`, `scrim_fade`. Single rule — 9:16 = Meta safe zones only (14% top, 13% bottom, 13% sides, `scrim_fade = 0`); feed = uniform `pad // 2` for all four. Eliminates legacy `safe_bottom_px` / `safe_side_px` / `scrim_h` naming.
-- `add_logo` — restored `bottom-right` / `bottom-left` positions to enable bottom-anchored logo. Per-canvas insets follow the same rule (9:16 Meta = 14%/13%/13%; feed = uniform `pad // 2`).
-- Day-of-week rotation table — `text_position` now alternates: Mon/Wed/Fri = bottom text + top-right logo; Tue/Thu/Sat = top text + bottom-left logo. **Tue/Thu/Sat posts will look different from prior versions.**
-- Layout rules + Step 4a/4b narratives + Step 3b checklist + fix table — rewritten to reflect named insets, top/bottom text, rotated logo placements.
-- Bug fix: empty `Step 5: Run quality checklist` heading deleted; Argil section renumbered Step 6 → Step 5.
-- Bug fix: avatar table in the Argil section had a duplicated empty header above the populated rows; merged.
-- Bug fix: broken cross-references — `(Step 4f)` (line 273) and `(Step 4d)` / `(Step 4e)` (lines 275, 815) pointed to step IDs that exist in content-generator but not creative-designer; rewritten to refer to the actual sections inside creative-designer.
-- Bug fix: rotation-rule sentences referenced only `text_align` and `logo_position`; added `text_position` to match the new rotation.
-
-**v2.4.8** — May 08, 2026
-- `add_text_overlay` — bottom inset tuned to push text closer to the canvas edge:
-  - **9:16:** `0.18` → `0.13` (now matches Meta's published safe zone — 250 px on 1920 canvas — instead of the previous conservative 346 px). Text bottom moves down by 96 px.
-  - **Feed:** `pad` → `pad // 2` (~32–36 px instead of ~65–72 px). Text bottom moves down by 32–36 px on every feed canvas. Side inset stays at `pad` (still survives IG profile-grid 3:4 cropping ~34 px side trim).
-- Layout rules section + Step 2 narrative + Step 3b checklist + fix table — wording and numeric references updated to match the new values; rationale cites Meta's "central 1080×1420" rule.
 
 # Creative Designer Skill
 
@@ -224,13 +198,14 @@ all other cases (banners, ads, mockups, no matching template) → fall through t
 1. `fivebucks_list_templates` (cached) → pick the template whose `type` matches; read its `manifest` (fields + image slots + slides). If none, fall through to Step 4b.
 2. Build `overrides` from the post copy (manifest field keys; skip `bound:false`, `select` values from `options`). Set direction: `_direction` (A/B/C) for meta-story; un-prefixed `direction` (A/B/C) for linkedin-post / meta-post; `coverVariant` / `bodyVariant` for meta-carousel if present.
 3. (Optional) assign photos via the fb.ai media library (`fivebucks_presign_media_upload` → `requests.put` → `fivebucks_confirm_media_upload` → `"media:{fileId}"`); otherwise leave image slots empty (template renders its placeholder).
-4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id, slide_ids?)` → 1-hour signed PNG URLs. **Slide selection is template-type-specific:**
-   - **`linkedin-post` / `meta-post` — pass `slide_ids` (required):** resolve the slide by the chosen Direction's **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`; use the calendar `SlideId` as a fast path when it matches a manifest id. Expected labels differ by type — `linkedin-post`: A `01 Hook Headline` / B `02 Stat Hero` / C `03 Pull Quote` (verified live); `meta-post`: A `01 Hero Visual` / B `02 Quote Card` / C `03 Listicle Teaser`. These types render all 3 direction artboards and fb.ai applies no direction filter for them, so omitting `slide_ids` renders all 3 (or errors).
-   - **`meta-story` / `meta-carousel` — omit `slide_ids`:** meta-story screenshots the 6 slides of the `_direction` set (A/B/C, never `all`); meta-carousel renders all 6. See content-generator Step 4c-template §6 for the canonical rule.
-5. Re-host each PNG on Zernio (`late_presign_upload` + `requests.put`) and use those URLs for the post. Skip Steps 4d/4e (Pillow overlays — fb.ai render includes all chrome).
+4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id)` → 1-hour signed PNG URLs. **Omit `slide_ids` for every type** — fb.ai selects the slide(s) from the direction override server-side: `meta-story` `_direction` (A/B/C) → that direction's 6 slides; `meta-carousel` → all 6; `linkedin-post` / `meta-post` `direction` (A/B/C) → the single matching slide. Never use `_direction: all` (renders 18 and burns the same 1.0 quota). See content-generator Step 4c-template §6 for the canonical rule.
+5. **Publish output — split by template type:**
+   - **`meta-story`**: `fivebucks_render_post` returns 6 signed PNG URLs (slide-1 through slide-6). Zernio auto-proxies Supabase URLs — pass each signed URL directly to `late_create_post` as `mediaItems[0].url` with `platformSpecificData.contentType = "story"`. One call per slide = 6 separate Story posts per platform. No `late_presign_upload`, no PUT. The output for this asset is all 6 slide URLs; downstream (content-generator or social-publisher) must post each slide as a separate Story.
+   - **`meta-carousel` / single-image types** (`linkedin-post`, `meta-post`): re-host each PNG on Zernio first (`late_presign_upload` + `requests.put`), then call `late_create_post` once with all re-hosted `media_items` (carousel = multiple items; single-image = one item).
+   - Skip Steps 4d/4e (Pillow overlays — fb.ai render includes all chrome).
 6. On quota / 5xx error: fall through to Step 4b (Gemini + Pillow fallback).
 
-After the template-path completes, continue to the upload step further down in this section — do NOT re-run Step 4b's Gemini path; the template-path has already produced final assets.
+After the template-path completes (bullet 5 handles both re-hosting and publishing), skip directly to the next section — do NOT proceed to Step 4b or the "Upload to Zernio" step below; those apply only to the Gemini-only fallback path.
 
 **The Gemini + Pillow fallback in Step 4b remains the universal path** for: banners, ads, mockups, any post with no matching fb.ai template (or when `FIVEBUCKS_API_KEY` is unset), and any failure (quota / 5xx) on the template-path. That fallback path applies the Pillow text overlay AND Pillow logo overlay (both inside Step 4b) — both required since the Gemini-generated background has no copy and no logo. The day-of-week `text_align`, `text_position`, and `logo_position` rotations apply only on this Step 4b path.
 
@@ -819,9 +794,9 @@ Before finalizing any design output:
 - [ ] Accent color used sparingly — not dominant
 - [ ] No off-brand colors used
 - [ ] Typography follows the fb.ai brand kit / design-system font stack OR brand.md Google Fonts (whichever applied)
-- [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → re-host on Zernio); else Gemini-only fallback (Step 4b) documented
+- [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → **Story**: all 6 signed URLs passed directly to `late_create_post` per slide, no re-host needed; **Carousel/single-image**: re-host on Zernio first then one `late_create_post`); else Gemini-only fallback (Step 4b) documented
 - [ ] Template-path: `fivebucks_list_templates` called once and cached; `overrides` built from manifest field keys; direction set per type (`_direction` for meta-story; `direction` for single-image; `coverVariant`/`bodyVariant` for meta-carousel)
-- [ ] Template-path: `slide_ids` passed for `linkedin-post`/`meta-post` (= `SlideId`, or derived from Direction) and **omitted** for `meta-story`/`meta-carousel`
+- [ ] Template-path: `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
 - [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome
 - [ ] Gemini-only fallback path (Step 4b): Story/Reel full-frame guard applied — `image_prompt` passed to Gemini contains `"fills the ENTIRE frame"` for every 9:16 asset
 - [ ] Gemini-only fallback path (Step 4b): Pillow text overlay AND Pillow logo overlay (both inside Step 4b) BOTH applied — Gemini background has no copy and no logo

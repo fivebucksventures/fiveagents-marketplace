@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.8.1 | May 20, 2026 |
+| Link | v2.8.2 | May 21, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.8.2** — May 21, 2026
+- **Step 4c export-marker contract rewritten to match fb.ai's renderer.** The renderer now captures each `data-export-id` element at the manifest canvas size (it pins the element to the viewport, un-scales it, and hides everything else first), so templates no longer need the fragile off-screen mirror pattern. New shared **Export-marker contract** section (alongside the native-image contract) states the rules once: mark the full-size 1:1 artboard exactly once, static string literals only (explicitly forbidding the `data-export-id="${dir}-${i}"` template-literal-in-quotes mistake that leaked a junk slide into a live manifest), never `display:none` the variant being exported. Story prompt (4c-ii) no longer mandates the `position:fixed; left:-99999px` hidden block; Carousel prompt (4c-i) now says to mark the full-size artboard, not the scaled preview wrapper (was exporting at preview resolution ~300×375); LinkedIn / Meta Post prompts (4c-iii/iv) now gate inactive directions with `visibility:hidden`/`opacity:0`/off-screen instead of `display:none`.
 
 **v2.8.1** — May 20, 2026
 - Added explicit **fb.ai paid-product context** shown before any `fivebucks.ai` link (Steps 4b-D / 4c / 4d), and tagged `FIVEBUCKS_API_KEY` as a paid subscription in the credential tables.
@@ -38,34 +41,6 @@ deps:
 - **Native-image contract stated once** (shared section) instead of repeated per prompt: each photo slot is an `_image`/`_image_position`/`_image_fit` EDITMODE trio the template renders itself (`<img>` + baked tint overlay), logo bundled at `assets/logo.png` and never in EDITMODE. Removed `_brandLogo` from the story EDITMODE; set meta-story `_direction` default to `A` (quota-safe).
 - **New credential:** `FIVEBUCKS_API_KEY` (`fbai_live_…`, paid fb.ai) added to Step 2 + Step 7, stored in the vault under service `fivebucks`. Required only for the optional templates; the Gemini + Pillow fallback path is unchanged.
 
-**v2.5.2** — May 16, 2026
-- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
-
-**v2.5.1** — May 15, 2026
-- Step 7b Zernio setup Step D — Google Ads now needs **two** env vars: `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID, 10-digit). Zernio's Google Ads tools take both `account_id` AND `ad_account_id` — passing only the SocialAccount ID returned empty results. The legacy single var `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` is now renamed by plugin-update Step 3e. Customer ID is resolved via `late_list_ad_accounts`; on 429 / empty response, prompts the user for the dashboard ID (strips dashes).
-- Step 7b Step D extended with **LinkedIn Ads** discovery (opt-in per brand). New env var pair `${BRAND}_LATE_LINKEDIN_ADS` (Zernio SocialAccount `_id`, `platform: "linkedinads"` or `"linkedin_ads"` — distinct from organic LinkedIn `${BRAND}_LATE_LI`) + `${BRAND}_LATE_LINKEDIN_ADS_CID` (LinkedIn sponsored account ID, numeric). Same two-ID pattern as Google Ads. Steps 4–5 skipped silently when no LinkedIn Ads entry is present in `late_list_accounts`.
-- CLAUDE.md template Account IDs section extended with the four new vars (`_LATE_GOOGLE_ADS`, `_LATE_GOOGLE_ADS_CID`, `_LATE_LINKEDIN_ADS`, `_LATE_LINKEDIN_ADS_CID`). Step D body notes LinkedIn `cost` is in the ad account's local currency, same convention as Google Ads.
-
-**v2.5.0** — May 14, 2026
-- Step 7b Zernio setup Step D — after discovering social account IDs, also call `late_list_ad_accounts` to discover Google Ads and Meta Ads ad account IDs; save as `${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID` and `${BRAND}_LATE_META_ADS_ACCOUNT_ID` in `.claude/settings.local.json`. Required by the Windsor.ai fallback in `digital-marketing-analyst` and `data-analysis`.
-- CLAUDE.md template (Step 9b) — Account IDs section extended with Google Ads and Meta Ads account ID vars.
-
-**v2.4.3** — May 07, 2026
-- Step 10 email payload — added top-level `brand_name` field. Display name (e.g. `Five Agents`), read from the first `# ` heading in `brands/{brand}/brand.md`. Lets the server-side template render the brand's actual name in the email title instead of the slug.
-- Step 8d-iv — clarified that `connected_tools[]` derivation reads `agents/link.md` Deps as the single source of truth (no per-agent table here). Companion fix in `agents/link.md`: removed `MCP: Notion` from the `social-publisher` Deps row — social-publisher takes content passed in from the caller (e.g. content-generator) and publishes via Zernio; it does not independently read from Notion.
-
-**v2.4.2** — May 07, 2026
-- Step 8d `agent_readiness[]` schema — JSON example in 8d-iii and Step 10 email payload brought into sync; added `name` (renamed from `agent`), `category`, `status_label`, `connected_tools[]`. Step 10 was lagging the 8d-iii schema after v2.4.1.
-- Step 8d-ii / 8d-iii / Step 10 Slack DM — dropped "run on schedule starting today" framing in favor of "configured and available to run" / "configured and ready to run". Three call-sites were contradicting each other.
-- **Step 8d-iv (NEW)** — derivation rule for `connected_tools[]`: pull each agent's `MCP:` and `Gateway:` tokens from `agents/link.md` Deps column, translate via 8d-i, preserve `(opt)` markers. Replaces a duplicate per-agent mapping table that would have drifted from link.md. Keeps `agents/link.md` as the single source of truth (matching its own v2.4.1 claim).
-
-**v2.4.1** — May 07, 2026
-- Step 2 prereqs table — added 6 business-ops MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma) so the user has full visibility of what they'll be asked to connect
-- Step 3 directory tree + Step 9b Workspace Structure — added 5 v2.4.0 brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with skip annotations for the conditional ones
-- Step 7c — added "Business-operations MCPs" walkthrough block with explicit per-MCP prompts (each prompt names the dependent skill + skip impact). Closes the gap where Step 8c-bis would probe MCPs the user was never asked to connect.
-- Steps 5g / 5h / 5i / 5j / 5k — added "Read existing context first" mapping table at the top of each new sub-step. Lists which existing brand files (brand.md, audience.md, product.md, etc.) to pre-fill from, so the agent never asks the user for info that's already on disk
-- **Step 8d (NEW) — Agent Readiness Summary.** Translation table (technical → business labels), status rules (Ready / Works with limitations / Not ready / You skipped), display format with worked example, structured save schema for Step 10
-- Step 10 email payload — restructured around `agent_readiness[]` + `readiness_summary` as primary blocks; demoted `connections[]` and `files[]` to diagnostic detail. Slack DM leads with readiness counts + top 3 fixes instead of integration count
 
 # Brand Setup — New Client Onboarding
 
@@ -516,6 +491,15 @@ with the slide's text/content wrapper at `position:relative; zIndex:2` so copy a
 - **No** hardcoded photo paths in EDITMODE, **no** base64 data URIs, **no** bundled demo photos. Empty `_image` slots render the template's own gradient/placeholder.
 - Overlay opacity is fixed: dark = `rgba(0,0,0,0.4)`, light = `rgba(255,255,255,0.5)`. The theme indicator (`_template_theme`, or `_theme_A/B/C` for meta-story) sets the template's own `THEME` constant for the overlay.
 
+#### Export-marker contract (already baked into every prompt below — keep it intact)
+
+fb.ai's server-side renderer screenshots one PNG per exportable slide by locating elements by `data-export-id`. It captures each marked element **at the manifest's canvas size** (e.g. 1080×1350 / 1080×1920), pinning it to the viewport and hiding everything else first — so the marked element must BE the full-size artboard, and the renderer no longer cares whether the preview parks or scales it. Follow these rules or the wrong elements get exported:
+
+- **Mark the full-size (1:1) artboard, exactly once.** Put `data-export-id` on the outermost element that is, in its own coordinate space, the complete slide at canvas dimensions (its own background + content). Do **not** also mark a second copy (e.g. a scaled design-canvas preview AND a hidden export frame) — duplicate markers make the renderer register and screenshot the wrong count. Pick one element per slide.
+- **Static string literals only.** Write the id directly, e.g. `data-export-id="A-0"`. Never a JSX expression (`data-export-id={`A-${i}`}`) and never a template literal trapped in quotes (`data-export-id="${dir}-${i}"`). The uploader scans the HTML statically at upload time; both forms are invisible to it (or register a junk literal) and corrupt the slide manifest.
+- **Renderable, never `display:none`.** The marked element may be visually hidden for the preview via off-screen offset, `transform: scale()`, `opacity`, or `visibility:hidden` — the renderer un-scales and relocates it — but `display:none` removes it from layout and yields a blank capture. For multi-direction single-slide templates, gate the inactive directions however you like, but ensure the direction that will be exported is not `display:none`.
+- **All artboards present in the DOM** regardless of the active `_direction`/`direction`; the renderer reads that key from EDITMODE to choose which subset to screenshot.
+
 The four type-specific prompts follow. Each ends with the EDITMODE block; the image-slot trio + native render rules above apply to all of them.
 
 #### 4c-i. Meta Carousel Template (Instagram + Facebook, 4:5)
@@ -581,7 +565,7 @@ The agent gives the user a fully-composed, copy-pasteable prompt to drop into Cl
 >
 > THEME INDICATOR — set `_template_theme` to `\"dark\"` or `\"light\"` to match the value slides' (s2–s5) background scheme. The template uses it to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces it as `manifest.theme` but composites nothing — the template owns the overlay.
 >
-> Each slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so fb.ai can screenshot each slide in DOM order. Render is server-side — no Playwright-specific offscreen DOM IDs.
+> EXPORT MARKERS — fb.ai's renderer screenshots one PNG per slide by `data-export-id`, capturing each marked element at full 1080×1350. Put the attribute on the **full-size (1:1) artboard element** — the 1080×1350 slide itself, NOT the scaled-down preview wrapper your design-canvas rail renders it in (the renderer un-scales whatever it's told to capture, but mark the real artboard so it captures the whole slide). Use a **static string literal**, marked exactly once per slide: `data-export-id=\"A-0\"`–`\"A-5\"` for direction A, equivalently for B and C (18 artboards total). Never a JSX expression (`data-export-id={\`A-${i}\`}`) or a quoted template literal (`data-export-id=\"${dir}-${i}\"`) — the uploader scans statically and both forms corrupt the manifest. All 18 artboards stay in the DOM (never `display:none` the one being exported); the renderer reads `_direction` from EDITMODE to pick which 6.
 >
 > IMAGE SLOTS — the 4 value slides (s2–s5) each take a user-swappable photo via `s{n}_image` / `s{n}_image_position` / `s{n}_image_fit` (defaults empty / center / cover). Render them NATIVELY per the native-image contract above: when `tweaks.s{n}_image` is set, draw a full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), a theme overlay div at zIndex:1, and keep the slide's content wrapper at position:relative; zIndex:2; when empty, show the slide's own gradient/placeholder. Cover (s1) and CTA (s6) are photo-free. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
 >
@@ -638,7 +622,11 @@ Same pattern as Step 4c-i: the agent composes a copy-pasteable prompt and gives 
 >
 > THEME INDICATORS — set `_theme_A`, `_theme_B`, `_theme_C` to `\"dark\"` or `\"light\"` to match each direction's background scheme (defaults A=dark, B=dark, C=light). The template uses the active direction's theme to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces these as `manifest.theme` but composites nothing — the template owns the overlay.
 >
-> Each slide (across all directions) must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) AND a `data-export-id` attribute in the format `\"{DIRECTION}-{SLIDE_INDEX}\"` (0-indexed), e.g. `data-export-id=\"A-0\"` through `data-export-id=\"C-5\"`. fb.ai uses `data-export-id` to identify each direction–slide pair for the `_direction` filter and server-side export. All 18 artboards (3 directions × 6 slides) must have distinct `data-export-id` values.
+> EXPORT MARKERS — fb.ai's server-side renderer screenshots one PNG per slide by `data-export-id`, capturing each marked element at full 1080×1920 (it pins the element to the viewport and hides everything else first). Follow these rules exactly:
+> 1. **Enumerate all 18 full-size artboards, each marked exactly once.** Provide one `<div>` per slide that IS the complete 1080×1920 artboard (its own background + content), with a static `data-export-id`: `\"A-0\"`–`\"A-5\"` · `\"B-0\"`–`\"B-5\"` · `\"C-0\"`–`\"C-5\"` (3 directions × 6 slides = 18). All 18 stay in the DOM regardless of `_direction`; the renderer reads `_direction` from EDITMODE to pick which 6 to export.
+> 2. **Mark the export artboard, not a second copy.** If your design-canvas shows scaled previews of the same slides, those preview copies MUST NOT carry `data-export-id` — only the 18 full-size artboards do. (A shared `StoryFrame` used for both preview and export would otherwise register 36 markers and corrupt the slide count.)
+> 3. **Static string literals only** — write `data-export-id=\"A-0\"` directly on the wrapper `<div>`. Never a JSX expression (`data-export-id={\`A-${i}\`}`) and never a template literal trapped in quotes (`data-export-id=\"${dir}-${i}\"`). The uploader scans statically; both forms are invisible to it (or register a junk literal) and corrupt the manifest.
+> 4. **Keep them renderable.** The 18 full-size artboards may sit in an off-screen / `opacity:0` container so they don't clutter the preview — the renderer relocates and captures them at full size regardless — but never `display:none` them (that yields a blank capture).
 >
 > IMAGE SLOTS — body slides s2–s5 (Problem → Proof) each take a user-swappable photo via `s{n}_image` / `s{n}_image_position` / `s{n}_image_fit` (defaults empty / center / cover), shared across directions A/B/C. Render them NATIVELY per the native-image contract above: full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), a direction-themed overlay div at zIndex:1 (per `_theme_A`/`_theme_B`/`_theme_C`), content wrapper at position:relative; zIndex:2; when empty show the slide's own gradient/placeholder. s1 (Hook) and s6 (CTA) are photo-free. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
 >
@@ -704,7 +692,7 @@ LinkedIn single-image feed posts are **one slide**, not a multi-slide deck. Defa
 >
 > THEME INDICATOR — set `_template_theme` to `\"dark\"` or `\"light\"` to match directions A & B (which receive user photos). The template uses it to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces it as `manifest.theme` but composites nothing — the template owns the overlay.
 >
-> The slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so fb.ai can screenshot it. Render is server-side — no Playwright-specific offscreen DOM IDs. All three direction artboards live in the DOM, gated by `direction` (e.g. `display:none` on the inactive ones) so only one `.slide` is visible at render time.
+> EXPORT MARKERS — fb.ai's renderer screenshots the active direction by `data-export-id`, capturing it at full 1080×1350. Each direction artboard's outer `<div>` (the full-size 1:1 slide) carries a **static string literal** `data-export-id`, e.g. `data-export-id=\"A · Hook Headline\"`, `data-export-id=\"B · Stat Hero\"`, `data-export-id=\"C · Pull Quote\"` (name them to match the direction label). Never a JSX expression or a quoted template literal (`data-export-id=\"${dir}\"`) — the uploader scans statically. All three artboards stay in the DOM; gate the inactive directions with `visibility:hidden`, `opacity:0`, or an off-screen offset — **not** `display:none`, which yields a blank capture if that direction is the one exported.
 >
 > IMAGE SLOTS — directions A & B take a full-bleed user photo via `bg_image` / `bg_image_position` / `bg_image_fit`; direction C takes an optional circular `headshot_image`. Render them NATIVELY per the native-image contract above: full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), theme overlay div at zIndex:1, content wrapper at position:relative; zIndex:2; when `bg_image` is empty show the gradient/placeholder. Direction C must look balanced when `headshot_image` is empty. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
 >
@@ -775,7 +763,7 @@ Instagram and Facebook single-image feed posts are **one slide**, not a multi-sl
 >
 > THEME INDICATOR — set `_template_theme` to `\"dark\"` or `\"light\"` to match direction A (which receives the full-bleed photo). The template uses it to pick the native overlay color (dark = rgba(0,0,0,0.4), light = rgba(255,255,255,0.5)). fb.ai surfaces it as `manifest.theme` but composites nothing — the template owns the overlay.
 >
-> The slide must carry the CSS class `slide` (e.g. `<div class=\"slide\">`) so fb.ai can screenshot it. Render is server-side — no Playwright-specific offscreen DOM IDs. All three direction artboards live in the DOM, gated by `direction` (e.g. `display:none` on the inactive ones) so only one `.slide` is visible at render time.
+> EXPORT MARKERS — fb.ai's renderer screenshots the active direction by `data-export-id`, capturing it at full 1080×1350. Each direction artboard's outer `<div>` (the full-size 1:1 slide) carries a **static string literal** `data-export-id`, e.g. `data-export-id=\"A · Hero Visual\"`, `data-export-id=\"B · Quote Card\"`, `data-export-id=\"C · Listicle\"` (name them to match the direction label). Never a JSX expression or a quoted template literal (`data-export-id=\"${dir}\"`) — the uploader scans statically. All three artboards stay in the DOM; gate the inactive directions with `visibility:hidden`, `opacity:0`, or an off-screen offset — **not** `display:none`, which yields a blank capture if that direction is the one exported.
 >
 > IMAGE SLOTS — direction A takes a full-bleed user photo via `bg_image` / `bg_image_position` / `bg_image_fit`; direction B takes an optional circular `headshot_image`; direction C is design-only. Render them NATIVELY per the native-image contract above: full-bleed `<img>` at zIndex:0 (objectFit/objectPosition from the companion keys), theme overlay div at zIndex:1, content wrapper at position:relative; zIndex:2; when `bg_image` is empty show the gradient/placeholder. Direction B must look balanced when `headshot_image` is empty. The brand logo is bundled at `assets/logo.png` and referenced directly — never in EDITMODE. No base64 data URIs, no bundled photo/demo assets, no unused fonts.
 >
