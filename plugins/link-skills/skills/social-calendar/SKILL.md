@@ -265,6 +265,25 @@ if format.lower() in ("story", "reel"):
 
 ---
 
+## Step 2b — Verify Format Rules Before Saving
+
+Run this check on **every row** before proceeding to Step 3. Fix any failing row in place — do not save until all rows pass.
+
+| Format | Platform | Direction required | Valid Direction values | SlideId required | SlideId values |
+|---|---|---|---|---|---|
+| LinkedIn Post | LinkedIn | ✅ Yes | `A` / `B` / `C` | ✅ Yes | A→`01 Hook Headline` · B→`02 Stat Hero` · C→`03 Pull Quote` |
+| LinkedIn Carousel | LinkedIn | ❌ No | *(blank)* | ❌ No | *(blank)* |
+| Meta Post (FB or IG) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` | ✅ Yes | A→`01 Hero Visual` · B→`02 Quote Card` · C→`03 Listicle Teaser` |
+| Meta Story / Reel (non-Argil) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` | ❌ No | *(blank)* |
+| Meta Carousel (FB or IG) | Facebook / Instagram | ✅ Yes | `type-allnumbers` / `sticker-editorial` / `editorial-mixed` | ❌ No | *(blank)* |
+| Reel (Argil) | Facebook / Instagram | ❌ No | *(blank)* | ❌ No | *(blank)* |
+
+**Golden rule: every row must have Direction populated unless it is `LinkedIn Carousel` or `Reel (Argil)`.**
+
+If any row fails, correct it before Step 3 — do not post a failing row as a known issue.
+
+---
+
 ## Step 3 — Save to Notion
 
 Use **Notion MCP** to save the calendar to Notion. The calendar page must live **inside the brand's social-calendar database** so `content-generator` Step 1 can find it via `${BRAND}_NOTION_DB`.
@@ -435,8 +454,7 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 - [ ] Content mix is research-driven (Step 1b) — if research was available, mix reflects findings; if research was unavailable, default mix used (5 edu / 3 proof / 3 product / 2 CTA / 1 engage); at minimum 2 Direct CTA posts present
 - [ ] All raw scene descriptions (before wrapping) end with "No text. No logos. No watermarks."
 - [ ] Story and Reel (non-Argil) image briefs are wrapped in the full-frame composition template before saving to Notion — the saved `Image Brief` cell must contain "fills the ENTIRE frame"; `Reel (Argil)`, LinkedIn, and Carousel briefs are saved verbatim (no wrapping)
-- [ ] **Direction column populated** for every post with a matching fb.ai template: IG/FB Carousel (`type-allnumbers` / `sticker-editorial` / `editorial-mixed`), IG/FB Story / non-Argil Reel (`A` / `B` / `C`), IG/FB single-image and LinkedIn single-image (`A` / `B` / `C`); left blank only for `Reel (Argil)` and formats with no matching fb.ai template
-- [ ] **SlideId column populated** for `linkedin-post` and `meta-post` posts only, using the **per-type** map — `linkedin-post`: A→`01 Hook Headline` / B→`02 Stat Hero` / C→`03 Pull Quote`; `meta-post`: A→`01 Hero Visual` / B→`02 Quote Card` / C→`03 Listicle Teaser`; left blank for Carousel, Story/Reel, `Reel (Argil)`, and non-template formats
+- [ ] **Step 2b verification passed** — every row passed the format-rules table (Direction + SlideId correct per format type; no row missing Direction except `LinkedIn Carousel` and `Reel (Argil)`)
 - [ ] Notion page URL logged to memory
 - [ ] Agent run logged to dashboard
 
