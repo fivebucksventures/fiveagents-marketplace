@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack"
 deps:
   mcp: ["Notion", "Slack"]
-  gateway: ["Gemini", "Argil", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
+  gateway: ["Gemini", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
   files: ["brand.md", "audience.md", "product.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_LATE_FB/IG/LI`"]
 ---
@@ -15,14 +15,17 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.0 | May 21, 2026 |
+| Link | v2.11.1 | May 22, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
 
+**v2.11.1** — May 22, 2026
+- **Reel and Argil fully removed.** Removed "For Reels" copy instruction, Reel rows from Step 4c routing table and decision logic, Story/Reel guard → Story-only (`post.format.lower() == "story"`), `LATE_CONTENT_TYPE` reel key and `LATE_CONTENT_TYPE_FALLBACK` dict, Reel video publishing and fallback rules, Argil from frontmatter gateway dep. Log metric `format` placeholder corrected from hardcoded `"static"` to `"<Post|Story|Carousel>"`.
+
 **v2.11.0** — May 21, 2026
-- **Story publish split**: `meta-story` renders now call `late_create_post` once per slide (6 calls per platform) using the Supabase signed URL directly — no `late_presign_upload`/PUT required (Zernio auto-proxies Supabase URLs). `meta-carousel` and single-image types keep the existing re-host flow. Step 4c-template §7 rewritten.
+- **Story publish split**: `meta-story` renders re-host each slide on Zernio first (`late_presign_upload` + PUT → permanent `publicUrl`) before calling `late_create_post` — Supabase signed URLs expire after ~1 hour and must never be passed directly to Zernio. 1-second sleep between slides; 5-second sleep + retry after ~5 consecutive FB posts (FB rate-limit). Step 4c-template §7 rewritten.
 - **`slide_ids` removed for all template types** — fb.ai now filters single-image templates (`linkedin-post`, `meta-post`) by the `direction` override server-side. `fivebucks_render_post` always omits `slide_ids`; Step 4c-template §6 rewritten. Calendar table 12 → 11 columns (SlideId column removed; Status moves to `[10]`).
 
 **v2.10.0** — May 20, 2026
@@ -118,7 +121,7 @@ Each table row has cells in this order (column index):
 - **Story format** (`meta-story`): one of `"A"` (Spotlight Dark, brand-led), `"B"` (Editorial Stat, single big claim), `"C"` (Cream Press, case studies / testimonials). Maps to the `_direction` override.
 - **Carousel format** (`meta-carousel`): one of `"type-allnumbers"` (default), `"sticker-editorial"`, `"editorial-mixed"`, or whatever `coverVariant-bodyVariant` combination the brand's template supports.
 - **Single-image formats** (`linkedin-post`, `meta-post`): `"A"` / `"B"` / `"C"` — maps to the un-prefixed `direction` override.
-- **Reel(Argil)** and formats with no matching fb.ai template: leave blank — Direction does not apply.
+- **Formats with no matching fb.ai template**: leave blank — Direction does not apply.
 
 If Direction is blank for a Story / Carousel / single-image post, default to `"A"` (story / single-image) or `"type-allnumbers"` (carousel) and log a warning — the calendar should have assigned one. There is no separate slide column: fb.ai selects the slide(s) from the direction override at render time (see Step 4c-template §6).
 
@@ -166,10 +169,6 @@ For each post, generate:
 | Facebook | Relatable pain moment | 2–3 short paragraphs, conversational | Short CTA | ~800 chars |
 | Instagram | 3–5 word hook only | Bullet points or very short copy | "Link in bio" | ~300 chars |
 
-**For Reels**: write TWO outputs:
-1. **Production script** (internal only, saved to `_copy.md`): 15-30 second script with `[Hook — 3s]` / `[Value — 12s]` / `[CTA — 5s]` timing markers
-2. **Reel caption** (posted to Zernio API as `content`): clean, readable copy — hook + 1-2 short paragraphs + CTA + hashtags. No script formatting, no timing markers. ~300 chars.
-
 **For Stories**: caption text is NOT displayed (Stories are visual-only). Still write a production script for the `_copy.md` file, but send minimal text to Zernio (just hashtags or empty string).
 
 ### Naming convention for output files
@@ -201,14 +200,14 @@ Map the post's hook/body/CTA (from Step 3) into the template's structure per typ
 
 If the post brief is too thin to fill all required keys, omit those keys — fb.ai seeds the template's defaults for any key you don't send — and log a warning to memory.
 
-**Skip Step 3b for non-template posts** — Reel(Argil) and any post where no matching fb.ai template exists. For those, only `_copy.md` is required; content-generator's image-path uses the headline + body from `_copy.md` directly via Pillow text overlay.
+**Skip Step 3b for non-template posts** — any post where no matching fb.ai template exists. For those, only `_copy.md` is required; content-generator's image-path uses the headline + body from `_copy.md` directly via Pillow text overlay.
 
 ---
 
 ## Step 4 — Generate images
 
 **Two image-production paths depending on Format and template availability — see Step 4c for the dispatcher.**
-- **Template-path** (Carousel / Story / Reel / single-image Post on IG/FB/LinkedIn when a matching fb.ai template exists): fb.ai renders the slides server-side via `fivebucks_render_post`; no Gemini call, no Pillow overlay.
+- **Template-path** (Carousel / Story / single-image Post on IG/FB/LinkedIn when a matching fb.ai template exists): fb.ai renders the slides server-side via `fivebucks_render_post`; no Gemini call, no Pillow overlay.
 - **Image-path** (any post with no matching fb.ai template, or when the fb.ai render fails / quota is exhausted): Gemini generates the background fresh + Pillow stamps text and logo. Universal fallback — always available.
 
 ### Step 4a — Determine canvas dimensions
@@ -265,22 +264,17 @@ Check the post `Format` from the calendar. "A `<type>` template exists" means th
 |---|---|---|---|
 | FB/IG | Carousel | Static images | If a `meta-carousel` template exists on fb.ai → **Step 4c-template**. Else → **Step 4c-image** (Gemini background → text overlay → logo). |
 | FB/IG | Story | Static image | If a `meta-story` template exists → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
-| FB/IG | Reel (Argil) | **AI avatar video** | **Argil API** (1 per brand per week, tagged by social-calendar) |
-| FB/IG | Reel | **Static image as Story** | If a `meta-story` template exists → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
 | FB/IG | Post (single image) | Static image | If a `meta-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
 | LinkedIn | Post | Static image | If a `linkedin-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
-| LinkedIn | Reel/Story | Static image | **Step 4c-image** (publish as post) |
 | Any | Post | Static image | **Step 4c-image** (no matching template) |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar.
-2. If Format = `"Reel (Argil)"` → use **Step 4c-argil** (AI avatar talking-head).
-3. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND a `meta-carousel` template exists → use **Step 4c-template**.
-4. If Format ∈ {`"Story"`, `"Reel"`} AND platform ∈ {Instagram, Facebook} AND a `meta-story` template exists → use **Step 4c-template**.
-5. If Format = `"Post"` AND platform ∈ {Instagram, Facebook} AND a `meta-post` template exists → use **Step 4c-template**.
-6. If Format = `"Post"` AND platform = LinkedIn AND a `linkedin-post` template exists → use **Step 4c-template**.
-7. If Format = `"Reel"` (no template, no Argil tag) → use **Step 4c-image** (static image, publish as Story).
-8. All other formats (or no matching template) → use **Step 4c-image** (Gemini-generated background + text overlay + logo).
+2. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND a `meta-carousel` template exists → use **Step 4c-template**.
+3. If Format = `"Story"` AND platform ∈ {Instagram, Facebook} AND a `meta-story` template exists → use **Step 4c-template**.
+4. If Format = `"Post"` AND platform ∈ {Instagram, Facebook} AND a `meta-post` template exists → use **Step 4c-template**.
+5. If Format = `"Post"` AND platform = LinkedIn AND a `linkedin-post` template exists → use **Step 4c-template**.
+6. All other formats (or no matching template) → use **Step 4c-image** (Gemini-generated background + text overlay + logo).
 
 ### Step 4c-template — Render via fb.ai (`fivebucks_*`)
 
@@ -358,25 +352,41 @@ meta-story renders the 6 slides of the `_direction` set (A/B/C — **never `all`
 
 #### 7. Publish — Story vs other formats
 
-Publishing from the template-path splits on template type: `meta-story` posts each slide as a separate Story directly from the signed URL; all other types re-host on Zernio first.
+Publishing from the template-path splits on template type: both `meta-story` and all other types re-host on Zernio first — never pass Supabase signed URLs directly to Zernio.
 
 **`meta-story` (6 slides → 6 separate Story posts per platform):**
 
-Zernio auto-proxies Supabase storage URLs, so the signed URLs from `fivebucks_render_post` can be passed directly to `late_create_post` — no `late_presign_upload` and no PUT required.
+**Always re-host on Zernio before posting.** Supabase signed URLs from `fivebucks_render_post` expire after ~1 hour. Zernio stores URLs by reference (not bytes), so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `late_presign_upload` + PUT to upload each slide to Zernio's CDN first, then pass the permanent `publicUrl` to `late_create_post`. Post one slide at a time with a 1-second sleep between calls. After every ~5 consecutive FB story posts, sleep 5 seconds before the next call (Facebook rate-limits rapid sequential story submissions) and retry once on rejection.
 
 ```python
-for signed_url in render_urls:   # slide-1 through slide-6, in order
-    late_create_post(
+import time, requests
+
+for i, signed_url in enumerate(render_urls, start=1):  # slide-1 through slide-6
+    img_bytes = requests.get(signed_url).content
+    presign = late_presign_upload(
         fiveagents_api_key=API_KEY,
-        media_items=[{"type": "image", "url": signed_url}],
-        platforms=[
-            {"platform": "facebook",  "accountId": LATE_ACCOUNTS["facebook"],
-             "platformSpecificData": {"contentType": "story"}},
-            {"platform": "instagram", "accountId": LATE_ACCOUNTS["instagram"],
-             "platformSpecificData": {"contentType": "story"}},
-        ],
-        publish_now=True,
+        filename=f"{slug}_story-slide-{i}_{date}.png",
+        content_type="image/png",
     )
+    requests.put(presign["uploadUrl"], data=img_bytes, headers={"Content-Type": "image/png"})
+    permanent_url = presign["publicUrl"]  # media.zernio.com/media/... — never expires
+
+    for platform, account_id in [("facebook", LATE_ACCOUNTS["facebook"]),
+                                  ("instagram", LATE_ACCOUNTS["instagram"])]:
+        for attempt in range(2):
+            result = late_create_post(
+                fiveagents_api_key=API_KEY,
+                media_items=[{"type": "image", "url": permanent_url}],
+                platforms=[{"platform": platform, "accountId": account_id,
+                             "platformSpecificData": {"contentType": "story"}}],
+                publish_now=True,
+                is_draft=False,
+            )
+            if result.get("success") or attempt == 1:
+                break
+            time.sleep(5)  # FB rate-limit back-off before retry
+
+    time.sleep(1)  # 1-second gap between slides
 ```
 
 This produces 6 separate Story posts per platform — one per slide, in slide order.
@@ -410,57 +420,11 @@ Pass `media_urls` (in slide order) as `media_items` in `late_create_post` (Step 
 - Set Notion status to `"Draft Ready"` instead of `"Published"` so the user reviews the fallback before resending.
 - Do NOT retry the render — render once and fall back.
 
-### Step 4c-argil — Generate Reel video via Argil API (1 per brand per week)
-
-Only for Reels tagged `(Argil)` in the social calendar. Generate a talking-head video:
-
-1. **Write a 15–30 second script** from the post's Topic, ContentAngle, and CTA:
-   - Hook (first 3 seconds) — scroll-stopping opener from the post hook
-   - Value (10–20 seconds) — the key insight from the content angle
-   - CTA (3–5 seconds) — from the calendar CTA field
-
-2. **Set aspect ratio** — always `"9:16"` for Reels (Argil is only used for Reels, never Stories).
-
-3. **Create the video:**
-```
-Use gateway MCP tool `argil_create_video`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- name: "[Brand] [Platform] Reel - [Topic] - [Date]"
-- aspect_ratio: "9:16"
-- moments: [{ avatarId: "AVATAR_ID", voiceId: "VOICE_ID", transcript: "Your 15-30 second script here..." }]
-→ Returns video ID
-```
-
-4. **Render:** `argil_render_video` with `fiveagents_api_key` + `video_id`
-
-5. **Poll:** `argil_get_video` with `fiveagents_api_key` + `video_id` until status=DONE, extract videoUrl
-
-6. **Download and save:** Download the video from `videoUrl` and save to `outputs/{brand}/posts/[Platform]/[Slug]_[Date]_final.mp4`
-
-**Fallback:** If Argil fails (API error, timeout > 10 min, no credits), fall back to static image (Step 4c-image) and publish as Story instead of Reel.
-
-**Avatar selection — rotate for variety, prefer Asian characters for SEA markets:**
-
-Pick avatar based on the post's Persona and platform. Don't repeat the same avatar on consecutive posts for the same platform. Use `argil_list_avatars` gateway tool to get current IDs.
-
-Read avatar-to-persona mappings from `brands/{brand}/avatars.md`. This file defines which avatars to use for each persona slug, the founder avatar + voice clone, and market preferences. Example mapping below:
-
-| Persona Slug | Suggested Avatars | Why |
-|---|---|---|
-| sme-founder, solopreneur | Founder avatar, Arjun, Hassan | Founder/business owner feel |
-| ops-manager, content-mgr | Ananya, Kabir, Koki | Professional/operational |
-| sales-leader, sales-rep | Rahul, Hassan, Budi | Sales/outreach energy |
-| cs-manager | Amira, Anjali, Ananya | Customer-facing |
-| agency-owner, growth-mktr | Kabir, Arjun, Founder avatar | Strategy/leadership |
-| general | Rotate any Asian avatar | Variety |
-
-Use the founder avatar + voice clone only for authority/founder content. For all other avatars, pick a matching English voice from `argil_list_voices` gateway tool.
-
 ### Step 4c-image — Generate image via Gemini
 
-**Story/Reel full-frame guard (defensive — belt-and-suspenders):**
+**Story full-frame guard (defensive — belt-and-suspenders):**
 
-Before building the Gemini prompt, check whether the post is a Story or Reel and whether the `image_brief` already contains the full-frame composition instruction written by `social-calendar` v2.5.0+. If it does not (e.g. the calendar was authored by an older run), wrap it now:
+Before building the Gemini prompt, check whether the post is a Story and whether the `image_brief` already contains the full-frame composition instruction written by `social-calendar` v2.5.0+. If it does not (e.g. the calendar was authored by an older run), wrap it now:
 
 ```python
 STORY_FULLFRAME_TEMPLATE = (
@@ -472,12 +436,11 @@ STORY_FULLFRAME_TEMPLATE = (
     "Do not include any text, logos, or UI elements."
 )
 
-if post.format.lower() in ("story", "reel") \
+if post.format.lower() == "story" \
         and "fills the ENTIRE frame" not in post.image_brief:
     image_brief = STORY_FULLFRAME_TEMPLATE.format(SCENE_DESCRIPTION=post.image_brief)
 else:
     image_brief = post.image_brief
-# Reel (Argil) → guard does NOT apply; Argil uses a video script, not image_brief
 ```
 
 Use `image_brief` (the potentially-wrapped version) as the Gemini prompt base from this point on — never `post.image_brief` directly.
@@ -817,10 +780,6 @@ Upload the image and copy directly to Zernio API and publish immediately. See TO
 
 **IMPORTANT: Always pass `platformSpecificData.contentType` for Reels and Stories.** Without this, Zernio defaults everything to a feed Post regardless of image dimensions.
 
-**Reel video publishing:** When the asset is a video (from Argil), upload as `"type": "video"` and use `"contentType": "video/mp4"` in the presign call. The `platformSpecificData.contentType` mapping for Reels stays the same.
-
-**Reel fallback rule:** If Argil video generation failed and you have a static image instead, Zernio API will return a 400 aspect ratio error for Reels. In this case, fall back to `"story"` for both Instagram and Facebook — same 1080×1920 image dimensions, no changes needed. Log the fallback in the Slack notification and memory.
-
 For each post, use gateway MCP tools:
 
 ```
@@ -857,26 +816,20 @@ LATE_ACCOUNTS = {
 }
 ```
 
-**platformSpecificData.contentType mapping** — Instagram uses "reels" (plural); Facebook uses "reel" (singular):
+**platformSpecificData.contentType mapping:**
 ```python
 LATE_CONTENT_TYPE = {
-    "reel":     {"instagram": "reels", "facebook": "reel"},
     "story":    {"instagram": "story", "facebook": "story"},
     "carousel": {},   # Zernio handles carousels via multiple mediaItems — no contentType needed
     "post":     {},   # default feed post — no contentType needed
 }
-LATE_CONTENT_TYPE_FALLBACK = {
-    "reel": {"instagram": "story", "facebook": "story"},
-}
 ```
-
-**FALLBACK:** Reels require video. If publishing a static image as a Reel and Zernio returns 400, retry with contentType "story" for both Instagram and Facebook (same 1080x1920 dimensions).
 
 **For each post**, determine the platform object:
 - `platform_key` = post platform lowercase ("facebook" | "instagram" | "linkedin")
-- `post_format` = post format lowercase ("post" | "reel" | "story" | "carousel")
+- `post_format` = post format lowercase ("post" | "story" | "carousel")
 - `account_id` = from env var `{BRAND}_LATE_{PLATFORM}` (e.g. `FIVEBUCKS_LATE_FB`)
-- Add `platformSpecificData.contentType` using the mapping above (required for Reels/Stories)
+- Add `platformSpecificData.contentType` using the mapping above (required for Stories)
 
 Then call `late_create_post` with the assembled platform object, media URL from step 2, and copy text.
 
@@ -964,7 +917,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Template-path used when a matching fb.ai template exists for the format; image-path used otherwise (no `failed` run for missing templates)
 - [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)
 - [ ] **Template-path:** `overrides` map copy → manifest field keys (skip `bound:false`, `select` values from `options`); direction set (`_direction` A/B/C for meta-story — never `all`; `direction` for single-image types)
-- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: all 6 signed URLs passed directly to `late_create_post` one-per-slide (6 posts per platform — no `late_presign_upload`, no PUT; Zernio auto-proxies Supabase URLs); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`late_presign_upload` + PUT) then passed as `media_items` to a single `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
+- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: each slide re-hosted on Zernio (`late_presign_upload` + PUT → permanent `publicUrl`) then posted one-per-slide via `late_create_post` with `is_draft=False` + `publish_now=True`; 1-second sleep between slides; 5-second sleep + one retry after ~5 consecutive FB posts (FB rate-limit); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`late_presign_upload` + PUT) then passed as `media_items` to a single `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
 - [ ] **Template-path:** `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
 - [ ] **Template-path (failure):** quota/5xx falls back to Step 4c-image; Notion status set to `"Draft Ready"`; Slack warning logged
 - [ ] **Image-path (Gemini-only):** Story/Reel full-frame guard applied — `image_brief` passed to Gemini contains `"fills the ENTIRE frame"` (either from `social-calendar` or wrapped by the guard)
@@ -999,7 +952,7 @@ Use gateway MCP tool `fiveagents_log_run`:
     "images_generated": 0,
     "videos_generated": 0,
     "posts": [
-      { "platform": "Facebook", "topic": "...", "persona": "...", "format": "static", "asset_type": "image", "status": "Published", "late_post_id": "..." }
+      { "platform": "Facebook", "topic": "...", "persona": "...", "format": "<Post|Story|Carousel>", "asset_type": "image", "status": "Published", "late_post_id": "..." }
     ]
   }
 ```

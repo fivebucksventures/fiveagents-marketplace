@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.11.0';
-const DEFAULT_DATE = 'May 21, 2026';
+const DEFAULT_VERSION = 'v2.11.1';
+const DEFAULT_DATE = 'May 22, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.11.1',
+    date: 'May 22, 2026',
+    changes: [
+      'link.md v2.11.1: Argil fully removed — avatars.md context file, Argil API gateway section, "Full social post (video)" skill chain, .mp4 output convention, and Argil from the Deps gateway legend all removed. Calendly corrected to outreach-sequencer + customer-onboarder.',
+      'content-generator v2.11.1 + creative-designer v2.11.1: Reel and Argil fully removed — Reel rows from routing table and decision logic, Story-only guard, LATE_CONTENT_TYPE reel key and LATE_CONTENT_TYPE_FALLBACK dict, Reel video publishing rules, Argil gateway dep, is_story_reel → is_story, Reel rows from dimensions/format tables, "Reels UI stack"/"Reels right-rail" → "Meta bottom/side safe zone". Log metric format corrected from "static" to dynamic enum.',
+      'social-calendar v2.11.1: Metrics corrected — calendar_status "Published" → "Planned", format "static" → dynamic enum, content_mix.type corrected. Monday/Friday checklist items added. deps.gateway updated.',
+      'brand-setup v2.8.3: Argil and avatars.md fully removed — Step 5 overview, directory tree, CLAUDE.md template, Step 10 email, connections[]. Calendly corrected to outreach-sequencer / customer-onboarder across Steps 7b, 8c-bis, 8d, 8 summary table.',
+      'plugin-update v2.10.2: Step 3k cross-references corrected (CLAUDE.md row → Step 3h, Windsor.ai → Step 3f). Quality checklist: Step 3f env-var item added. Step 1k version audit annotated as example-only.',
+    ],
+  },
   {
     version: 'v2.11.0',
     date: 'May 21, 2026',
@@ -153,23 +164,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'plugin-update: Step 1a — added inline schema check for sales.md Booking URL: line in ## Sender Persona block (flags ⚠ schema gap if missing). Step 3a — new targeted single-question backfill handler for present-but-incomplete sales.md (asks only the Booking URL, no full Step 5g re-walk).',
       'outreach-sequencer: Step 4 fallback contract pinned — was "stored in sales.md Sender Persona section", now reads "the Booking URL: line inside the ## Sender Persona block" with explicit abort + Slack alert if missing/empty. No more silent CTAs with empty booking links.',
       'customer-onboarder: Step 4c — added explicit fallback path. If Calendly OAuth fails, no event-type matches kickoff, or single-use scheduling-link tool errors out, read Booking URL from sales.md Sender Persona instead (standing link, acceptable degradation). If that is also missing, abort + Slack alert routing user to /link-skills:plugin-update.',
-    ],
-  },
-  {
-    version: 'v2.5.0',
-    date: 'May 08, 2026',
-    changes: [
-      'content-generator + creative-designer: add_text_overlay — new text_position parameter (\'bottom\' default or \'top\'). Text and scrim anchor per position; gradient direction flips so the dark end is always on the same end as the text. Position-aware asserts.',
-      'content-generator + creative-designer: text + logo geometry refactored to named per-canvas insets (top_inset / bottom_inset / side_inset / scrim_fade). Single rule across both functions — 9:16 = Meta safe zones only (14% top, 13% bottom, 13% sides, scrim_fade 0); feed = uniform pad // 2. Eliminates the legacy safe_bottom_px / safe_side_px / scrim_h naming.',
-      'content-generator + creative-designer: add_logo bottom-right and bottom-left positions restored, enabling bottom-anchored logo placement. Per-canvas insets match the text rule.',
-      'content-generator Step 4b + creative-designer rotation table: day-of-week rotation now alternates text_position. Mon/Wed/Fri = bottom text + top-right logo; Tue/Thu/Sat = top text + bottom-left logo. Text and logo always on opposite vertical ends. **Tue/Thu/Sat posts will look different on this release.**',
-      'content-generator Step 4a/4d/4e/4h + creative-designer Layout rules/Step 4a/Step 4b/Step 3b: tables, narratives, checklists, fix-table rows rewritten to reflect named insets, top/bottom text, rotated logo placements.',
-      'creative-designer bug fix: Step 5 "Run quality checklist" empty stub deleted; Argil section renumbered Step 6 → Step 5.',
-      'creative-designer bug fix: avatar table in Argil section had a duplicated empty header above the populated rows; merged into single header + rows.',
-      'content-generator bug fix: Quality Checklist line said "All Planned posts for tomorrow processed" but Step 1 targets today; corrected to "today".',
-      'creative-designer bug fix: broken cross-references "(Step 4f)" (line 273) and "(Step 4d)"/"(Step 4e)" (lines 275, 815) pointed to step IDs that exist in content-generator but not creative-designer; rewritten to refer to the actual sections inside creative-designer.',
-      'creative-designer bug fix: rotation-rule sentences referenced only text_align and logo_position; added text_position to match the new rotation.',
-      'content-generator Step 4h fix table "Logo over busy image area" reworded as a last-resort fallback that explicitly overrides the day-of-week rotation, used only when contrast cannot be salvaged via scrim alpha or backing.',
     ],
   },
 ];

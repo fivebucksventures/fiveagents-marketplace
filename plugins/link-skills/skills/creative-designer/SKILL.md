@@ -6,8 +6,8 @@ area: Marketing
 use_for: "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding"
 deps:
   mcp: []
-  gateway: ["Gemini", "Argil", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
-  files: ["brand.md", "audience.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)", "avatars.md (opt — only for Reel/Argil video path)"]
+  gateway: ["Gemini", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
+  files: ["brand.md", "audience.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
 
@@ -15,14 +15,17 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.0 | May 21, 2026 |
+| Link | v2.11.1 | May 22, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
 
+**v2.11.1** — May 22, 2026
+- **Reel and Argil fully removed.** Removed Facebook/Instagram Reel rows from dimensions and format tables, Reel from decision tree and upload table. Renamed `is_story_reel` → `is_story` in both Pillow code blocks; guard titles updated to "Story full-frame guard". "Reels UI stack" / "Reels right-rail" labels replaced with "Meta bottom/side safe zone". meta-story corrected to "IG + FB Stories". Removed "Generating AI avatar video ads via Argil API" from When-to-use list.
+
 **v2.11.0** — May 21, 2026
-- **Story publish split** (Step 4a, mirrors content-generator): `meta-story` renders pass each of the 6 signed URLs directly to `late_create_post` per slide (no `late_presign_upload`/PUT — Zernio proxies Supabase URLs); single-image/carousel types re-host on Zernio first. Post-template-path continuation note updated to skip the upload step below.
+- **Story publish split** (Step 4a, mirrors content-generator): `meta-story` renders re-host each slide on Zernio first (`late_presign_upload` + PUT → permanent `publicUrl`) before calling `late_create_post` — Supabase signed URLs expire after ~1 hour and must never be passed directly. 1-second sleep between slides; 5-second sleep + retry after ~5 consecutive FB posts (FB rate-limit). See content-generator §7 for canonical loop.
 - **`slide_ids` removed for all types** (Step 4a bullet 4) — fb.ai selects slides from the direction override server-side; `fivebucks_render_post` always omits `slide_ids` for every template type.
 
 **v2.10.0** — May 20, 2026
@@ -33,9 +36,6 @@ deps:
 
 **v2.7.0** — May 20, 2026
 - **Template-path migrated to fb.ai (`fivebucks_*`).** Step 4a now detects templates via `fivebucks_list_templates` (by `type`) and renders via `fivebucks_create_post` → `fivebucks_render_post` → re-host on Zernio — replacing the dead `template_list`/`template_render` + presign-slots flow. All four types supported (meta-carousel / meta-story / linkedin-post / meta-post). Canonical implementation lives in `content-generator/SKILL.md` Step 4c-template. The Gemini + Pillow fallback (Step 4b) is unchanged.
-
-**v2.5.4** — May 16, 2026
-- Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 # Creative Designer Skill
 
@@ -55,7 +55,6 @@ Use this skill when the task involves:
 - Designing HTML/CSS landing pages or sections
 - Creating email template layouts
 - Producing visual ad mockups (static)
-- Generating AI avatar video ads via Argil API
 - Designing social media graphics (LinkedIn banners, Twitter cards)
 - Building comparison tables or feature highlight layouts
 - Generating design specifications for a developer to implement
@@ -105,7 +104,7 @@ Up to four optional Claude Design templates may exist for a brand, hosted on **f
 | Template `type` | Used for | Fallback if missing |
 |---|---|---|
 | `meta-carousel` (4:5) | IG + FB carousel posts (Cover + 4 value slides + CTA) | Gemini + Pillow text/logo overlay using fb.ai brand kit / design-system / brand.md colors |
-| `meta-story` (9:16) | IG + FB Stories + Reels (Hook→…→CTA, directions A/B/C) | Same Gemini + Pillow fallback |
+| `meta-story` (9:16) | IG + FB Stories (Hook→…→CTA, directions A/B/C) | Same Gemini + Pillow fallback |
 | `linkedin-post` (4:5) | LinkedIn single-image feed posts (directions A/B/C) | Same Gemini + Pillow fallback |
 | `meta-post` (4:5) | IG + FB single-image feed posts (directions A/B/C) | Same Gemini + Pillow fallback |
 
@@ -120,11 +119,9 @@ fb.ai renders each template server-side and returns signed PNG URLs — no local
 | LinkedIn post image | 1200px × 628px | Landscape — highest CTR for B2B feed |
 | Facebook post image | 1200px × 630px | Landscape for link posts |
 | Facebook Story | 1080px × 1920px | 9:16 vertical — same as Instagram Story |
-| Facebook Reel | 1080px × 1920px | 9:16 vertical |
 | Instagram post (square) | 1080px × 1080px | Standard feed |
 | Instagram post (portrait) | 1080px × 1350px | More feed real estate, better reach |
 | Instagram Story | 1080px × 1920px | 9:16 vertical |
-| Instagram Reel | 1080px × 1920px | 9:16 vertical |
 | Twitter/X card | 1200px × 628px | |
 | Google display ad (leaderboard) | 728px × 90px | |
 | Google display ad (rectangle) | 300px × 250px | |
@@ -136,8 +133,8 @@ fb.ai renders each template server-side and returns signed PNG URLs — no local
 - Border radius: 8-12px for cards, 6px for buttons
 - Use subtle box shadows: `0 1px 3px rgba(0,0,0,0.1)`
 - White space is a feature — never overcrowd sections
-- **Inset rule — Story/Reel = Meta safe zones only; Feed text = asymmetric (larger sides); Feed logo = uniform `pad // 2`:**
-  - **9:16 Story/Reel** (text and logo both): top = `int(h * 0.14)` (~269 px on 1920) — Stories profile header; bottom = `int(h * 0.13)` (~250 px) — Reels UI stack; sides = `int(w * 0.13)` (~140 px) — Reels right-rail. Scrim fade = 0 (no `pad` anywhere in 9:16 geometry).
+- **Inset rule — Story = Meta safe zones only; Feed text = asymmetric (larger sides); Feed logo = uniform `pad // 2`:**
+  - **9:16 Story** (text and logo both): top = `int(h * 0.14)` (~269 px on 1920) — Stories profile header; bottom = `int(h * 0.13)` (~250 px) — Meta bottom safe zone; sides = `int(w * 0.13)` (~140 px) — Meta side safe zone. Scrim fade = 0 (no `pad` anywhere in 9:16 geometry).
   - **Feed posts (IG, FB, LinkedIn, X) — TEXT:** top = bottom = scrim_fade = `pad // 2` (~32–36 px); sides = `pad + pad // 2` (~96–108 px). Sides are intentionally larger — Instagram's profile-grid view recrops square feed posts to 4:5 portrait, trimming ~34 px per side; the extra side inset guarantees text survives the crop with visible breathing room. **Do not "simplify" to uniform `pad // 2`** — that regressed v2.4.8 hardening (see v2.5.2 changelog).
   - **Feed posts (IG, FB, LinkedIn, X) — LOGO:** top = bottom = sides = `pad // 2` (~32–36 px). Logo is small relative to canvas, so the IG profile-grid crop doesn't impact it; uniform pad-derived inset reads as intentional corner placement. Text and logo diverge on sides by design.
 - **Text and logo always on opposite vertical ends** — never on the same row. Mon/Wed/Fri = bottom text + top-right logo; Tue/Thu/Sat = top text + bottom-left logo. Day-of-week rotation lives in content-generator Step 4b.
@@ -187,7 +184,7 @@ Before falling through to Gemini-only image generation (Step 4b — the universa
 
 ```
 asset_type == "carousel" AND platform in {instagram, facebook} AND a meta-carousel template exists → render via template
-asset_type in {"story","reel"} AND platform in {instagram, facebook} AND a meta-story template exists → render via template
+asset_type == "story" AND platform in {instagram, facebook} AND a meta-story template exists → render via template
 asset_type == "post" AND platform in {instagram, facebook} AND a meta-post template exists → render via template
 asset_type == "post" AND platform == linkedin AND a linkedin-post template exists → render via template
 all other cases (banners, ads, mockups, no matching template) → fall through to Step 4b (Gemini + Pillow text + Pillow logo)
@@ -200,7 +197,7 @@ all other cases (banners, ads, mockups, no matching template) → fall through t
 3. (Optional) assign photos via the fb.ai media library (`fivebucks_presign_media_upload` → `requests.put` → `fivebucks_confirm_media_upload` → `"media:{fileId}"`); otherwise leave image slots empty (template renders its placeholder).
 4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id)` → 1-hour signed PNG URLs. **Omit `slide_ids` for every type** — fb.ai selects the slide(s) from the direction override server-side: `meta-story` `_direction` (A/B/C) → that direction's 6 slides; `meta-carousel` → all 6; `linkedin-post` / `meta-post` `direction` (A/B/C) → the single matching slide. Never use `_direction: all` (renders 18 and burns the same 1.0 quota). See content-generator Step 4c-template §6 for the canonical rule.
 5. **Publish output — split by template type:**
-   - **`meta-story`**: `fivebucks_render_post` returns 6 signed PNG URLs (slide-1 through slide-6). Zernio auto-proxies Supabase URLs — pass each signed URL directly to `late_create_post` as `mediaItems[0].url` with `platformSpecificData.contentType = "story"`. One call per slide = 6 separate Story posts per platform. No `late_presign_upload`, no PUT. The output for this asset is all 6 slide URLs; downstream (content-generator or social-publisher) must post each slide as a separate Story.
+   - **`meta-story`**: `fivebucks_render_post` returns 6 signed PNG URLs (slide-1 through slide-6). **Always re-host on Zernio first** — Supabase signed URLs expire after ~1 hour; Zernio stores URLs by reference so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `late_presign_upload` + PUT for each slide → pass the permanent `publicUrl` to `late_create_post`. One call per slide = 6 separate Story posts per platform. Sleep 1 second between slides; sleep 5 seconds + retry once after ~5 consecutive FB posts (Facebook rate-limits rapid sequential story posts). See `content-generator/SKILL.md` Step 4c-template §7 for the canonical implementation.
    - **`meta-carousel` / single-image types** (`linkedin-post`, `meta-post`): re-host each PNG on Zernio first (`late_presign_upload` + `requests.put`), then call `late_create_post` once with all re-hosted `media_items` (carousel = multiple items; single-image = one item).
    - Skip Steps 4d/4e (Pillow overlays — fb.ai render includes all chrome).
 6. On quota / 5xx error: fall through to Step 4b (Gemini + Pillow fallback).
@@ -218,9 +215,9 @@ The image must stop the scroll and evoke a feeling *before* the viewer reads a s
 
 Use **Gemini image generation** for assets that need real imagery — scenes, people, environments, data visualizations. Do NOT use Gemini for pure typographic/text-only graphics (use HTML/CSS for those instead).
 
-**Story/Reel full-frame guard — apply BEFORE building the Gemini prompt:**
+**Story full-frame guard — apply BEFORE building the Gemini prompt:**
 
-For Story and Reel assets (9:16, 1080×1920), the generated image must fill the entire canvas — no flat-colour void in the lower half. If the image prompt/brief does not already contain `"fills the ENTIRE frame"`, wrap it now:
+For Story assets (9:16, 1080×1920), the generated image must fill the entire canvas — no flat-colour void in the lower half. If the image prompt/brief does not already contain `"fills the ENTIRE frame"`, wrap it now:
 
 ```python
 STORY_FULLFRAME_TEMPLATE = (
@@ -235,8 +232,8 @@ STORY_FULLFRAME_TEMPLATE = (
 # Use canvas ratio as the primary signal — works whether asset_type is set or not.
 # 9:16 = 1.778; IG portrait 4:5 = 1.25 (feed treatment, no wrap needed).
 _asset_label = (asset_type or "").lower() if 'asset_type' in dir() else ""
-is_story_reel = _asset_label in ("story", "reel") or (target_h / target_w) >= 1.7
-if is_story_reel and "fills the ENTIRE frame" not in image_prompt:
+is_story = _asset_label == "story" or (target_h / target_w) >= 1.7
+if is_story and "fills the ENTIRE frame" not in image_prompt:
     image_prompt = STORY_FULLFRAME_TEMPLATE.format(SCENE_DESCRIPTION=image_prompt)
 ```
 
@@ -246,7 +243,7 @@ Use `image_prompt` (the potentially-wrapped version) as the `prompt` argument to
 Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - prompt: "<your image prompt>"
-- aspect_ratio: match target canvas (e.g. "1:1" for IG square, "9:16" for Story/Reel, "191:100" for LinkedIn)
+- aspect_ratio: match target canvas (e.g. "1:1" for IG square, "9:16" for Story, "191:100" for LinkedIn)
 - model: "gemini-3.1-flash-image-preview"
 
 Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
@@ -349,15 +346,15 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
     img = img.crop(((nw-target_w)//2, (nh-target_h)//2, (nw-target_w)//2+target_w, (nh-target_h)//2+target_h))
 
     pad = int(target_w * 0.06)
-    # Per-canvas insets — Story/Reel uses Meta safe zones only; Feed uses pad-derived only.
-    # is_story_reel: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 → feed treatment.
+    # Per-canvas insets — Story uses Meta safe zones only; Feed uses pad-derived only.
+    # is_story: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 → feed treatment.
     # target_h > target_w is NOT sufficient: IG portrait (1080×1350) would wrongly get 9:16 safe zones.
-    is_story_reel = (target_h / target_w) >= 1.7
-    if is_story_reel:
+    is_story = (target_h / target_w) >= 1.7
+    if is_story:
         # Meta-spec safe zones (matches "central 1080x1420 of 1080x1920" rule)
         top_inset    = int(target_h * 0.14)   # Stories profile header clearance
-        bottom_inset = int(target_h * 0.13)   # Reels UI stack clearance
-        side_inset   = int(target_w * 0.13)   # Reels right-rail clearance
+        bottom_inset = int(target_h * 0.13)   # Meta bottom safe zone
+        side_inset   = int(target_w * 0.13)   # Meta side safe zone
         scrim_fade   = 0                       # no extra pad transition past text edge
     else:
         # Feed — asymmetric: top/bottom/scrim_fade = pad // 2; sides = pad + pad // 2.
@@ -509,7 +506,6 @@ Text colors are chosen adaptively by sampling the image brightness in the text z
 | Facebook Post | 1200 | 630 |
 | Instagram Post (square) | 1080 | 1080 |
 | Instagram Post (portrait) | 1080 | 1350 |
-| Instagram / Facebook Reel | 1080 | 1920 |
 | Instagram / Facebook Story | 1080 | 1920 |
 
 **Day-of-week layout rotation** (text and logo always on opposite vertical ends):
@@ -542,14 +538,14 @@ def add_logo(image_path, output_path, logo_path, position='top-right', scale=0.1
         f"logo resize distorts aspect ratio — logo.crop(getbbox()) must run BEFORE logo_w/logo_h " \
         f"(cropped {cropped_w}/{cropped_h}={cropped_w/cropped_h:.3f}, resize {logo_w}/{logo_h}={logo_w/logo_h:.3f})"
     logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
-    # Per-canvas logo insets — Story/Reel uses Meta safe zones; Feed uses uniform pad // 2.
+    # Per-canvas logo insets — Story uses Meta safe zones; Feed uses uniform pad // 2.
     # Logo can sit at top OR bottom (selected by `position`); insets defined for both ends.
     pad = int(w * 0.06)                 # matches definition in add_text_overlay
-    is_story_reel = (h / w) >= 1.7
-    if is_story_reel:
+    is_story = (h / w) >= 1.7
+    if is_story:
         top_inset    = int(h * 0.14)   # Stories profile header clearance
-        bottom_inset = int(h * 0.13)   # Reels UI stack clearance
-        side_inset   = int(w * 0.13)   # Reels right-rail clearance
+        bottom_inset = int(h * 0.13)   # Meta bottom safe zone
+        side_inset   = int(w * 0.13)   # Meta side safe zone
     else:
         top_inset    = pad // 2
         bottom_inset = pad // 2
@@ -572,14 +568,14 @@ This is the standard final step for ALL social images.
 
 **Step 3b — Visual verification (MANDATORY before uploading to Zernio):**
 
-Read the final image and visually inspect it. Check every item below. Determine canvas type first: **9:16** = 1080×1920 (Story/Reel); **Feed** = all other formats.
+Read the final image and visually inspect it. Check every item below. Determine canvas type first: **9:16** = 1080×1920 (Story); **Feed** = all other formats.
 
 **Text — position and inset (9:16 = Meta safe zones; feed = asymmetric pad-derived — larger sides):**
 - [ ] Text block is at the **top OR bottom** matching `text_position` from the day-of-week rotation — never both ends, never mid-canvas
 - [ ] Text alignment matches the day-of-week rotation: left (Mon/Thu), center (Tue/Fri), right (Wed/Sat)
-- [ ] **9:16 (text at bottom — Mon/Wed/Fri):** bottom of text block is ~250 px (13%) from canvas bottom — clears Reels UI stack
+- [ ] **9:16 (text at bottom — Mon/Wed/Fri):** bottom of text block is ~250 px (13%) from canvas bottom — Meta bottom safe zone
 - [ ] **9:16 (text at top — Tue/Thu/Sat):** top of text block is ~269 px (14%) from canvas top — clears Stories profile header
-- [ ] **9:16:** text stays within ~140 px (13%) side margins — clears Reels right-rail
+- [ ] **9:16:** text stays within ~140 px (13%) side margins — Meta side safe zone
 - [ ] **Feed:** text has `pad // 2` (~32–36 px) inset on top + bottom, and `pad + pad // 2` (~96–108 px) inset on sides — sides intentionally larger to survive IG profile-grid 4:5 recrop (~34 px side trim)
 - [ ] **Gradient scrim reaches the canvas edge on the text side** — bottom-anchored text → scrim hits `target_h`; top-anchored text → scrim starts at y=0
 
@@ -607,9 +603,9 @@ Read the final image and visually inspect it. Check every item below. Determine 
 | Issue | Fix |
 |---|---|
 | **Text at wrong end of canvas** | Pass `text_position='top'` or `'bottom'` per the day-of-week rotation; re-render |
-| **Text too close to bottom edge (9:16)** | Verify `bottom_inset = int(target_h * 0.13)` (Meta-spec — Reels UI stack); re-render |
+| **Text too close to bottom edge (9:16)** | Verify `bottom_inset = int(target_h * 0.13)` (Meta bottom safe zone); re-render |
 | **Text too close to top edge (9:16)** | Verify `top_inset = int(target_h * 0.14)` (Meta-spec — Stories profile header); re-render |
-| **Text too close to sides (9:16)** | Verify `side_inset = int(target_w * 0.13)` (Meta-spec — Reels right-rail); re-render |
+| **Text too close to sides (9:16)** | Verify `side_inset = int(target_w * 0.13)` (Meta side safe zone); re-render |
 | **Gradient has visible gap at canvas edge** | Bottom text → `scrim_bottom == target_h`; top text → `scrim_top == 0`. Gradient must reach the canvas edge on the text side; re-render |
 | **Feed text top/bottom not at `pad // 2`** | Confirm feed branch sets `top_inset = bottom_inset = scrim_fade = pad // 2`; re-render |
 | **Feed text sides too tight / clipped in IG profile grid** | Confirm feed branch sets `side_inset = pad + pad // 2` (~96–108 px). Do NOT "simplify" to `pad // 2` — that gets consumed by IG's profile-grid 4:5 recrop (~34 px side trim). See v2.5.2 changelog. Re-render. |
@@ -623,7 +619,7 @@ Read the final image and visually inspect it. Check every item below. Determine 
 | Text overlaps logo | Text and logo must occupy opposite vertical ends per the day-of-week rotation. If overlapping despite correct positions (very long text on short canvas), reduce `hs` by 10% to shorten the text block. Re-render. |
 | Logo at wrong end | Correct `position` per day-of-week rotation: `top-right` for Mon/Wed/Fri (paired with bottom text); `bottom-left` for Tue/Thu/Sat (paired with top text); re-render |
 | Logo and text on same row | Verify the rotation mapping: `text_position` and `logo_position` must always be on opposite vertical ends; re-render |
-| Logo positioned wrong | Verify the `is_story_reel` branch in `add_logo`: 9:16 → `top_inset = int(h * 0.14)`, `bottom_inset = int(h * 0.13)`, `side_inset = int(w * 0.13)` (Meta); feed → all three = `pad // 2`; re-render |
+| Logo positioned wrong | Verify the `is_story` branch in `add_logo`: 9:16 → `top_inset = int(h * 0.14)`, `bottom_inset = int(h * 0.13)`, `side_inset = int(w * 0.13)` (Meta); feed → all three = `pad // 2`; re-render |
 | Logo clipped at edge | Reduce `scale` by 0.02 and re-render |
 | Logo visually offset (unequal margins) | `add_logo` already crops transparent padding via `logo.crop(logo.getbbox())` before computing dimensions — verify the crop line is present at the top of the function; re-render |
 | Logo aspect ratio looks distorted | Confirm `logo.crop(logo.getbbox())` runs BEFORE `logo_w`/`logo_h` are computed (cropping after the resize-target calc distorts aspect); re-render |
@@ -661,79 +657,12 @@ Use `publicUrl` from step 1 in `late_create_post` media array.
 | Facebook Post | 1200×630 | `facebook` |
 | Instagram Post (square) | 1080×1080 | `instagram` |
 | Instagram Post (portrait) | 1080×1350 | `instagram` |
-| Reels / Story (9:16) | 1080×1920 | `instagram` |
+| Story (9:16) | 1080×1920 | `instagram` |
 
-**Always save Reels/Story to `outputs/{brand}/posts/Instagram/` — naming: append `_Story`.**
+**Always save Story to `outputs/{brand}/posts/Instagram/` — naming: append `_Story`.**
 e.g. `SocialPost_PainMoment_Story_11Mar2026.png`
 
 Place generated images into the asset HTML using `<img>` tags or reference them in the design spec.
-
----
-
-### Step 5: Generate AI avatar videos via Argil API
-
-Use **Argil API** to generate talking-head video ads. Only for Reels tagged `(Argil)` by social-calendar (1 per brand per week). Best for high-conversion Reel content on FB/IG.
-
-**API workflow:**
-
-**Set `aspectRatio` based on the target format:**
-
-| Format | aspectRatio |
-|---|---|
-| Reel (FB/IG) | `"9:16"` (portrait) |
-| Landscape (if ever needed) | `"16:9"` |
-
-```
-1. Use gateway MCP tool `argil_create_video`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-   - name: "Ad Video - [description]"
-   - aspect_ratio: "9:16"
-   - moments: [{ avatarId: "AVATAR_ID", voiceId: "VOICE_ID", transcript: "Your script here..." }]
-
-2. Use gateway MCP tool `argil_render_video`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-   - video_id: <from step 1>
-
-3. Poll with `argil_get_video` (fiveagents_api_key + video_id) until status=DONE, then use videoUrl.
-```
-
-**Avatar selection — rotate for variety, prefer Asian characters for SEA markets:**
-
-Read avatar preferences from `brands/{brand}/avatars.md`. This file defines which avatars to use, the founder avatar + voice clone ID, and market preferences. Use `argil_list_avatars` and `argil_list_voices` gateway tools to discover all available options. Prefer Asian/SEA avatars for Singapore, Indonesia, and Malaysia audiences. Rotate across videos — don't always use the same avatar.
-
-Example avatar table below:
-
-| Actor | Use For | Example Scenes |
-|---|---|---|
-| **Founder** (custom) | Authority/founder content | Formal, Recording Studio |
-| **Arjun** | B2B professional, ops/sales content | Living Room Couch |
-| **Kabir** | Tech/startup content | Beach Sunset, Film Set |
-| **Rahul** | Professional services, consulting | Living Room, Gym |
-| **Ananya** (F) | Marketing/content marketing personas | Default, Cafe |
-| **Budi** | Indonesian market content | Default, Balcony |
-| **Hassan** | SEA business content | Library, Restaurant, Living Room |
-| **Koki** | Tech/product content | Indoors, Recording Studio |
-| **Amira** (F) | CS/support personas | Cafe, Street |
-| **Anjali** (F) | Enterprise/corporate content | Elevator |
-
-**Voice:** Use the founder's voice clone (ID from `brands/{brand}/avatars.md`) for the founder avatar only. For stock avatars, pick a matching English voice from `argil_list_voices` gateway tool.
-
-**Rotation rules:**
-- Don't use the same avatar for consecutive posts on the same platform
-- Match avatar gender/style to the target persona when possible
-- Use the founder avatar only for authority/founder-credibility content
-- Rotate across available avatars for variety
-
-**When to use Argil:**
-- **1 Reel per brand per week** — the highest-conversion Reel tagged `(Argil)` by the social-calendar skill
-- Meta Ads TOFU video content (pain-point or authority ads for FB/IG)
-
-**When NOT to use Argil:**
-- Stories (use static images with text/logo overlay)
-- LinkedIn posts (use static images)
-- Any post not explicitly tagged `(Argil)` in the calendar
-
-**For non-Argil Reels:** Use static image (1080x1920) with text + logo overlay, published as Story format.
 
 ---
 
@@ -794,7 +723,7 @@ Before finalizing any design output:
 - [ ] Accent color used sparingly — not dominant
 - [ ] No off-brand colors used
 - [ ] Typography follows the fb.ai brand kit / design-system font stack OR brand.md Google Fonts (whichever applied)
-- [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → **Story**: all 6 signed URLs passed directly to `late_create_post` per slide, no re-host needed; **Carousel/single-image**: re-host on Zernio first then one `late_create_post`); else Gemini-only fallback (Step 4b) documented
+- [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → **Story**: each slide re-hosted on Zernio (`late_presign_upload` + PUT → permanent `publicUrl`) then posted one-per-slide, 1-second sleep between slides, 5-second sleep + retry after ~5 consecutive FB posts; **Carousel/single-image**: re-host on Zernio first then one `late_create_post`); else Gemini-only fallback (Step 4b) documented
 - [ ] Template-path: `fivebucks_list_templates` called once and cached; `overrides` built from manifest field keys; direction set per type (`_direction` for meta-story; `direction` for single-image; `coverVariant`/`bodyVariant` for meta-carousel)
 - [ ] Template-path: `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
 - [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome

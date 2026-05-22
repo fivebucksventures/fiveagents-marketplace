@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.0 | May 20, 2026 |
+| Link | v2.11.1 | May 22, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.11.1** — May 22, 2026
+- **Argil fully removed from platform scope.** Removed `avatars.md` context-file entry, Argil from the Deps gateway legend, the Argil API gateway section, the "Full social post (video)" skill chain, and the `.mp4` output convention. Calendly corrected to `outreach-sequencer` + `customer-onboarder` (consistent with the v2.4.3 Deps audit that removed Calendly from `meeting-analyzer`).
 
 **v2.11.0** — May 20, 2026
 - Visual consistency rule rebuilt as a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`. Added a **Brand kit field map** documenting only the non-obvious `fivebucks_get_brand_kit` JSON mappings (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, no font weight scale); everything else is read from `tokens` at runtime. Restored the local `design-system/` context entry (crucial free baseline, optional fb.ai mirror) and added the **fb.ai media library** entry (`fivebucks_list_media_files`, brand-setup Step 4d).
@@ -24,38 +27,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 **v2.8.0** — May 20, 2026
 - Registered the new **`decision-advisor`** skill (Strategy) — structures a hard business decision (frame → weighted scoring → pre-mortem/stress-test → recommendation + decision record). Distilled from MIT-licensed decision-quality patterns ([`alirezarezvani/claude-skills`](https://github.com/alirezarezvani/claude-skills)); prioritization frameworks (RICE/ICE/value–effort) are public. Added its Skills-table row + a `research-strategy → decision-advisor` chain.
-
-**v2.7.1** — May 20, 2026
-- Added a **Working discipline** section — 4 paraphrased Karpathy agent-discipline guidelines (think before acting, keep it simple, surgical changes, define success + verify) that apply to every skill via this file.
-- Fixed 3 stale Skills-table Deps cells left from the fb.ai migration: `content-creation`, `creative-designer`, `content-generator` no longer list the obsolete local `social-{carousel,story}-template/` files or the dead `Gateway: templates` token — now reference `Gateway: fivebucks`.
-
-**v2.7.0** — May 20, 2026
-- Social templates moved to fb.ai: the `brands/{brand}/social-meta-*-template/` brand-asset bullets and the `template_upload`/`template_list`/`template_render` tool line are replaced by the `fivebucks_*` tool family (templates installed via the fb.ai dashboard in brand-setup Step 4c; rendered via `fivebucks_create_post` → `fivebucks_render_post`). Needs `FIVEBUCKS_API_KEY`.
-
-**v2.6.5** — May 16, 2026
-- Change log trimmed to the last 5 entries per Step 3c policy. No functional change.
-
-**v2.6.4** — May 15, 2026
-- Skills table — `data-analysis` and `digital-marketing-analyst` rows gained an `Env:` deps block listing the Zernio fallback env-var pairs: `${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads pair), `${BRAND}_LATE_META_ADS_ACCOUNT_ID`, `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (LinkedIn pair, opt-in per brand). brand-setup Step 8d-iv parses Deps to compute the agent_readiness matrix — without these declarations, the readiness email understated the actual env-var dependencies.
-- `digital-marketing-analyst` "Use For" updated to "Google Ads, Meta Ads, LinkedIn Ads (opt), GA4" — now reflects the new Phase 2.5 LinkedIn Ads support (was Google + Meta + GA4 only).
-
-**v2.6.3** — May 14, 2026
-- Zernio ads management: gateway now exposes ~35 new `late_*` ads tools (campaign/ad-set/ad CRUD, audiences, conversions, tracking tags, boost post, CTWA, targeting research). Tools & Integrations → Zernio API section expanded with full tool list grouped by category.
-- `digital-marketing-analyst` Deps: added `Gateway: Zernio (ads)` — Windsor fallback for Google Ads + Meta Ads data pull; Phase 4 ads actions (pause campaigns/ad sets, duplicate winners, boost post, CTWA, conversion audit).
-- `data-analysis` Deps: added `Gateway: Zernio (ads) (opt)` — same Windsor fallback + optional Step 7 act-on-findings.
-- GA4 remains Windsor-only on both skills — Zernio fallback covers paid ads only, not session analytics.
-
-**v2.4.4** — May 12, 2026
-- Skills table — design-system audit. Added `design-system/ (opt — ...)` to four Deps rows that were missing it: `campaign-presenter` (informs Canva brand-kit selection + slide visual choices), `background-generator` (informs Gemini prompt palette), `proposal-generator` (informs Gamma deck visual identity), `investor-update-writer` (same — and that row also gains the new Gamma MCP dep + Google Drive fallback note).
-- `investor-update-writer` row — Use For rewritten to reflect the new deliverable shape: "Monthly investor update — branded Gamma deck (Google Doc fallback) plus per-investor Gmail draft" (was: "Monthly investor update email"). Deps gained `Gamma` MCP (now first-class, not just Gmail).
-- Why this matters: the Visual consistency rule in this file (Section "Context Files" → Visual consistency rule) was already correct, but four content-generating skills were silently missing design-system in their Deps. brand-setup Step 8d-iv parses Deps to compute the agent_readiness matrix — those skills now declare the dependency they were already opportunistically reading (or were supposed to be reading).
-
-**v2.4.3** — May 07, 2026
-- Skills table — one-time audit of every skill's `Deps` cell against actual tool calls in each `SKILL.md`. 19 of 22 skill rows corrected.
-- Stale claims removed: `data-analysis` (PostHog never called), `campaign-presenter` (Gamma never called — Canva only), `outreach-sequencer` (Apollo.io never called — only references the `apollo_id` field), `investor-update-writer` (Gamma never called — writes Google Drive Doc archive instead), `meeting-analyzer` (Calendly never called in this skill).
-- Missing tokens added: `MCP: Slack` on 6 skills (`social-publisher`, `digital-marketing-analyst`, `social-calendar`, `proposal-generator`, `churn-predictor`, `outreach-sequencer`), `Gateway: Argil` on `creative-designer` + `content-generator`, `MCP: Notion` on `background-generator`, `MCP: Google Drive` + `MCP: Gmail` on `meeting-analyzer`, `MCP: PayPal (opt)` + `MCP: Notion` + `MCP: Google Drive (opt)` on `financial-reporter`, `Gateway: email` on `outreach-sequencer`, `MCP: Gmail` on `churn-predictor`, `MCP: Stripe (opt)` + `Gateway: email (opt)` on `invoice-collector`.
-- Missing Files refs added across most skills (`audience.md`, `product.md`, `competitors.md`, `brand.md`, `design-system/` opt) — they were being read but not declared, so the agent_readiness matrix understated actual context dependencies.
-- Why this matters: brand-setup Step 8d-iv computes the per-agent `connected_tools[]` readiness matrix by parsing this column. Drift here means the readiness email lies (claims tools that aren't used, or omits ones that are). Now in lockstep with reality.
 
 # Link — Business Operations Agent
 
@@ -99,7 +70,6 @@ Always read relevant context before any task. Use the active brand's folder:
 - `brands/{brand}/audience.md` — personas and pain points
 - `brands/{brand}/competitors.md` — competitive positioning and messaging
 - `brands/{brand}/funnel.md` — conversion funnel stages and benchmarks
-- `brands/{brand}/avatars.md` — Argil avatar preferences and voice clone IDs
 - `brands/{brand}/design-system/` — **Claude Design** visual system (colors, fonts, components, spacing), stored **locally** (installed via brand-setup Step 4b — the crucial, free baseline). Optional but recommended. When present, it is the authoritative source for visual identity. The same design system can **optionally also** be uploaded to fb.ai (discoverable via `fivebucks_get_brand_kit`, needs `FIVEBUCKS_API_KEY` + paid plan) so fb.ai social templates render with the brand's colors/fonts. When neither is present, fall back to colors / fonts / voice in `brands/{brand}/brand.md`.
 - **Social-post templates (fb.ai)** — the brand's Claude-designed Carousel / Story / LinkedIn / IG-FB single-image templates live on fb.ai (installed via `brand-setup` Step 4c). Discover them via `fivebucks_list_templates` (needs `FIVEBUCKS_API_KEY`); render via `fivebucks_create_post` → `fivebucks_render_post`. Optional — when absent (or no fb.ai key), fall back to Gemini + Pillow generation.
 - **fb.ai media library** — brand photos uploaded via brand-setup Step 4d. Access via `fivebucks_list_media_files` (needs `FIVEBUCKS_API_KEY`). Optional — when absent, skills fall back to Gemini image generation.
@@ -132,7 +102,7 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 
 Below is a compact **domain map** (areas + skill names). The full per-skill detail — **Use For** + **Deps** — lives in the plugin's [`SKILLS.md`](../SKILLS.md) (human-readable) and `skills-manifest.json` (machine-readable), both generated from each skill's `SKILL.md` frontmatter (`area` / `use_for` / `deps`) by `scripts/gen_skills_index.py`. `brand-setup` Step 8d + `plugin-update` read the manifest to compute readiness.
 
-**Deps notation** (as it reads in `SKILLS.md` / the manifest): `MCP:` connected apps the user authorizes · `Gateway:` gateway APIs (Gemini, Zernio, Argil, DataforSEO, fivebucks, email — all need `FIVEAGENTS_API_KEY`) · `Files:` brand context under `brands/{brand}/` · `Env:` vars in `.claude/settings.local.json` · `(opt)` = optional (absence degrades gracefully).
+**Deps notation** (as it reads in `SKILLS.md` / the manifest): `MCP:` connected apps the user authorizes · `Gateway:` gateway APIs (Gemini, Zernio, DataforSEO, fivebucks, email — all need `FIVEAGENTS_API_KEY`) · `Files:` brand context under `brands/{brand}/` · `Env:` vars in `.claude/settings.local.json` · `(opt)` = optional (absence degrades gracefully).
 
 > ⚙️ The map below is generated by `scripts/gen_skills_index.py` — **do not hand-edit it**. Change the skill's `SKILL.md` frontmatter and re-run the generator; the CI drift gate + `plugin-update` flag staleness.
 
@@ -153,7 +123,6 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 | Goal | Chain |
 |---|---|
 | Full social post (static) | content-creation → creative-designer → social-publisher |
-| Full social post (video) | content-creation (script) → creative-designer (Argil) → social-publisher |
 | Strategy + deck | research-strategy → campaign-presenter |
 | Full campaign | research-strategy → content-creation → creative-designer → social-publisher |
 | Analytics deck | data-analysis → campaign-presenter |
@@ -185,7 +154,6 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 All external API calls go through the fiveagents-gateway remote MCP server (`https://gateway.fiveagents.io/api/mcp`). Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`.
 
 - **Gemini API** — image generation → `gemini_generate_image` / `gemini_generate_text`
-- **Argil API** — AI avatar video → `argil_create_video` / `argil_render_video` / `argil_get_video` / `argil_list_avatars` / `argil_list_voices`
 - **Zernio API** — social publishing + ads management
   - *Publishing:* `late_presign_upload` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post` / `late_list_profiles` / `late_list_accounts`
   - *Ads — accounts & campaigns:* `late_list_ad_accounts` / `late_list_ad_campaigns` / `late_update_ad_campaign` / `late_update_ad_campaign_status` / `late_bulk_update_ad_campaign_status` / `late_duplicate_ad_campaign` / `late_update_ad_set` / `late_update_ad_set_status`
@@ -209,7 +177,6 @@ Save all deliverables to `outputs/{brand}/` with this naming:
 ```
 outputs/{brand}/[ContentType]_[DDMonYYYY]_copy.md     # text/copy
 outputs/{brand}/[ContentType]_[DDMonYYYY].png         # images
-outputs/{brand}/[ContentType]_[DDMonYYYY].mp4         # videos
 outputs/{brand}/[ContentType]_[DDMonYYYY].md          # reports/decks
 ```
 

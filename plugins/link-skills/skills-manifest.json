@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.8.2"
+    "version": "v2.8.3"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.10.1"
+    "version": "v2.10.2"
   },
   {
     "name": "background-generator",
@@ -105,7 +105,6 @@
       ],
       "gateway": [
         "Gemini",
-        "Argil",
         "Zernio",
         "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"
       ],
@@ -120,7 +119,7 @@
         "`${BRAND}_LATE_FB/IG/LI`"
       ]
     },
-    "version": "v2.11.0"
+    "version": "v2.11.1"
   },
   {
     "name": "creative-designer",
@@ -131,19 +130,17 @@
       "mcp": [],
       "gateway": [
         "Gemini",
-        "Argil",
         "Zernio",
         "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"
       ],
       "files": [
         "brand.md",
         "audience.md",
-        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)",
-        "avatars.md (opt — only for Reel/Argil video path)"
+        "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"
       ],
       "env": []
     },
-    "version": "v2.11.0"
+    "version": "v2.11.1"
   },
   {
     "name": "data-analysis",
@@ -227,7 +224,9 @@
         "Notion",
         "Slack"
       ],
-      "gateway": [],
+      "gateway": [
+        "FiveAgents (logging)"
+      ],
       "files": [
         "brand.md",
         "audience.md",
@@ -238,7 +237,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.11.0"
+    "version": "v2.11.1"
   },
   {
     "name": "social-publisher",

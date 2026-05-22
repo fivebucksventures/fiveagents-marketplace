@@ -1,6 +1,6 @@
 {
   "name": "fiveagents-link",
-  "version": "2.11.0",
+  "version": "2.11.1",
   "description": "Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand",
   "author": {
     "name": "fiveagents.io",
@@ -40,10 +40,6 @@
     },
     "gemini_api_key": {
       "description": "Google Gemini API key for image generation — also store in dashboard for Cowork use",
-      "sensitive": true
-    },
-    "argil_api_key": {
-      "description": "Argil API key for AI avatar videos (optional) — also store in dashboard for Cowork use",
       "sensitive": true
     },
     "fivebucks_api_key": {

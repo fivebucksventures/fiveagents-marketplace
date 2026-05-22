@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule"
 deps:
   mcp: ["Notion", "Slack"]
-  gateway: []
+  gateway: ["FiveAgents (logging)"]
   files: ["brand.md", "audience.md", "product.md", "competitors.md"]
   env: ["`${BRAND}_NOTION_DB`"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.0 | May 21, 2026 |
+| Link | v2.11.1 | May 22, 2026 |
 
 **Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
 
 ### Change Log
+
+**v2.11.1** — May 22, 2026
+- **Metrics and checklist corrected.** Log payload: `calendar_status` fixed "Published" → "Planned"; post `format` fixed from hardcoded `"static"` → `"<Post|Story|Carousel>"`; `content_mix.type` fixed from `"static"` → content-type enum. Quality checklist: added Monday slot checks (LinkedIn Post / Facebook Post / Instagram Post) and Friday LinkedIn = Post. `deps.gateway` updated from `[]` to `["FiveAgents (logging)"]`.
 
 **v2.11.0** — May 21, 2026
 - **SlideId column removed (12 → 11 columns)** — fb.ai now filters `linkedin-post` and `meta-post` by the post's `direction` override server-side, returning only the matching slide. `content-generator` no longer passes `slide_ids`; social-calendar no longer needs to pre-resolve slide labels. Direction is all you need for single-image types.
@@ -38,9 +41,6 @@ deps:
 **v2.5.0** — May 10, 2026
 - `image_brief` for Story / Reel posts now wrapped in full-frame composition template before saving to Notion — enforces full-bleed photorealistic composition so Gemini fills the entire 9:16 canvas (top, middle, and lower thirds) with no empty void at the bottom
 - Template applied in Step 2 Notion row construction; raw scene description is preserved as `SCENE_DESCRIPTION` inside the template
-
-**v2.4.0** — May 07, 2026
-- Notion MCP tool prefix normalized — `mcp__notion__notion-*` → `mcp__claude_ai_Notion__notion-*` (matches the actual registered tool names; old shorter form was working via undocumented fuzzy matching)
 
 
 # SKILL.md — Social Calendar
@@ -69,7 +69,7 @@ Read these files before planning:
 
 **Run `/link-skills:research-strategy` before planning.** Focus the research on:
 
-1. **Viral content formats** — what's getting high engagement on LinkedIn, Facebook, Instagram right now in the brand's niche? (e.g. carousel threads, talking-head Reels, meme formats, hot takes, before/after)
+1. **Viral content formats** — what's getting high engagement on LinkedIn, Facebook, Instagram right now in the brand's niche? (e.g. carousel threads, short-form video, meme formats, hot takes, before/after)
 2. **Trending topics** — what industry conversations, news, or pain points are blowing up this week?
 3. **Competitor social content** — what did competitors post recently that got high engagement? What format/hook did they use?
 4. **High-performing keywords** — from DataforSEO, what search terms are trending in the brand's space?
@@ -92,33 +92,16 @@ Generate exactly 14 posts for the upcoming Mon–Sat week using the fixed slot a
 | Monday | Facebook | Post |
 | Monday | Instagram | Post |
 | Tuesday | Facebook | Post |
-| Tuesday | Instagram | Reel |
+| Tuesday | Instagram | Story |
 | Wednesday | LinkedIn | Carousel |
 | Wednesday | Instagram | Post |
-| Thursday | Facebook | Reel |
+| Thursday | Facebook | Post |
 | Thursday | Instagram | Story |
 | Friday | LinkedIn | Post |
 | Friday | Facebook | Story |
-| Friday | Instagram | Reel |
+| Friday | Instagram | Carousel |
 | Saturday | Facebook | Post |
 | Saturday | Instagram | Carousel |
-
-### Argil Video Selection — 1 Reel per brand per week
-
-Each week has 3 Reels (Tue IG, Thu FB, Fri IG) and 2 Stories (Thu IG, Fri FB). Argil AI avatar videos are expensive — **pick exactly 1 Reel per week** for Argil treatment. The rest use Gemini-generated images (published as Stories). Stories always use Gemini-generated static images.
-
-**Selection criteria for the Argil Reel** — pick the one most likely to drive conversions:
-1. Strongest pain-point hook (scroll-stopping opener)
-2. Clear ROI proof or case study angle (e.g., "7 hours → 30 minutes")
-3. Direct CTA to book a call or start a trial
-4. Authority/founder content (founder avatar — see `brands/{brand}/avatars.md`)
-
-Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table, e.g., `Reel (Argil)`. All other Reels are just `Reel` (content-generator will use a Gemini-generated image published as Story).
-
-**Example:**
-| Thursday | Facebook | Reel (Argil) | ... | — this one gets Argil avatar
-| Tuesday | Instagram | Reel | ... | — Gemini-generated image as Story
-| Friday | Instagram | Reel | ... | — Gemini-generated image as Story
 
 ### For each post output ONLY these fields (one row per post, no extra commentary):
 
@@ -126,14 +109,14 @@ Mark the chosen Reel by adding `(Argil)` after the Format in the calendar table,
 |---|---|
 | Date | DD Mon YYYY |
 | Platform | LinkedIn / Facebook / Instagram |
-| Format | From fixed slot table above. For the 1 chosen Argil Reel, use `Reel (Argil)` instead of `Reel`. |
+| Format | From fixed slot table above. |
 | Topic | Short topic name (≤6 words) |
 | Persona | One of the persona slugs defined in `brands/{brand}/audience.md` — max 2× per persona per week. Examples: `content-mgr`, `seo-pro`, `sales-rep`, `agency-owner`, `solopreneur`, `growth-mktr` |
 | Content Angle | Hook + key message (1 sentence, ≤20 words) |
 | CTA | Specific action (≤8 words) |
 | Hashtags | 3–5 hashtags |
-| Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." For Story/Reel posts the raw scene is automatically wrapped in the full-frame composition template (see "Story/Reel image_brief wrapping" below) before saving to Notion. |
-| Direction | Template variant for the post — see "Direction selection" below. Required for any format with a matching fb.ai template (IG/FB Carousel, Story/Reel, IG/FB single-image, LinkedIn single-image); leave blank for Reel(Argil) or formats with no matching fb.ai template. |
+| Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." For Story posts the raw scene is automatically wrapped in the full-frame composition template (see "Story image_brief wrapping" below) before saving to Notion. |
+| Direction | Template variant for the post — see "Direction selection" below. Required for any format with a matching fb.ai template (IG/FB Carousel, Story, IG/FB single-image, LinkedIn single-image); leave blank for formats with no matching fb.ai template. |
 | Status | Planned |
 
 ### Direction selection — pick the template variant per post
@@ -152,7 +135,7 @@ Pick by content type:
 - Hot take / opinion / personality → `sticker-editorial`
 - Case study / customer story → `editorial-mixed`
 
-**For Story / Reel posts** — pick one of the story template's three direction styles:
+**For Story posts** — pick one of the story template's three direction styles:
 - `A` — Spotlight Dark. Brand-led campaigns: eyebrow → headline → divider pill, dark backgrounds, accent color leading. Good for product launches, brand campaigns, urgent CTAs.
 - `B` — Editorial Stat. When a single big number is the story (oversized stat as hero). Good for ROI proof, benchmark posts, "X% faster" / "$Y saved" data points.
 - `C` — Cream Press. Light, magazine-style. Good for case studies, testimonials, founder posts, customer stories.
@@ -172,11 +155,11 @@ Pick by content type:
 - `B` — Quote Card (editorial). Testimonials, founder voice, press quotes.
 - `C` — Listicle Teaser (3–5 bullets). Value-led / educational posts.
 
-**For Reel(Argil) or any format with no matching fb.ai template** — leave Direction blank.
+**For any format with no matching fb.ai template** — leave Direction blank.
 
 If you assign a Direction the brand's template doesn't support, content-generator falls back to the template defaults and logs a warning — so before assigning, check the template's `manifest` (via `fivebucks_get_template`) for the `direction` / `coverVariant` / `bodyVariant` `options` the brand's template actually exposes.
 
-### Single-image templates — Direction is all you need
+### Direction reference — fb.ai handles slide selection server-side
 
 fb.ai's renderer filters `linkedin-post` and `meta-post` by the post's `direction` (A/B/C) **server-side** and screenshots the one matching slide. So for these types just set **Direction** (above) — there is no separate slide column to fill, and `content-generator` no longer passes `slide_ids`. Same for `meta-story` (`_direction` → 6 slides) and `meta-carousel` (renders all 6). Slide selection is fb.ai's job; your job is picking the Direction.
 
@@ -192,7 +175,6 @@ Default mix (use ONLY if research is unavailable):
 - Engagement / Opinion: 1 post
 
 Research-driven adjustments:
-- If trending formats are Reels/video → shift more slots to Reel format where possible
 - If a viral topic is relevant to the brand → dedicate 2-3 posts to ride the trend (different angles per platform)
 - If competitor content is heavily educational → differentiate with more social proof or opinion content
 - If a keyword is trending → build posts around that keyword's intent
@@ -203,10 +185,11 @@ Research-driven adjustments:
 - Rotate across all personas defined in `brands/{brand}/audience.md` (e.g. `content-mgr`, `seo-pro`, `sales-rep`, `agency-owner`, `solopreneur`, `growth-mktr`)
 - Direct CTAs at least 3 slots apart per platform
 - No same topic twice
+- **Instagram Story and Facebook Story must never fall on the same day.** The fixed slot table guarantees this (Tue IG, Thu IG, Fri FB — no pair shares a date). If a conflict is somehow detected, abort and report rather than moving fixed slots.
 
-### Story/Reel image_brief wrapping
+### Story image_brief wrapping
 
-Before saving any post row to Notion, apply this transformation to `image_brief` for Story and non-Argil Reel posts. **Do NOT wrap `Reel (Argil)`** — Argil uses a script, not `image_brief`, so the composition template has no effect and only bloats the Notion cell.
+Before saving any post row to Notion, apply this transformation to `image_brief` for Story posts.
 
 ```python
 STORY_TEMPLATE = (
@@ -218,9 +201,8 @@ STORY_TEMPLATE = (
     "Do not include any text, logos, or UI elements."
 )
 
-if format.lower() in ("story", "reel"):
+if format.lower() == "story":
     image_brief = STORY_TEMPLATE.format(SCENE_DESCRIPTION=image_brief)
-# Reel (Argil) → do NOT wrap; Argil uses a video script, not image_brief
 ```
 
 **Rules:**
@@ -248,11 +230,12 @@ Run this check on **every row** before proceeding to Step 3. Fix any failing row
 | LinkedIn Post | LinkedIn | ✅ Yes | `A` / `B` / `C` |
 | LinkedIn Carousel | LinkedIn | ❌ No | *(blank)* |
 | Meta Post (FB or IG) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` |
-| Meta Story / Reel (non-Argil) | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` |
+| Meta Story | Facebook / Instagram | ✅ Yes | `A` / `B` / `C` |
 | Meta Carousel (FB or IG) | Facebook / Instagram | ✅ Yes | `type-allnumbers` / `sticker-editorial` / `editorial-mixed` |
-| Reel (Argil) | Facebook / Instagram | ❌ No | *(blank)* |
 
-**Golden rule: every row must have Direction populated unless it is `LinkedIn Carousel` or `Reel (Argil)`.**
+**Golden rule: every row must have Direction populated unless it is `LinkedIn Carousel`.**
+
+**Story conflict rule: Instagram Story and Facebook Story must not share the same date.** The fixed slot table guarantees this — if a conflict appears, abort and report; do not attempt to move fixed slots.
 
 If any row fails, correct it before Step 3 — do not post a failing row as a known issue.
 
@@ -379,7 +362,7 @@ Notion: {url}
 |---|---|---|---|---|---|---|---|---|---|---|
 | 06 Apr 2026 | LinkedIn | Post | ... | ... | ... | ... | ... | ... | A | Planned |
 | 06 Apr 2026 | Facebook | Post | ... | ... | ... | ... | ... | ... | B | Planned |
-| 08 Apr 2026 | Instagram | Carousel | ... | ... | ... | ... | ... | ... | type-allnumbers | Planned |
+| 11 Apr 2026 | Instagram | Carousel | ... | ... | ... | ... | ... | ... | type-allnumbers | Planned |
 ... (14 data rows)
 
 ## Content Mix
@@ -419,17 +402,17 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 
 - [ ] Exactly 14 posts
 - [ ] Formats match fixed slot table
-- [ ] Exactly 1 Reel marked `(Argil)` per week — no more, no less
-- [ ] Tuesday + Friday Instagram = Reel
-- [ ] Wednesday LinkedIn = Carousel
-- [ ] Thursday Facebook = Reel, Thursday Instagram = Story
-- [ ] Friday Facebook = Story, Saturday Instagram = Carousel
+- [ ] Monday LinkedIn = Post, Monday Facebook = Post, Monday Instagram = Post
+- [ ] Tuesday Instagram = Story, Wednesday LinkedIn = Carousel
+- [ ] Thursday Facebook = Post, Thursday Instagram = Story
+- [ ] Friday Facebook = Story, Friday LinkedIn = Post, Friday Instagram = Carousel, Saturday Instagram = Carousel
 - [ ] Persona rotation applied — no persona used more than 2× across 14 posts
 - [ ] Content mix is research-driven (Step 1b) — if research was available, mix reflects findings; if research was unavailable, default mix used (5 edu / 3 proof / 3 product / 2 CTA / 1 engage); at minimum 2 Direct CTA posts present
 - [ ] All raw scene descriptions (before wrapping) end with "No text. No logos. No watermarks."
-- [ ] Story and Reel (non-Argil) image briefs are wrapped in the full-frame composition template before saving to Notion — the saved `Image Brief` cell must contain "fills the ENTIRE frame"; `Reel (Argil)`, LinkedIn, and Carousel briefs are saved verbatim (no wrapping)
-- [ ] **Step 2b verification passed** — every row passed the format-rules table (Direction correct per format type; no row missing Direction except `LinkedIn Carousel` and `Reel (Argil)`)
+- [ ] Story image briefs are wrapped in the full-frame composition template before saving to Notion — the saved `Image Brief` cell must contain "fills the ENTIRE frame"; LinkedIn and Carousel briefs are saved verbatim (no wrapping)
+- [ ] **Step 2b verification passed** — every row passed the format-rules table (Direction correct per format type; no row missing Direction except `LinkedIn Carousel`)
 - [ ] **Direction rotated for variety** — same-format posts spread across `A`/`B`/`C` (and carousel `coverVariant-bodyVariant` combos); no long runs of the same Direction in one platform's feed
+- [ ] **No same-day Stories** — Instagram Story and Facebook Story are on different dates
 - [ ] Notion page URL logged to memory
 - [ ] Agent run logged to dashboard
 
@@ -452,10 +435,10 @@ Use gateway MCP tool `fiveagents_log_run`:
     "date": "YYYY-MM-DD",
     "week": "DD-DD Mon YYYY",
     "posts_planned": 14,
-    "calendar_status": "Published",
+    "calendar_status": "Planned",
     "notion_url": "https://notion.so/...",
-    "posts": [{ "date": "DD Mon", "platform": "LinkedIn", "topic": "...", "persona": "...", "format": "static", "status": "Published" }],
-    "content_mix": [{ "type": "static", "count": 11, "percentage": 78.6 }],
+    "posts": [{ "date": "DD Mon", "platform": "LinkedIn", "topic": "...", "persona": "...", "format": "<Post|Story|Carousel>", "status": "Planned" }],
+    "content_mix": [{ "type": "<Educational / How-to|Social Proof / Results|Product Spotlight|Direct CTA|Engagement / Opinion>", "count": 5, "percentage": 35.7 }],
     "persona_distribution": [{ "persona": "seo-pro", "count": 3 }]
   }
 ```

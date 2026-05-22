@@ -39,12 +39,6 @@ deps:
 **v2.2.15** — May 05, 2026
 - Role section clarified — produces backgrounds library at brands/{brand}/backgrounds/ for Reel production, distinct from social-{carousel,story}-template/ apps
 
-**v2.2.5** — April 26, 2026
-- Added "Before Executing" section — reads agents/link.md before starting
-
-**v2.2.2** — April 10, 2026
-- gemini_generate_image result decoded via Python to brands/{brand}/backgrounds/
-
 # SKILL.md — Background Generator
 
 ## Before Executing
