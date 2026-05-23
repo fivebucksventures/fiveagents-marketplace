@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.8.3"
+    "version": "v2.9.0"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.10.2"
+    "version": "v2.11.0"
   },
   {
     "name": "background-generator",
@@ -119,7 +119,7 @@
         "`${BRAND}_LATE_FB/IG/LI`"
       ]
     },
-    "version": "v2.11.1"
+    "version": "v2.12.0"
   },
   {
     "name": "creative-designer",

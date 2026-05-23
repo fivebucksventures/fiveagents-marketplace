@@ -13,11 +13,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.10.2 | May 22, 2026 |
+| Link | v2.11.0 | May 23, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.11.0** — May 23, 2026
+- **Step 3b design-system install updated to the new claude.ai/design flow** — Design System → **Create** → the **"Set up your design system"** attach form (company name + blurb; optional GitHub repo / local code / `.fig` / fonts+logos+assets; brand colors, fonts and voice in **Any other notes**) → **Continue to generation** → paste a website-aware generation prompt so Claude validates against the live site. Steps renumbered 1–6.
+- **Step 3d media library now specifies per-template-type folder names** — `LinkedIn Post` / `Meta Story` / `Meta Carousel` / `Meta Post`, matching the `content-generator` media-pool convention; only create folders for template types that exist on fb.ai.
 
 **v2.10.2** — May 22, 2026
 - **Step cross-references and checklist corrected.** Step 3k: CLAUDE.md embed row fixed from "→ Step 3g" to "→ Step 3h"; Windsor.ai fallback row fixed from "→ Step 3e" to "→ Step 3f". Quality checklist: added Step 3f (env vars) item. Step 1k version audit example table annotated as "example only — read actual versions from disk".
@@ -33,9 +37,6 @@ deps:
 **v2.8.0** — May 20, 2026
 - **Step 3b (design-system)** restored to the local copy flow (Claude Design → export → unzip → move into `brands/{brand}/design-system/`) + an optional fb.ai brand-kit upload (`/dashboard/social-posts/api-keys` → `/dashboard/social-posts/brand-kit`); the fb.ai upload is opt-in (paid plan), the local copy is the baseline.
 - **New Step 3d — optional fb.ai media library** check (`fivebucks_list_media_folders`); offers upload at `/dashboard/social-posts/media` when empty. Subsequent sub-steps renumbered 3e–3k.
-
-**v2.7.1** — May 20, 2026
-- Step 4b readiness now reads each skill's `area` / `deps` from the **pre-generated `skills-manifest.json`** (not by parsing the link.md table), matching brand-setup Step 8d-iv. The manifest ships with the plugin (generated + sync-verified at release time by `commit-to-git` Step 4f); plugin-update **reads** it and does not run the generator in Cowork — it's plain JSON. Part of Phase 0 (generated registry for scaling to 300+ skills).
 
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
@@ -454,15 +455,22 @@ If `brands/{brand}/design-system/` is missing, offer installation but accept "sk
 > Your brand doesn't have a Claude Design system installed. It's optional — skills fall back to the colors and fonts in `brand.md`. Installing it gives tighter visual consistency across all outputs. Want to set it up now?
 
 If yes, walk the user through `brand-setup` Step 4b:
-1. Open https://claude.ai/design → Create new project
-2. Define colors, typography, components using values already in `brands/{brand}/brand.md`
-3. Share → Download Project as .zip → unzip (leave it wherever it is — e.g. `~/Downloads/Acme Design System`; no need to move it)
-4. Ask the user for the path to the unzipped folder, then request access to *that exact path* before reading it — the user approves it in a one-time prompt:
+1. Open https://claude.ai/design → go to **Design System** → click **Create**
+2. On the **"Set up your design system"** page, fill the attach form — **Company name and blurb**; optionally attach a GitHub repo / local code / a **.fig** file / **fonts, logos and assets**; and paste the colors, fonts, and voice already in `brands/{brand}/brand.md` into **Any other notes** — then click **Continue to generation**
+3. On the generation prompt, paste a website-aware prompt so Claude validates against the live site. Substitute the brand's website URL (ask the user if it isn't already known, or pull it from `brand.md`):
+   ```
+   This is my website: {WEBSITE_URL} — please read it and use it to validate and fill in my colors, typography, components, spacing, and overall visual style.
+   Confirm and refine against the site: colors (primary / secondary / accent), heading + body fonts, and brand voice from brand.md.
+   Build a complete, reusable design system: color tokens, a type scale, buttons, cards, headers / nav, and spacing.
+   ```
+   Iterate until it feels on-brand.
+4. Share → Download Project as .zip → unzip (leave it wherever it is — e.g. `~/Downloads/Acme Design System`; no need to move it)
+5. Ask the user for the path to the unzipped folder, then request access to *that exact path* before reading it — the user approves it in a one-time prompt:
    ```
    mcp__cowork__request_cowork_directory(path="<the path the user gave>")
    ```
    Required in the Cowork harness (filesystem access is sandboxed to approved directories); request the folder the user named, not a guessed default. In local Claude Code this tool is absent and the filesystem is already accessible — skip the request. If the user declines, ask them to move the folder inside the project mount, then copy from there.
-5. Once access is approved, copy the folder into `brands/{brand}/design-system/` (Python `shutil.copytree`, handling the single-inner-folder nested-zip case — see brand-setup Step 4b-C).
+6. Once access is approved, copy the folder into `brands/{brand}/design-system/` (Python `shutil.copytree`, handling the single-inner-folder nested-zip case — see brand-setup Step 4b-C).
 
 Verify `brands/{brand}/design-system/` exists and is non-empty before marking complete. If the user skips, mark as ⏭ — not a gap that blocks any skill.
 
@@ -495,7 +503,13 @@ Check whether the brand has any media folders via `fivebucks_list_media_folders`
 If yes:
 > 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys — generate API Key if not done yet *(skip if already generated)*
 > 2. Go to https://www.fivebucks.ai/dashboard/social-posts/media
-> 3. Click **Add New Folder** to organise your media, then **Upload Media** to add your photos.
+> 3. Create one folder per template type, named **exactly** as follows — `content-generator` matches photos to templates using these names:
+>    - **LinkedIn Post** — photos for LinkedIn single-image posts
+>    - **Meta Story** — photos for Instagram / Facebook Stories
+>    - **Meta Carousel** — photos for Instagram / Facebook Carousels
+>    - **Meta Post** — photos for Instagram / Facebook single-image posts
+>
+>    Only create folders for template types that exist on fb.ai. Then click **Upload Media** inside each folder to add your photos.
 
 If the user skips, mark as ⏭ — skills fall back to Gemini image generation. If `FIVEBUCKS_API_KEY` isn't set, skip this step entirely.
 

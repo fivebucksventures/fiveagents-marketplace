@@ -15,11 +15,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.1 | May 22, 2026 |
+| Link | v2.12.0 | May 23, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.12.0** — May 23, 2026
+- **New media pool — photos are now auto-injected from fb.ai folders.** At run start (cached alongside the template list, called once), `fivebucks_list_media_folders` builds `media_pool[type]` by matching folders to template types by exact name (`LinkedIn Post`→`linkedin-post`, `Meta Story`→`meta-story`, `Meta Carousel`→`meta-carousel`, `Meta Post`→`meta-post`) and listing each folder's files. Fallbacks: pool all folders when no exact name match; empty pool when no folders exist; skip silently on any error (never fails the run).
+- **Step 4 changed from "(Optional) Assign photos" to "Assign photos from the media pool."** Non-empty pool → carousel/story cycle photos through body slots `s2_image`…`s5_image` (up to 4, reused if fewer); single-image types assign one photo to `bg_image`; each slot gets companion `_position: center` / `_fit: cover` overrides. Empty pool → image slots left empty (template renders its branded placeholder) — the normal no-media fallback, never a failure or warning. Quality-checklist item added.
 
 **v2.11.1** — May 22, 2026
 - **Reel and Argil fully removed.** Removed "For Reels" copy instruction, Reel rows from Step 4c routing table and decision logic, Story/Reel guard → Story-only (`post.format.lower() == "story"`), `LATE_CONTENT_TYPE` reel key and `LATE_CONTENT_TYPE_FALLBACK` dict, Reel video publishing and fallback rules, Argil from frontmatter gateway dep. Log metric `format` placeholder corrected from hardcoded `"static"` to `"<Post|Story|Carousel>"`.
@@ -34,11 +38,6 @@ deps:
 
 **v2.8.0** — May 20, 2026
 - Brand palette resolution for the Gemini image-path is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
-
-**v2.7.0** — May 20, 2026
-- **Render pipeline migrated to fb.ai (`fivebucks_*` gateway tools).** The old `template_list` / `template_render` flow (Gemini base64 → presign Zernio slots → server-side render) is gone — it targeted a gateway API that no longer exists. Step 4c-template now: `fivebucks_list_templates` (cache) → read manifest → `fivebucks_create_post` (copy + direction + optional `media:{fileId}` photos) → `fivebucks_render_post` → 1-hour signed PNG URLs → re-host on Zernio (`late_presign_upload`) → `late_create_post`. Templates live on fb.ai (uploaded via the dashboard in brand-setup Step 4c), discovered by `type` (meta-carousel | meta-story | linkedin-post | meta-post) — no local `social-meta-*-template/` folders.
-- **All four template types are template-path now.** Added IG/FB single-image (`meta-post`) and LinkedIn single-image (`linkedin-post`) routing. meta-story uses `_direction` (A/B/C, default A — never `all`); single-image types use the un-prefixed `direction`.
-- Requires the brand's fb.ai key (`FIVEBUCKS_API_KEY`, vault service `fivebucks`) — see brand-setup Step 7.
 
 
 # SKILL.md — Content Generator
@@ -295,6 +294,24 @@ Use gateway MCP tool fivebucks_list_templates:
 
 Returns an array of templates, each with `id`, `name`, `type` (`meta-carousel` | `meta-story` | `linkedin-post` | `meta-post`), `dimensions`, and `manifest`. Build a `type → {id, manifest}` map and **cache it for the entire daily run** — don't call per post. If no template of the type this post needs exists, fall back to **Step 4c-image**.
 
+Also at run start, build the **media pool** (cache alongside the template list — call once, not per post):
+
+```
+Use gateway MCP tool fivebucks_list_media_folders:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+```
+
+Match returned folders to template types by exact name (case-insensitive):
+
+| Folder name | Template type |
+|---|---|
+| `LinkedIn Post` | `linkedin-post` |
+| `Meta Story` | `meta-story` |
+| `Meta Carousel` | `meta-carousel` |
+| `Meta Post` | `meta-post` |
+
+For each matched folder, call `fivebucks_list_media_files` and store the file list as `media_pool[type]`. **Fallback:** if a template type has no matching folder, pool all folders (call `fivebucks_list_media_files` for every folder and combine into a single list for that type). **Fallback:** if no folders exist at all, `media_pool` is empty — photo injection is skipped for the whole run. On any error from `fivebucks_list_media_folders`, skip silently and treat the pool as empty — never fail the run.
+
 #### 2. Read the manifest
 
 From the cached entry (or `fivebucks_get_template` for the freshest copy) read:
@@ -309,13 +326,15 @@ Flat key→value map. Send only fields you're changing; fb.ai seeds defaults for
 - **linkedin-post / meta-post**: the un-prefixed `direction` = `"A"` / `"B"` / `"C"` (picks the single slide's layout).
 - **meta-carousel**: `coverVariant` / `bodyVariant` from the post's Direction field (e.g. `"type-allnumbers"` → `coverVariant="type"`, `bodyVariant="allnumbers"`) if the manifest exposes them.
 
-#### 4. (Optional) Assign photos
+#### 4. Assign photos from the media pool
 
-By default, **leave image slots empty** — the template renders its own branded placeholder/gradient (on-brand, zero extra cost). To inject a real photo:
-- Upload to the fb.ai media library: `fivebucks_presign_media_upload` (folder_id, filename) → `requests.put(uploadUrl, bytes)` → `fivebucks_confirm_media_upload` (file_id, folder_id, size_bytes, mime_type) → use the returned id.
-- Add to overrides: `{ "s4_image": "media:{id}", "s4_image_position": "center", "s4_image_fit": "cover" }` (meta-carousel/meta-story body slots `s2_image`…`s5_image`; single-image types `bg_image` + optional `headshot_image`).
+Use `media_pool[type]` built in Step 1. For this post's template type:
 
-(Or pick an existing photo with `fivebucks_list_media_folders` → `fivebucks_list_media_files`. For automated daily runs without curated photos, skip this step.)
+- **Pool non-empty** → inject photos into image slots:
+  - `meta-carousel` / `meta-story` body slots `s2_image`…`s5_image`: cycle through the pool (up to 4 photos; reuse from the start if the pool has fewer than 4). Use a different photo per slot when possible.
+  - `linkedin-post` / `meta-post`: assign one photo to `bg_image`.
+  - For each assigned slot add companion overrides: `"<slot>_image_position": "center"` and `"<slot>_image_fit": "cover"`.
+- **Pool empty** → leave all image slots empty — the template renders its own branded placeholder/gradient. Never fail or warn for an empty pool; this is the normal no-media fallback.
 
 #### 5. Create the post
 
@@ -916,6 +935,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Image dimensions are correct for platform/format
 - [ ] Template-path used when a matching fb.ai template exists for the format; image-path used otherwise (no `failed` run for missing templates)
 - [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)
+- [ ] **Template-path:** media pool built at run start — `fivebucks_list_media_folders` called once; each folder matched to template type by exact name (`LinkedIn Post`, `Meta Story`, `Meta Carousel`, `Meta Post`); fallback to all-folder pool when no exact match; empty pool → image slots left empty (not a failure)
 - [ ] **Template-path:** `overrides` map copy → manifest field keys (skip `bound:false`, `select` values from `options`); direction set (`_direction` A/B/C for meta-story — never `all`; `direction` for single-image types)
 - [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: each slide re-hosted on Zernio (`late_presign_upload` + PUT → permanent `publicUrl`) then posted one-per-slide via `late_create_post` with `is_draft=False` + `publish_now=True`; 1-second sleep between slides; 5-second sleep + one retry after ~5 consecutive FB posts (FB rate-limit); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`late_presign_upload` + PUT) then passed as `media_items` to a single `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
 - [ ] **Template-path:** `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)

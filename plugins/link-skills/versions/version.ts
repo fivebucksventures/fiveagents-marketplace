@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.11.1';
-const DEFAULT_DATE = 'May 22, 2026';
+const DEFAULT_VERSION = 'v2.12.0';
+const DEFAULT_DATE = 'May 23, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.12.0',
+    date: 'May 23, 2026',
+    changes: [
+      'content-generator v2.12.0: new media pool — at run start fivebucks_list_media_folders (cached with the template list) builds media_pool[type] by matching folders to template types by exact name (LinkedIn Post / Meta Story / Meta Carousel / Meta Post) and listing each folder\'s files. Step 4 changed from optional photo assignment to active injection: carousel/story cycle photos through body slots s2_image…s5_image, single-image types fill bg_image (+ _position: center / _fit: cover); empty pool leaves slots empty (branded placeholder). Fallbacks: pool all folders when no exact match; empty pool when no folders; skip silently on any error — never fails the run.',
+      'brand-setup v2.9.0: Step 4b Claude Design setup rewritten for the new claude.ai/design UI (Design System → Create → "Set up your design system" attach form → Continue to generation), with a placeholder-substitution table and a ready-to-paste, website-aware generation prompt that points Claude at the live site. Step 4d media library now defines the per-template-type folder names (LinkedIn Post / Meta Story / Meta Carousel / Meta Post) content-generator matches photos against.',
+      'plugin-update v2.11.0: Step 3b design-system install updated to the new claude.ai/design flow (steps renumbered 1–6) with a website-aware generation prompt; Step 3d media library now specifies the per-template-type folder names matching the content-generator media-pool convention.',
+    ],
+  },
   {
     version: 'v2.11.1',
     date: 'May 22, 2026',
@@ -153,17 +162,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator v2.5.1: defensive full-frame guard added at Step 4c-image — if Story/Reel image_brief lacks "fills the ENTIRE frame" (calendar authored before v2.6.0), wraps it in composition template before calling gemini_generate_image. Reel(Argil) excluded. Quality checklist item added.',
       'creative-designer v2.5.1: same defensive full-frame guard at Step 4b — wraps Story/Reel prompts in composition template before gemini_generate_image. Safe asset_type variable check via dir() fallback. Quality checklist item added.',
       'workflow/commit-to-git.md: new release workflow document added — git status, skill version audit (no double-bump), Notion Agents Library sync, three-file version lockstep, commit and push steps with quality checklist.',
-    ],
-  },
-  {
-    version: 'v2.5.1',
-    date: 'May 08, 2026',
-    changes: [
-      'content-generator + creative-designer: add_text_overlay — replaced character-count textwrap heuristic with pixel-aware wrap_to_fit() using draw.textbbox(). Fixes headline overflow on wide feed canvases (LinkedIn 1200×628, Facebook 1200×630) where DejaVu Bold widths exceeded the hs * 0.55 estimate, causing text to spill past the side inset. Removed import textwrap.',
-      'brand-setup: Step 5g Step A (Sender Persona) now collects Booking URL alongside Name/Title/Signature/Photo. sales.md template Sender Persona block adds Booking URL: line. Reply Routing {link} placeholder now resolves explicitly from Sender Persona Booking URL (was unresolved — silent breakage in outbound CTAs).',
-      'plugin-update: Step 1a — added inline schema check for sales.md Booking URL: line in ## Sender Persona block (flags ⚠ schema gap if missing). Step 3a — new targeted single-question backfill handler for present-but-incomplete sales.md (asks only the Booking URL, no full Step 5g re-walk).',
-      'outreach-sequencer: Step 4 fallback contract pinned — was "stored in sales.md Sender Persona section", now reads "the Booking URL: line inside the ## Sender Persona block" with explicit abort + Slack alert if missing/empty. No more silent CTAs with empty booking links.',
-      'customer-onboarder: Step 4c — added explicit fallback path. If Calendly OAuth fails, no event-type matches kickoff, or single-use scheduling-link tool errors out, read Booking URL from sales.md Sender Persona instead (standing link, acceptable degradation). If that is also missing, abort + Slack alert routing user to /link-skills:plugin-update.',
     ],
   },
 ];
