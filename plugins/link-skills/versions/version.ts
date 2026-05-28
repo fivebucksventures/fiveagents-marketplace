@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.13.0';
+const DEFAULT_VERSION = 'v2.13.1';
 const DEFAULT_DATE = 'May 28, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,13 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.13.1',
+    date: 'May 28, 2026',
+    changes: [
+      'video-downloader v1.0.1: removed the bundled scripts/download_video.py + $CLAUDE_PLUGIN_ROOT path — Cowork (the runtime) does not expose that variable and link-skills has no bundled-runtime-script convention. yt-dlp now runs inline (python3 -m pip install yt-dlp → python3 -m yt_dlp) in the skill bash block, matching content-generator local-glue pattern. No other skill affected.',
+    ],
+  },
   {
     version: 'v2.13.0',
     date: 'May 28, 2026',
@@ -157,15 +164,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator v2.5.3: Step 4c-image Prompt rules expanded to spell out the read order (design-system/ first, brand.md fallback) AND how to inject palette into the Gemini prompt (HEX values as ambient mood). New clarifying note on why Pillow uses DejaVuSans-Bold regardless of brand (universal rasterizer) — colors are the lever for on-brand output on the Pillow path. Fixed stale "text overlay needs readable space at the bottom" claim — now correctly references top OR bottom per day-of-week rotation.',
       'creative-designer v2.5.3: matching Step 4b Image prompt guidelines bullet — inject brand HEX into the Gemini prompt with phrasing rules. Matching callout on Pillow fonts. Closes the loop where Step 1 read design-system but the Gemini prompt-construction guide didn\'t tell the model to use it.',
       'agents/link.md v2.4.4: four Deps rows updated (campaign-presenter, background-generator, proposal-generator, investor-update-writer) to declare design-system/ (opt). investor-update-writer row also rewrote Use For to reflect the new Gamma deck deliverable and added Gamma MCP as a first-class dep.',
-    ],
-  },
-  {
-    version: 'v2.6.1',
-    date: 'May 12, 2026',
-    changes: [
-      'content-generator v2.5.2: add_text_overlay feed side_inset bumped from pad // 2 to pad + pad // 2 (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram\'s profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at pad // 2; add_logo unchanged at uniform pad // 2 — text and logo feed insets diverge on sides by design. Reason: v2.5.0\'s "uniform pad // 2 on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced.',
-      'creative-designer v2.5.2: mirror of content-generator fix — same add_text_overlay feed side_inset bump (pad // 2 → pad + pad // 2). Layout rules + Step 3b checklist + fix table rewritten to reflect text/logo feed-side divergence.',
-      'content-generator + creative-designer: Step 4a/Step 4h tables and fix tables call out the regression risk explicitly — any future "simplification" that re-aligns feed text sides with feed logo sides will reintroduce the bug.',
     ],
   },
 ];
