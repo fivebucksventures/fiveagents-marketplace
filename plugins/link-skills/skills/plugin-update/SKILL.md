@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.0 | May 23, 2026 |
+| Link | v2.11.1 | May 28, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.11.1** — May 28, 2026
+- **Registered the two new v2.13.0 auto-bootstrapped DBs** — `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the Step 1d auto-bootstrap inventory and the Step 3f defer-or-bootstrap list; Step 1d checklist count corrected 7 → 9. New skills are otherwise auto-detected from the shipped `skills-manifest.json` (Step 1's registry read).
 
 **v2.11.0** — May 23, 2026
 - **Step 3b design-system install updated to the new claude.ai/design flow** — Design System → **Create** → the **"Set up your design system"** attach form (company name + blurb; optional GitHub repo / local code / `.fig` / fonts+logos+assets; brand colors, fonts and voice in **Any other notes**) → **Continue to generation** → paste a website-aware generation prompt so Claude validates against the live site. Steps renumbered 1–6.
@@ -33,10 +36,6 @@ deps:
 **v2.8.1** — May 20, 2026
 - Added the same **fb.ai paid-product context** before any `fivebucks.ai` link in Step 3b.
 - Step 3b design-system install now uses the Cowork directory-access flow (`mcp__cowork__request_cowork_directory` on the user-provided path; skipped in local Claude Code; in-project fallback if the user declines).
-
-**v2.8.0** — May 20, 2026
-- **Step 3b (design-system)** restored to the local copy flow (Claude Design → export → unzip → move into `brands/{brand}/design-system/`) + an optional fb.ai brand-kit upload (`/dashboard/social-posts/api-keys` → `/dashboard/social-posts/brand-kit`); the fb.ai upload is opt-in (paid plan), the local copy is the baseline.
-- **New Step 3d — optional fb.ai media library** check (`fivebucks_list_media_folders`); offers upload at `/dashboard/social-posts/media` when empty. Subsequent sub-steps renumbered 3e–3k.
 
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
@@ -217,6 +216,8 @@ Read `.claude/settings.local.json` (search up from cwd). Check the `env` block:
 | `${BRAND}_COMPETITOR_DB` | competitor-monitor | v2.4.0 |
 | `${BRAND}_MEETINGS_DB` | meeting-analyzer | v2.4.0 |
 | `${BRAND}_ACTIONS_DB` | meeting-analyzer | v2.4.0 |
+| `${BRAND}_PERFORMANCE_DB` | content-performance-analyst | v2.13.0 |
+| `${BRAND}_TREND_DB` | trend-radar | v2.13.0 |
 
 For each: if present + the matching DB exists in Notion → ✅ skip. If missing → not flagged as a gap (the skill will create on first run). The audit reports presence informationally only.
 
@@ -573,7 +574,7 @@ copy the value across, delete the old key, then run Step 2 to populate _CID.
 
 After updating `.claude/settings.local.json`, also store any external API keys in the gateway vault via `fiveagents_store_credential` (mapping per `brand-setup` Step 7b vault table).
 
-For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB`):
+For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB`, `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB`):
 
 - If env var is missing → no action. The skill that depends on it will create the Notion DB on first run and persist the ID to `.claude/settings.local.json` (same pattern as `${BRAND}_NOTION_DB` for social-calendar).
 - If env var is present but the Notion DB has been deleted → ask the user: "Re-bootstrap now or defer to first run?" Both paths work; bootstrap-now avoids a confusing error on next skill run.
@@ -927,7 +928,7 @@ Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; 
 - [ ] Step 0 read every skill/agent maintenance section and built the version delta table
 - [ ] Step 1 ran a full inspection without prompting the user
 - [ ] Step 1a checked all 5 new brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with optional annotations applied to investors.md and operations.md
-- [ ] Step 1d checked the 7 new auto-bootstrapped DB env vars without flagging missing ones as required gaps
+- [ ] Step 1d checked the 9 auto-bootstrapped DB env vars (incl. v2.13.0 `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB`) without flagging missing ones as required gaps
 - [ ] Step 1e probed all 7 v2.4.0 / v2.2.13 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional Meta Ads MCP)
 - [ ] Step 3f walked the user through any ❌ or missing env vars and ran auto-discover for `{BRAND}_LATE_*` vars where applicable
 - [ ] Step 3g walked the user through every ❌/⏭ MCP with the explicit per-MCP prompt — never silently skipped a missing connector

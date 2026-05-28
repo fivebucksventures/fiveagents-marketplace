@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.8.0 | May 20, 2026 |
+| Link | v2.9.0 | May 28, 2026 |
 
 **Description:** Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
 
 ### Change Log
+
+**v2.9.0** — May 28, 2026
+- **Hook craft added.** Step 1 + Step 3 now read `hook-library.md` and pick a named **hook archetype** for the opening line / headline / carousel cover. The chosen archetype aligns with the social-calendar entry's Content Angle, and `content-performance-analyst` reports which archetypes win per brand — so hook selection is data-informed over time.
 
 **v2.8.0** — May 20, 2026
 - Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
@@ -35,9 +38,6 @@ deps:
 **v2.2.10** — May 04, 2026
 - Reads design-system/ to size copy against text frames
 - For IG/FB carousel/story copy, inspects template to write per-slide blocks within slot lengths
-
-**v2.2.5** — April 26, 2026
-- Added "Before Executing" section — reads agents/link.md before starting
 
 # Content Creation Skill
 
@@ -95,6 +95,7 @@ Always read before writing:
 - **brands/{brand}/audience.md** — Target persona pain points, objections, buying triggers, language notes
 - **brands/{brand}/product.md** — Features, pricing, differentiators to cite
 - **brands/{brand}/competitors.md** — If a competitive angle is needed
+- **skills/content-creation/hook-library.md** — proven hook archetypes + opening-line patterns for social copy (read when the format is a social post; informs Step 3)
 - **Brand visual identity** — resolve in 3-tier order; informs voice / tonal alignment + any visual specs for copy paired with visuals:
   1. **fb.ai brand kit** *(top tier — only when `FIVEBUCKS_API_KEY` is set)* — call gateway tool `fivebucks_get_brand_kit`; if non-null, use its color tokens + typography — resolve fields via the Brand kit field map in `agents/link.md` (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, fonts from `tokens.fonts.heading`/`body`; the kit has no separate `secondary` or font weight scale). Returns null when no kit is uploaded — fall through to tier 2.
   2. **brands/{brand}/design-system/** *(local folder — when the fb.ai kit is null or `FIVEBUCKS_API_KEY` is unset; the free baseline)* — read when present.
@@ -253,8 +254,9 @@ Select from skills/content-creation/storytelling-frameworks.md:
 - **BAB** (Before → After → Bridge) — Best for social posts, short ads
 - **Problem-Solution** — Best for blog posts, comparison pages
 
-### Step 3: Draft the headline
+### Step 3: Draft the headline / hook
 Write 3 headline options before choosing one:
+- **For social posts:** pick a **hook archetype** from `hook-library.md` that fits the angle (the social-calendar entry's Content Angle names the intended archetype — honor it). Use the archetype's opening-line pattern for the format (LinkedIn first line / carousel cover / IG-FB headline). Avoid the "openers to never use."
 - Lead with the persona's primary pain point OR primary desired outcome
 - Use concrete language (not vague superlatives)
 - Use approved phrases from brands/{brand}/brand.md where they fit naturally

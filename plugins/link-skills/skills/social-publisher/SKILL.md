@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.5 | April 26, 2026 |
+| Link | v2.3.0 | May 28, 2026 |
 
 **Description:** Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand
 
 ### Change Log
+
+**v2.3.0** — May 28, 2026
+- **PublishLog is now the performance join key.** Step 4 captures the platform post URL (`platformPostUrl`) alongside the Late ID, and records `Date` + `Topic` + `Platform` so `content-performance-analyst` can join each published post back to its social-calendar planning row (Persona / Format / Content Angle / Direction / hook archetype) and fetch per-post engagement. Closes the create→publish→measure loop.
 
 **v2.2.5** — April 26, 2026
 - Added "Before Executing" section — reads agents/link.md before starting
@@ -155,18 +158,22 @@ Default publish times (convert from brand timezone to UTC using `brands/{brand}/
 | Facebook | 12:00 | Lunch break — casual browsing |
 | Instagram | 18:00 | Evening — peak engagement |
 
-### Step 4 — Log result
+### Step 4 — Log result (this is the performance join key)
 
-Append to `outputs/{brand}/published/PublishLog_[DDMonYYYY].md`:
+Append to `outputs/{brand}/published/PublishLog_[DDMonYYYY].md`. **Capture the platform post URL (`platformPostUrl` from the Late publish response) alongside the Late ID** — this log is the join key `content-performance-analyst` uses later to match per-post engagement back to the planned post.
 
 ```markdown
 ## [DDMonYYYY] Publish Log
 
-| Platform | Topic | Late ID | Status | Published At |
-|---|---|---|---|---|
-| LinkedIn | AI Search SEO | 69b... | published | 2026-03-13T01:00Z |
-| Facebook | Replace 5 Tools | 69b... | scheduled | 2026-03-13T04:00Z |
+| Date | Platform | Topic | Late ID | Post URL | Status | Published At |
+|---|---|---|---|---|---|---|
+| 13 Mar 2026 | LinkedIn | AI Search SEO | 69b... | https://www.linkedin.com/feed/update/... | published | 2026-03-13T01:00Z |
+| 13 Mar 2026 | Facebook | Replace 5 Tools | 69b... | https://www.facebook.com/.../posts/... | scheduled | 2026-03-13T04:00Z |
 ```
+
+- **`Date` + `Topic` + `Platform`** let `content-performance-analyst` join each published post back to its planning row in the brand's social-calendar (`${BRAND}_NOTION_DB`) — recovering Persona / Format / Content Angle / Direction / hook archetype.
+- **`Late ID` + `Post URL`** are the keys for fetching engagement from Zernio `late_list_posts` (matched by Late post ID); the URL is the human-readable fallback for matching.
+- If the publish response omits `platformPostUrl` (some platforms return it asynchronously), record the Late ID and leave the URL blank — re-fetch via `late_list_posts` on the next analyst run.
 
 ### Step 5 — Notify via Slack
 

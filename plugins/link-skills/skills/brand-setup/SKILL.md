@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.9.0 | May 23, 2026 |
+| Link | v2.9.1 | May 28, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.9.1** — May 28, 2026
+- **Registered two new auto-bootstrapped DBs (v2.13.0 content loop):** `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the auto-bootstrap acknowledgement table and the env-var listing. No user action at setup — both skills create their Notion DB on first run. De-pinned the auto-bootstrap intro from "v2.4.0 / 10 skills" to span versions.
 
 **v2.9.0** — May 23, 2026
 - **Step 4b Claude Design setup rewritten for the new claude.ai/design UI.** Flow is now Design System → **Create** → the **"Set up your design system"** attach form (company name + blurb; optional GitHub repo / local code / `.fig` file / fonts+logos+assets; brand colors, fonts and voice pasted into **Any other notes**) → **Continue to generation**. Added a placeholder-substitution table and a ready-to-paste, website-aware generation prompt that points Claude at the brand's live site to validate and fill in the visual identity automatically.
@@ -32,12 +35,6 @@ deps:
 **v2.8.1** — May 20, 2026
 - Added explicit **fb.ai paid-product context** shown before any `fivebucks.ai` link (Steps 4b-D / 4c / 4d), and tagged `FIVEBUCKS_API_KEY` as a paid subscription in the credential tables.
 - Step 4b-C design-system copy now uses the Cowork directory-access flow — request `mcp__cowork__request_cowork_directory` on the user-provided path before reading (skipped in local Claude Code; in-project copy fallback if the user declines).
-
-**v2.8.0** — May 20, 2026
-- **Design system stays local + optional fb.ai upload.** Step 4b keeps the local `brands/{brand}/design-system/` copy flow (crucial, free baseline) and gains a new optional Step D — author in Claude Design → export → (optional) generate fb.ai API key + upload the ZIP to the fb.ai brand-kit dashboard. The design system was never removed from local storage; fb.ai is an opt-in paid mirror.
-- **New Step 4d — Media Library** (optional): upload brand photos to the fb.ai media library (`/dashboard/social-posts/media`) so content-generator / creative-designer can pull on-brand visuals at runtime.
-- **Step 4c template upload** now points to the new fb.ai dashboard URLs (`/dashboard/social-posts/api-keys` → `/dashboard/social-posts/templates`); credential rows (Step 2 + Step 7) updated to the api-keys URL.
-- **Step 9c** now detects the local `design-system/` (baseline) plus the optional fb.ai brand-kit mirror (`fivebucks_get_brand_kit`) and the media library (`fivebucks_list_media_folders`); Visual System block documents the fb.ai brand kit → local design-system → brand.md lookup order.
 
 
 # Brand Setup — New Client Onboarding
@@ -1680,7 +1677,7 @@ To get the Notion DB ID: open the Social Calendar database in Notion → click S
 
 **Auto-bootstrapped Notion DB env vars (no user action at setup time):**
 
-The 10 new business-operations skills shipping in v2.4.0 each maintain their own Notion database for state (CRM, customer health, invoice tracker, financial reports, competitor monitor, meeting transcripts, action items). These DB env vars are **auto-bootstrapped on first run of the relevant skill** — the skill creates the database in the user's Notion workspace, captures the resulting page ID, and writes it to `.claude/settings.local.json`. **No user action is required at setup time.** Just acknowledge they exist; skills handle creation:
+Several skills each maintain their own Notion database for state — CRM, customer health, invoice tracker, financial reports, competitor monitor, meeting transcripts, action items (all v2.4.0), plus content-performance store and trend-radar candidates (v2.13.0). These DB env vars are **auto-bootstrapped on first run of the relevant skill** — the skill creates the database in the user's Notion workspace, captures the resulting page ID, and writes it to `.claude/settings.local.json`. **No user action is required at setup time.** Just acknowledge they exist; skills handle creation:
 
 | Env Var | Bootstrapped By |
 |---|---|
@@ -1691,6 +1688,8 @@ The 10 new business-operations skills shipping in v2.4.0 each maintain their own
 | `${BRAND}_COMPETITOR_DB` | `competitor-monitor` |
 | `${BRAND}_MEETINGS_DB` | `meeting-analyzer` |
 | `${BRAND}_ACTIONS_DB` | `meeting-analyzer` |
+| `${BRAND}_PERFORMANCE_DB` | `content-performance-analyst` |
+| `${BRAND}_TREND_DB` | `trend-radar` |
 
 If the user later wants to point a skill at a pre-existing Notion DB instead of letting it auto-create one, they can paste the DB page ID into `.claude/settings.local.json` under the matching env var name before the skill's first run — the skill will detect the existing var and skip the bootstrap step.
 
@@ -2035,6 +2034,8 @@ Use these display names everywhere in the matrix and the email — never raw MCP
 | `${BRAND}_COMPETITOR_DB` | Competitor tracker |
 | `${BRAND}_MEETINGS_DB` | Meeting archive |
 | `${BRAND}_ACTIONS_DB` | Action items list |
+| `${BRAND}_PERFORMANCE_DB` | Content performance store |
+| `${BRAND}_TREND_DB` | Trend radar candidates |
 | `${BRAND}_LATE_FB` | Connected Facebook account |
 | `${BRAND}_LATE_IG` | Connected Instagram account |
 | `${BRAND}_LATE_LI` | Connected LinkedIn account |

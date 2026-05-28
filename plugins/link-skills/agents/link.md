@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.1 | May 22, 2026 |
+| Link | v2.13.0 | May 28, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.13.0** — May 28, 2026
+- **Organic content learning loop added (3 skills + wiring).** New Marketing skills **`content-performance-analyst`** (Data: per-post engagement from the **Zernio API**, joined to the calendar's authored attributes via the social-publisher PublishLog, plus competitor content benchmarking via web research, into a Performance Brief; shared `${BRAND}_PERFORMANCE_DB` with `Owner`/`Source` columns) and **`trend-radar`** (Research: daily live-trend scan → `${BRAND}_TREND_DB` candidates). New Productivity utility **`video-downloader`** (yt-dlp + optional Whisper; standalone). Enhancements: `social-publisher` PublishLog now captures the post ID/URL join key; `social-calendar` Step 1b reads the Performance Brief + trend candidates; `content-creation` adds `hook-library.md` hook archetypes. Added two skill chains (content learning loop, timely content). These complete the content pipeline's missing Data spine + daily Research front-end (see `docs/content-engine.md` for the 5-phase model).
 
 **v2.11.1** — May 22, 2026
 - **Argil fully removed from platform scope.** Removed `avatars.md` context-file entry, Argil from the Deps gateway legend, the Argil API gateway section, the "Full social post (video)" skill chain, and the `.mp4` output convention. Calendly corrected to `outreach-sequencer` + `customer-onboarder` (consistent with the v2.4.3 Deps audit that removed Calendly from `meeting-analyzer`).
@@ -24,9 +27,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 **v2.9.0** — May 20, 2026
 - **Skill registry is now generated, not hand-maintained** (Phase 0 of the path to 300+ skills). Each skill's `SKILL.md` frontmatter now carries `area` / `use_for` / `deps` as the source of truth; `scripts/gen_skills_index.py` generates this Skills table (between markers) + `skills-manifest.json`. `brand-setup` Step 8d readiness and `plugin-update` read the manifest instead of parsing this table — removing the table-drift class of bug. Table order is now deterministic (alphabetical within area). Fixed a stale `Gateway: templates` token in the legend → `fivebucks`.
-
-**v2.8.0** — May 20, 2026
-- Registered the new **`decision-advisor`** skill (Strategy) — structures a hard business decision (frame → weighted scoring → pre-mortem/stress-test → recommendation + decision record). Distilled from MIT-licensed decision-quality patterns ([`alirezarezvani/claude-skills`](https://github.com/alirezarezvani/claude-skills)); prioritization frameworks (RICE/ICE/value–effort) are public. Added its Skills-table row + a `research-strategy → decision-advisor` chain.
 
 # Link — Business Operations Agent
 
@@ -108,14 +108,14 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 
 <!-- BEGIN skills-table (generated) -->
 <!-- prettier-ignore -->
-**23 skills across 7 areas.**
+**26 skills across 7 areas.**
 - **Setup** (2): `brand-setup` · `plugin-update`
-- **Marketing** (10): `background-generator` · `campaign-presenter` · `content-creation` · `content-generator` · `creative-designer` · `data-analysis` · `digital-marketing-analyst` · `research-strategy` · `social-calendar` · `social-publisher`
+- **Marketing** (12): `background-generator` · `campaign-presenter` · `content-creation` · `content-generator` · `content-performance-analyst` · `creative-designer` · `data-analysis` · `digital-marketing-analyst` · `research-strategy` · `social-calendar` · `social-publisher` · `trend-radar`
 - **Sales** (3): `apollo-lead-prospector` · `outreach-sequencer` · `proposal-generator`
 - **Customer Success** (2): `churn-predictor` · `customer-onboarder`
 - **Finance** (2): `financial-reporter` · `invoice-collector`
 - **Strategy** (3): `competitor-monitor` · `decision-advisor` · `investor-update-writer`
-- **Productivity** (1): `meeting-analyzer`
+- **Productivity** (2): `meeting-analyzer` · `video-downloader`
 <!-- END skills-table (generated) -->
 
 ### Skill Chains
@@ -125,6 +125,8 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 | Full social post (static) | content-creation → creative-designer → social-publisher |
 | Strategy + deck | research-strategy → campaign-presenter |
 | Full campaign | research-strategy → content-creation → creative-designer → social-publisher |
+| Content learning loop | social-publisher (PublishLog) → content-performance-analyst (Performance Brief) → social-calendar (plans from what worked) |
+| Timely content | trend-radar → social-calendar |
 | Analytics deck | data-analysis → campaign-presenter |
 | Sales pipeline | research-strategy → apollo-lead-prospector → outreach-sequencer → proposal-generator |
 | Customer retention | customer-onboarder → churn-predictor |

@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.1 | May 22, 2026 |
+| Link | v2.12.0 | May 28, 2026 |
 
 **Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
 
 ### Change Log
+
+**v2.12.0** — May 28, 2026
+- **Planning now closes the learning loop.** Step 1b reads two new inputs before the market-research pass: (1) the latest **Performance Brief** from `content-performance-analyst` (`${BRAND}_PERFORMANCE_DB` / `outputs/{brand}/strategy/PerformanceBrief_*`) to bias the mix toward proven-winning formats/personas/hook archetypes/Directions, and (2) **`trend-radar`** candidate topics (`${BRAND}_TREND_DB`) for 2–3 timely/newsjacking slots. Step 2's Content Angle now names a **hook archetype** from `content-creation/hook-library.md` so production and performance analysis share one hook vocabulary.
 
 **v2.11.1** — May 22, 2026
 - **Metrics and checklist corrected.** Log payload: `calendar_status` fixed "Published" → "Planned"; post `format` fixed from hardcoded `"static"` → `"<Post|Story|Carousel>"`; `content_mix.type` fixed from `"static"` → content-type enum. Quality checklist: added Monday slot checks (LinkedIn Post / Facebook Post / Instagram Post) and Friday LinkedIn = Post. `deps.gateway` updated from `[]` to `["FiveAgents (logging)"]`.
@@ -37,10 +40,6 @@ deps:
 
 **v2.7.0** — May 20, 2026
 - Direction selection extended to the two single-image fb.ai template types: `linkedin-post` and `meta-post` now take a `direction` (A/B/C), so the Direction column is required for them too (previously left blank for LinkedIn). Variant availability is checked against the template `manifest` (`fivebucks_get_template`) rather than a local template folder's entry HTML.
-
-**v2.5.0** — May 10, 2026
-- `image_brief` for Story / Reel posts now wrapped in full-frame composition template before saving to Notion — enforces full-bleed photorealistic composition so Gemini fills the entire 9:16 canvas (top, middle, and lower thirds) with no empty void at the bottom
-- Template applied in Step 2 Notion row construction; raw scene description is preserved as `SCENE_DESCRIPTION` inside the template
 
 
 # SKILL.md — Social Calendar
@@ -65,9 +64,14 @@ Read these files before planning:
 
 ---
 
-## Step 1b — Research Viral Content & Trending Topics
+## Step 1b — Read the learning loop, then research
 
-**Run `/link-skills:research-strategy` before planning.** Focus the research on:
+**First, read what already worked and what's timely** (these bias the whole plan — read them before the market-research pass):
+
+1. **Latest Performance Brief** — from `content-performance-analyst`. Read the newest `outputs/{brand}/strategy/PerformanceBrief_*.md` (or query `${BRAND}_PERFORMANCE_DB` if the file is absent). Use its "double down / stop-fix / next-calendar guidance" to bias the content mix toward winning **formats, personas, hook archetypes, and Directions**, and away from underperformers. If no Brief exists yet (first weeks), note it and proceed on market research alone.
+2. **Trend Radar candidates** — query `${BRAND}_TREND_DB` for `Status="Candidate"` rows seen in the last 7 days (written by `trend-radar`). Earmark **2–3 timely/newsjacking slots** for the strongest, most relevant candidates; mark the ones you use `Status="Planned"`.
+
+**Then run `/link-skills:research-strategy` for market context.** Focus the research on:
 
 1. **Viral content formats** — what's getting high engagement on LinkedIn, Facebook, Instagram right now in the brand's niche? (e.g. carousel threads, short-form video, meme formats, hot takes, before/after)
 2. **Trending topics** — what industry conversations, news, or pain points are blowing up this week?
@@ -76,7 +80,7 @@ Read these files before planning:
 
 Read the research output from `outputs/{brand}/strategy/` after it completes.
 
-**This research MUST drive the content mix and topic selection in Step 2.** Do not default to a fixed content mix — adapt based on what's actually working in the market right now.
+**All three Step 1b signals — the Performance Brief (what worked), Trend Radar (what's timely), and this market research — MUST drive the content mix and topic selection in Step 2.** Do not default to a fixed content mix. Precedence: the Performance Brief first (your own measured results), then timely trend candidates, then market research.
 
 ---
 
@@ -112,7 +116,7 @@ Generate exactly 14 posts for the upcoming Mon–Sat week using the fixed slot a
 | Format | From fixed slot table above. |
 | Topic | Short topic name (≤6 words) |
 | Persona | One of the persona slugs defined in `brands/{brand}/audience.md` — max 2× per persona per week. Examples: `content-mgr`, `seo-pro`, `sales-rep`, `agency-owner`, `solopreneur`, `growth-mktr` |
-| Content Angle | Hook + key message (1 sentence, ≤20 words) |
+| Content Angle | Hook + key message (1 sentence, ≤20 words). Name the **hook archetype** it uses (from `skills/content-creation/hook-library.md`, e.g. `Contrarian Correction`, `Proof / Result`) so production and `content-performance-analyst` share one hook vocabulary. Favor archetypes the latest Performance Brief shows winning for this brand. |
 | CTA | Specific action (≤8 words) |
 | Hashtags | 3–5 hashtags |
 | Image Brief | Scene description for image gen (1 sentence). End with: "No text. No logos. No watermarks." For Story posts the raw scene is automatically wrapped in the full-frame composition template (see "Story image_brief wrapping" below) before saving to Notion. |

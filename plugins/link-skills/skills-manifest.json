@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.9.0"
+    "version": "v2.9.1"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.11.0"
+    "version": "v2.11.1"
   },
   {
     "name": "background-generator",
@@ -91,7 +91,7 @@
       ],
       "env": []
     },
-    "version": "v2.8.0"
+    "version": "v2.9.0"
   },
   {
     "name": "content-generator",
@@ -120,6 +120,33 @@
       ]
     },
     "version": "v2.12.0"
+  },
+  {
+    "name": "content-performance-analyst",
+    "area": "Marketing",
+    "use_for": "Analyze organic content performance — own published posts (engagement by topic/format/persona/angle/hook/Direction, outlier scoring) plus competitor content benchmarking — into a Performance Brief that feeds social-calendar",
+    "description": "Analyze organic content performance for any active brand — your own published posts (engagement by topic, format, persona, angle, hook archetype, Direction) plus competitor content benchmarking — and produce a Performance Brief that feeds the social calendar.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [
+        "Zernio",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "competitors.md",
+        "funnel.md (opt)"
+      ],
+      "env": [
+        "`${BRAND}_NOTION_DB`",
+        "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"
+      ]
+    },
+    "version": "v1.0.0"
   },
   {
     "name": "creative-designer",
@@ -237,7 +264,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.11.1"
+    "version": "v2.12.0"
   },
   {
     "name": "social-publisher",
@@ -260,7 +287,32 @@
         "`${BRAND}_LATE_LI` (per-platform; only required for platforms the brand publishes to)"
       ]
     },
-    "version": "v2.2.5"
+    "version": "v2.3.0"
+  },
+  {
+    "name": "trend-radar",
+    "area": "Marketing",
+    "use_for": "Daily live-trend/newsjacking scan — surfaces timely topics scored for relevance + timeliness, deduplicated, written as candidate topics for the social calendar. Runs daily on cron",
+    "description": "Daily live-trend scan for any active brand — surfaces timely topics, launches, news, and community pain points in the brand's niche, scored for relevance and timeliness, deduplicated against a rolling log, and written as candidate topics the social calendar can pull.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [
+        "DataforSEO (opt — trending keywords)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md",
+        "competitors.md"
+      ],
+      "env": [
+        "`${BRAND}_TREND_DB` (auto-bootstraps)"
+      ]
+    },
+    "version": "v1.0.0"
   },
   {
     "name": "apollo-lead-prospector",
@@ -538,5 +590,18 @@
       ]
     },
     "version": "v2.4.0"
+  },
+  {
+    "name": "video-downloader",
+    "area": "Productivity",
+    "use_for": "Download a video from a URL (YouTube/IG/TikTok/X/FB/Vimeo/+) to local disk and optionally transcribe it — a standalone repurposing/analysis utility",
+    "description": "Download a video from YouTube, Instagram, TikTok, Twitter/X, Facebook, Vimeo (and 1000+ yt-dlp sites) to local disk, and optionally transcribe it. Standalone utility for repurposing and analysis — not part of the static publishing pipeline.",
+    "deps": {
+      "mcp": [],
+      "gateway": [],
+      "files": [],
+      "env": []
+    },
+    "version": "v1.0.0"
   }
 ]

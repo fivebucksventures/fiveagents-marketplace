@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.12.0';
-const DEFAULT_DATE = 'May 23, 2026';
+const DEFAULT_VERSION = 'v2.13.0';
+const DEFAULT_DATE = 'May 28, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,20 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.13.0',
+    date: 'May 28, 2026',
+    changes: [
+      'content-performance-analyst v1.0.0 (NEW, Marketing): organic-content Data phase — pulls per-post engagement from Zernio joined to the social-calendar authored attributes (via the social-publisher PublishLog), benchmarks competitor content via web research, scores outliers vs the brand own baseline, writes a Performance Brief to ${BRAND}_PERFORMANCE_DB (Owner/Source columns). Closes the create→publish→measure→learn loop.',
+      'trend-radar v1.0.0 (NEW, Marketing): daily Research phase — WebSearch + Perplexity (+ optional DataforSEO) scan for timely niche topics, scored for relevance/timeliness, 7-day dedup, written as candidates to ${BRAND}_TREND_DB for social-calendar.',
+      'video-downloader v1.0.0 (NEW, Productivity): standalone yt-dlp + optional Whisper transcription utility for repurposing/analysis; not wired into the static publishing pipeline.',
+      'social-publisher v2.3.0: PublishLog now captures the platform post URL + Late ID + Date/Topic/Platform — the join key content-performance-analyst uses to match engagement back to planned posts.',
+      'social-calendar v2.12.0: Step 1b reads the Performance Brief + Trend Radar candidates before market research (precedence brief → trends → research); Content Angle names a hook archetype.',
+      'content-creation v2.9.0: added hook-library.md (8 hook archetypes + opening-line patterns); Step 3 selects an archetype for social hooks.',
+      'link.md v2.13.0: registered the 3 new skills + content-learning-loop and timely-content chains; domain map regenerated (26 skills).',
+      'brand-setup v2.9.1 + plugin-update v2.11.1: registered the two new auto-bootstrapped DBs (${BRAND}_PERFORMANCE_DB, ${BRAND}_TREND_DB).',
+    ],
+  },
   {
     version: 'v2.12.0',
     date: 'May 23, 2026',
@@ -152,16 +166,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator v2.5.2: add_text_overlay feed side_inset bumped from pad // 2 to pad + pad // 2 (~9% of canvas width, ~96–108 px). Restores breathing room on left/right edges and survives Instagram\'s profile-grid 4:5 recrop (~34 px side trim). Top/bottom/scrim_fade unchanged at pad // 2; add_logo unchanged at uniform pad // 2 — text and logo feed insets diverge on sides by design. Reason: v2.5.0\'s "uniform pad // 2 on all four sides" regressed the IG profile-grid crop hardening that v2.4.8 introduced.',
       'creative-designer v2.5.2: mirror of content-generator fix — same add_text_overlay feed side_inset bump (pad // 2 → pad + pad // 2). Layout rules + Step 3b checklist + fix table rewritten to reflect text/logo feed-side divergence.',
       'content-generator + creative-designer: Step 4a/Step 4h tables and fix tables call out the regression risk explicitly — any future "simplification" that re-aligns feed text sides with feed logo sides will reintroduce the bug.',
-    ],
-  },
-  {
-    version: 'v2.6.0',
-    date: 'May 10, 2026',
-    changes: [
-      'social-calendar v2.5.0: image_brief for Story/Reel posts now wrapped in full-frame composition template before saving to Notion — enforces full-bleed photorealistic 9:16 composition (no bottom void). Reel(Argil) excluded (uses script, not image_brief). Quality checklist corrected: adaptive content mix, Direction/Argil carve-out, raw-scene watermark rule.',
-      'content-generator v2.5.1: defensive full-frame guard added at Step 4c-image — if Story/Reel image_brief lacks "fills the ENTIRE frame" (calendar authored before v2.6.0), wraps it in composition template before calling gemini_generate_image. Reel(Argil) excluded. Quality checklist item added.',
-      'creative-designer v2.5.1: same defensive full-frame guard at Step 4b — wraps Story/Reel prompts in composition template before gemini_generate_image. Safe asset_type variable check via dir() fallback. Quality checklist item added.',
-      'workflow/commit-to-git.md: new release workflow document added — git status, skill version audit (no double-bump), Notion Agents Library sync, three-file version lockstep, commit and push steps with quality checklist.',
     ],
   },
 ];
