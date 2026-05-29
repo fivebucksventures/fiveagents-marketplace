@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.13.1';
-const DEFAULT_DATE = 'May 28, 2026';
+const DEFAULT_VERSION = 'v2.14.0';
+const DEFAULT_DATE = 'May 29, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,18 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.14.0',
+    date: 'May 29, 2026',
+    changes: [
+      'video-repurposer v2.14.0 (NEW, Marketing): Phase 4–5 of the YouTube-First pipeline — downloads the week\'s YouTube video (yt-dlp), reads the Clip Release Schedule from the Notion calendar, extracts clips (ffmpeg + optional Whisper), writes platform-native captions, and publishes to connected platforms (LinkedIn/Instagram/TikTok/Twitter-X/Facebook) via Zernio at the scheduled times; writes the PublishLog (same columns as social-publisher) that feeds content-performance-analyst.',
+      'social-calendar v2.14.0: YouTube-First Mode added — Step 1 reads brand.md ## Content Strategy to select planning mode; new Step 2a plans one weekly YouTube video + a per-platform Clip Release Schedule (publish day/time per clip, Twitter/X support, comment-to-DM CTAs) for connected platforms only (old Step 2 renamed Step 2b Static Mode); quality checklist branches per mode. Defaults to static when ## Content Strategy is absent.',
+      'brand-setup v2.14.0: new Step 4a — Content Strategy captures the brand primary content channel (youtube vs static), distribution + connected platforms (incl. Twitter/X), and clips per video, written to brand.md ## Content Strategy; drives social-calendar planning mode at runtime. Step 7b Step D now also discovers TikTok + Twitter/X organic account IDs (${BRAND}_LATE_TT / _LATE_TW) for video-repurposer.',
+      'plugin-update v2.14.0: migration support for the YouTube-First pipeline — Step 1b brand.md checklist row for ## Content Strategy, Step 3e gap-fill (runs brand-setup Step 4a), Step 3k changelog→brand-action rows for YouTube-First Mode + the trend-radar synthesis requirement, and Step 1d/3f coverage for the new ${BRAND}_LATE_TT / _LATE_TW organic account IDs that video-repurposer needs.',
+      'trend-radar v2.14.0: synthesis-before-write rule — Step 0 reads the latest Performance Brief (own post performance + competitor benchmarking from content-performance-analyst), mandatory competitor research from competitors.md on first run; Step 3 synthesizes own performance + competitor benchmarking + web research before scoring, adding competitor-differentiation and own-performance-alignment criteria; Step 4 forbids writing to ${BRAND}_TREND_DB before synthesis is complete.',
+      'link.md v2.14.0: added the Content Engine — 5 Phases table to the Skills section (Phase 4–5 reflect the YouTube-First create→publish flow via video-repurposer; static path noted); Timely content skill chain updated to content-performance-analyst → trend-radar → social-calendar; v2.13.0 changelog now points to the new table.',
+    ],
+  },
   {
     version: 'v2.13.1',
     date: 'May 28, 2026',
@@ -149,21 +161,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'plugin-update v2.5.0: Step 1d adds two new optional env var rows; Step 3e auto-discovers ads SocialAccount IDs via late_list_accounts; Step 3j adds v2.5.0 mapping row.',
       'agents/link.md v2.6.3: Zernio API section expanded into 8 sub-categories covering all ~35 ads management tools. Deps updated for digital-marketing-analyst and data-analysis.',
       'docs/plugin-mcp.md: tool count updated to 57; Zernio split into 8 rows; digital-marketing-analyst and data-analysis rows updated.',
-    ],
-  },
-  {
-    version: 'v2.6.2',
-    date: 'May 12, 2026',
-    changes: [
-      'design-system audit across every content-generating skill — closes the gap where users had to manually remind skills to read brands/{brand}/design-system/. The global Visual consistency rule in agents/link.md was correct, but four skills (campaign-presenter, background-generator, proposal-generator, investor-update-writer) silently omitted design-system/ from their Deps and SKILL.md, and three others had a probe but didn\'t use it where it mattered. brand-setup Step 8d-iv parses Deps to compute the agent_readiness matrix — drift here lied to users.',
-      'investor-update-writer v2.5.0: NEW Step 9 — Generate the Branded Deck. Gamma deck primary, Google Doc fallback. Previously dispatched a Gmail draft with markdown body and a separate Google Doc archive copy — investors got a wall of email. New flow: local markdown audit → Gamma generate_from_template with brand HEX + font-family → fall back to GDoc on Gamma failure → abort entirely (skip Gmail) only if BOTH error. Frontmatter allowed-tools gained Gamma MCP. Gmail body rewritten as a tight cover note (opener + TL;DR + deck link + reply CTA) — the deck is the deliverable. Step 11b Notion archive + Step 12 Slack + Output metadata + metrics JSONB all carry deck_url, deck_format (gamma|gdoc), pdf_url. Mirrors proposal-generator Step 5 + financial-reporter Step 6.',
-      'campaign-presenter v2.2.6 (had zero design-system mention): Step 1 restructured with leading Brand visual system block (design-system/ preferred, brand.md fallback). Step 4 Canva generate-design query now explicitly carries extracted HEX values + font-family. brand_kit_id still wins when available. New Visual identity block in the quality checklist.',
-      'background-generator v2.4.1 (had zero design-system mention): Step 2 added explicit "Read brand visual identity FIRST" block. Every Gemini prompt now appends a brand-palette hint (HEX values phrased as ambient mood, e.g. "warm tones around #ec4899"). Library is on-brand instead of generic stock-photo aesthetics. Two new quality checklist entries.',
-      'proposal-generator v2.4.1: Step 1 restructured with leading Brand visual identity block. Step 5 Gamma additionalInstructions expanded from vague "Use brand colors {primary, secondary}" to explicit primary/secondary/accent/background HEX + typography family. Decks now match the brand instead of defaulting to Gamma templates. Two new checklist entries.',
-      'financial-reporter v2.4.1: Step 6 restructured with the same Brand visual identity FIRST block. Gamma additionalInstructions expanded with explicit HEX/font payload (was a hand-wavy "Pass these into the Gamma generation request"). Two new checklist entries.',
-      'content-generator v2.5.3: Step 4c-image Prompt rules expanded to spell out the read order (design-system/ first, brand.md fallback) AND how to inject palette into the Gemini prompt (HEX values as ambient mood). New clarifying note on why Pillow uses DejaVuSans-Bold regardless of brand (universal rasterizer) — colors are the lever for on-brand output on the Pillow path. Fixed stale "text overlay needs readable space at the bottom" claim — now correctly references top OR bottom per day-of-week rotation.',
-      'creative-designer v2.5.3: matching Step 4b Image prompt guidelines bullet — inject brand HEX into the Gemini prompt with phrasing rules. Matching callout on Pillow fonts. Closes the loop where Step 1 read design-system but the Gemini prompt-construction guide didn\'t tell the model to use it.',
-      'agents/link.md v2.4.4: four Deps rows updated (campaign-presenter, background-generator, proposal-generator, investor-update-writer) to declare design-system/ (opt). investor-update-writer row also rewrote Use For to reflect the new Gamma deck deliverable and added Gamma MCP as a first-class dep.',
     ],
   },
 ];

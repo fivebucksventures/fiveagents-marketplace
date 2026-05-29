@@ -13,11 +13,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.9.1 | May 28, 2026 |
+| Link | v2.14.0 | May 29, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.14.0** — May 29, 2026
+- **New Step 4a — Content Strategy.** Captures the brand's primary content channel (`youtube` vs `static`), distribution + connected platforms, and clips per video; writes a `## Content Strategy` section to `brand.md` (also added to the brand.md template in Step 4). `social-calendar` reads this at runtime to choose YouTube-First vs Static planning mode; platform names are never hardcoded — only what the user confirms is written.
+- **Step 7b Step D discovers TikTok + Twitter/X organic account IDs** (`${BRAND}_LATE_TT` / `${BRAND}_LATE_TW`) alongside the existing FB/IG/LI — needed by `video-repurposer` to publish YouTube-First clips. Skipped for platforms not connected to Zernio.
 
 **v2.9.1** — May 28, 2026
 - **Registered two new auto-bootstrapped DBs (v2.13.0 content loop):** `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the auto-bootstrap acknowledgement table and the env-var listing. No user action at setup — both skills create their Notion DB on first run. De-pinned the auto-bootstrap intro from "v2.4.0 / 10 skills" to span versions.
@@ -31,10 +35,6 @@ deps:
 
 **v2.8.2** — May 21, 2026
 - **Step 4c export-marker contract rewritten to match fb.ai's renderer.** The renderer now captures each `data-export-id` element at the manifest canvas size (it pins the element to the viewport, un-scales it, and hides everything else first), so templates no longer need the fragile off-screen mirror pattern. New shared **Export-marker contract** section (alongside the native-image contract) states the rules once: mark the full-size 1:1 artboard exactly once, static string literals only (explicitly forbidding the `data-export-id="${dir}-${i}"` template-literal-in-quotes mistake that leaked a junk slide into a live manifest), never `display:none` the variant being exported. Story prompt (4c-ii) no longer mandates the `position:fixed; left:-99999px` hidden block; Carousel prompt (4c-i) now says to mark the full-size artboard, not the scaled preview wrapper (was exporting at preview resolution ~300×375); LinkedIn / Meta Post prompts (4c-iii/iv) now gate inactive directions with `visibility:hidden`/`opacity:0`/off-screen instead of `display:none`.
-
-**v2.8.1** — May 20, 2026
-- Added explicit **fb.ai paid-product context** shown before any `fivebucks.ai` link (Steps 4b-D / 4c / 4d), and tagged `FIVEBUCKS_API_KEY` as a paid subscription in the credential tables.
-- Step 4b-C design-system copy now uses the Cowork directory-access flow — request `mcp__cowork__request_cowork_directory` on the user-provided path before reading (skipped in local Claude Code; in-project copy fallback if the user declines).
 
 
 # Brand Setup — New Client Onboarding
@@ -302,6 +302,9 @@ Using the analyzed data + any corrections from the user, generate **two files**:
 
 ## Do NOT Say
 - {common mistakes to avoid — infer from brand positioning}
+
+## Content Strategy
+{written by brand-setup Step 4a — see below}
 ```
 
 **`brands/{brand}/audience.md`**
@@ -325,6 +328,50 @@ Generate 3-6 personas based on the website's messaging and target market.
 Show the user each draft and let them review/edit before saving.
 
 **Do not proceed to Step 4b until the user has reviewed and confirmed `brand.md` and `audience.md`.**
+
+### Step 4a — Content Strategy
+
+Before setting up visual assets, capture how this brand will publish content. This single field drives `social-calendar`'s planning mode at runtime — it must be set correctly now.
+
+Ask the user:
+> What is your primary content channel?
+> 1. **YouTube-first** — you record YouTube videos weekly, then distribute clips to other platforms
+> 2. **Static** — you publish standalone posts, carousels, and stories directly to each platform
+
+If **YouTube-first**, also ask:
+> Which platforms will you distribute clips to? (select all that apply: LinkedIn, Instagram, TikTok, Twitter/X, Facebook)
+> Which of those are currently connected in Zernio? (we'll set account IDs in Step 7)
+> How many clips per video per platform? (default: 1–2)
+
+If **Static**, no additional questions — the existing 14-post weekly slot flow applies.
+
+Write the result to `brands/{brand}/brand.md` under `## Content Strategy`:
+
+**YouTube-first:**
+```markdown
+## Content Strategy
+- **Primary channel:** youtube
+- **Distribution platforms:** {user-selected list, e.g. LinkedIn, Instagram, TikTok (pending), Facebook (pending)}
+- **Connected platforms:** {only platforms already connected, e.g. LinkedIn, Instagram}
+- **Clips per video:** {user-provided or default 1–2} per platform
+- **Cadence:** 1 YouTube video/week → clips distributed to connected platforms
+```
+
+**Static:**
+```markdown
+## Content Strategy
+- **Primary channel:** static
+- **Distribution platforms:** {connected platforms from Step 7, e.g. LinkedIn, Instagram, Facebook}
+- **Cadence:** 14 posts/week (Mon–Sat fixed slots)
+```
+
+**Important rules:**
+- Never hardcode platform names — always write exactly what the user confirmed
+- `social-calendar` reads `Primary channel` at runtime to switch between YouTube-First Mode and Static Mode
+- When a new platform is connected later, the user updates `Connected platforms` in `brand.md` — no skill changes required
+- `Distribution platforms` = all platforms the brand intends to use (including not-yet-connected); `Connected platforms` = subset currently live
+
+**Do not proceed to Step 4b until `## Content Strategy` is written to `brand.md` and confirmed by the user.**
 
 ### Step 4b — Claude Design System (OPTIONAL — recommended)
 
@@ -1584,6 +1631,8 @@ Show the user what was found:
 > - Facebook: @{username} (ID: {_id})
 > - Instagram: @{username} (ID: {_id})
 > - LinkedIn: {displayName} (ID: {_id})
+> - TikTok (if connected): @{username} (ID: {_id})
+> - Twitter/X (if connected): @{username} (ID: {_id})
 > - Google Ads: {platform} (SocialAccount ID: {_id})
 > - Meta Ads: {platform} (SocialAccount ID: {_id})
 > - LinkedIn Ads (if connected): {platform} (SocialAccount ID: {_id})
@@ -1629,12 +1678,14 @@ Skip Steps 4–5 entirely if no LinkedIn Ads entry is found in `late_list_accoun
 
 Meta Ads only needs the single SocialAccount ID (`{BRAND}_LATE_META_ADS_ACCOUNT_ID`) — its Zernio calls already work with just that.
 
-Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator and social-publisher skills need the social IDs; `digital-marketing-analyst` and `data-analysis` need the ads IDs for the Windsor.ai fallback):
+Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator, social-publisher, and video-repurposer skills need the social IDs; `digital-marketing-analyst` and `data-analysis` need the ads IDs for the Windsor.ai fallback):
 
 ```
 {BRAND}_LATE_FB                    → Facebook _id from late_list_accounts (platform: facebook)
 {BRAND}_LATE_IG                    → Instagram _id from late_list_accounts (platform: instagram)
 {BRAND}_LATE_LI                    → LinkedIn _id from late_list_accounts (platform: linkedin) — organic publishing only
+{BRAND}_LATE_TT                    → TikTok _id from late_list_accounts (platform: tiktok) — organic publishing (video-repurposer, YouTube-First)
+{BRAND}_LATE_TW                    → Twitter/X _id from late_list_accounts (platform: twitter or x) — organic publishing (video-repurposer, YouTube-First)
 {BRAND}_LATE_GOOGLE_ADS            → Google Ads SocialAccount _id from late_list_accounts (platform: googleads or google)
 {BRAND}_LATE_GOOGLE_ADS_CID        → Google Ads customer ID (10-digit, no dashes) from late_list_ad_accounts or user input
 {BRAND}_LATE_META_ADS_ACCOUNT_ID   → Meta Ads _id from late_list_accounts (platform: metaads or facebook)
@@ -1642,7 +1693,7 @@ Save the account IDs as env vars in `.claude/settings.local.json` (the content-g
 {BRAND}_LATE_LINKEDIN_ADS_CID      → LinkedIn sponsored account ID (numeric) from late_list_ad_accounts or user input
 ```
 
-Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`, `NPCOFFICE_LATE_GOOGLE_ADS`, `NPCOFFICE_LATE_GOOGLE_ADS_CID`, `NPCOFFICE_LATE_META_ADS_ACCOUNT_ID`, `NPCOFFICE_LATE_LINKEDIN_ADS`, `NPCOFFICE_LATE_LINKEDIN_ADS_CID`
+Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`, `NPCOFFICE_LATE_TT`, `NPCOFFICE_LATE_TW`, `NPCOFFICE_LATE_GOOGLE_ADS`, `NPCOFFICE_LATE_GOOGLE_ADS_CID`, `NPCOFFICE_LATE_META_ADS_ACCOUNT_ID`, `NPCOFFICE_LATE_LINKEDIN_ADS`, `NPCOFFICE_LATE_LINKEDIN_ADS_CID`
 
 Only create env vars for platforms that were found. If a platform isn't connected to Zernio, skip that env var — the skill will note the gap if Windsor.ai fallback is triggered. For Google Ads and LinkedIn Ads, **both** vars (`_LATE_GOOGLE_ADS` + `_LATE_GOOGLE_ADS_CID`, `_LATE_LINKEDIN_ADS` + `_LATE_LINKEDIN_ADS_CID`) must be set for the fallback to work — if the customer/sponsored-account ID can't be obtained, save the SocialAccount ID alone and note the gap.
 

@@ -7,26 +7,27 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.13.1 | May 28, 2026 |
+| Link | v2.14.0 | May 29, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
 
+**v2.14.0** — May 29, 2026
+- **YouTube-First content pipeline.** `social-calendar` now plans in one of two modes driven by the new `## Content Strategy` section in `brand.md` (written by `brand-setup` Step 4a): YouTube-First (one weekly video + a per-platform Clip Release Schedule for connected platforms) or Static (the existing 14-post week). New Marketing skill **`video-repurposer`** executes Phase 4–5 (download YouTube → extract clips → publish via Zernio). Added the **Content Engine — 5 Phases** table to the Skills section, and `content strategy` to the `brand.md` context-file descriptor.
+- **`trend-radar` synthesis-before-write rule.** `trend-radar` now synthesizes three inputs before scoring/writing — own post performance + competitor benchmarking (both from the Phase 1 Performance Brief) + web research — with new competitor-differentiation and own-performance-alignment scoring criteria, and must not write to `${BRAND}_TREND_DB` until synthesis is complete. Updated the **Timely content** skill chain to `content-performance-analyst → trend-radar → social-calendar` to reflect the new dependency on the Performance Brief.
+
 **v2.13.1** — May 28, 2026
 - **`video-downloader` reworked to run inline (Cowork-correct).** Removed the bundled `scripts/download_video.py` and the `$CLAUDE_PLUGIN_ROOT` path — Cowork (the runtime) doesn't expose that variable and link-skills has no bundled-runtime-script convention. yt-dlp now runs inline (`python3 -m pip install yt-dlp` → `python3 -m yt_dlp`) in the skill's Bash block, matching content-generator's local-glue pattern. No other skill affected.
 
 **v2.13.0** — May 28, 2026
-- **Organic content learning loop added (3 skills + wiring).** New Marketing skills **`content-performance-analyst`** (Data: per-post engagement from the **Zernio API**, joined to the calendar's authored attributes via the social-publisher PublishLog, plus competitor content benchmarking via web research, into a Performance Brief; shared `${BRAND}_PERFORMANCE_DB` with `Owner`/`Source` columns) and **`trend-radar`** (Research: daily live-trend scan → `${BRAND}_TREND_DB` candidates). New Productivity utility **`video-downloader`** (yt-dlp + optional Whisper; standalone). Enhancements: `social-publisher` PublishLog now captures the post ID/URL join key; `social-calendar` Step 1b reads the Performance Brief + trend candidates; `content-creation` adds `hook-library.md` hook archetypes. Added two skill chains (content learning loop, timely content). These complete the content pipeline's missing Data spine + daily Research front-end (see `docs/content-engine.md` for the 5-phase model).
+- **Organic content learning loop added (3 skills + wiring).** New Marketing skills **`content-performance-analyst`** (Data: per-post engagement from the **Zernio API**, joined to the calendar's authored attributes via the social-publisher PublishLog, plus competitor content benchmarking via web research, into a Performance Brief; shared `${BRAND}_PERFORMANCE_DB` with `Owner`/`Source` columns) and **`trend-radar`** (Research: daily live-trend scan → `${BRAND}_TREND_DB` candidates). New Productivity utility **`video-downloader`** (yt-dlp + optional Whisper; standalone). Enhancements: `social-publisher` PublishLog now captures the post ID/URL join key; `social-calendar` Step 1b reads the Performance Brief + trend candidates; `content-creation` adds `hook-library.md` hook archetypes. Added two skill chains (content learning loop, timely content). These complete the content pipeline's missing Data spine + daily Research front-end. See **Content Engine — 5 Phases** in the Skills section below.
 
 **v2.11.1** — May 22, 2026
 - **Argil fully removed from platform scope.** Removed `avatars.md` context-file entry, Argil from the Deps gateway legend, the Argil API gateway section, the "Full social post (video)" skill chain, and the `.mp4` output convention. Calendly corrected to `outreach-sequencer` + `customer-onboarder` (consistent with the v2.4.3 Deps audit that removed Calendly from `meeting-analyzer`).
 
 **v2.11.0** — May 20, 2026
 - Visual consistency rule rebuilt as a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`. Added a **Brand kit field map** documenting only the non-obvious `fivebucks_get_brand_kit` JSON mappings (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, no font weight scale); everything else is read from `tokens` at runtime. Restored the local `design-system/` context entry (crucial free baseline, optional fb.ai mirror) and added the **fb.ai media library** entry (`fivebucks_list_media_files`, brand-setup Step 4d).
-
-**v2.10.0** — May 20, 2026
-- **Phase 1 — thinned the embed.** Since `agents/link.md` is embedded wholesale into every brand's `CLAUDE.md`, the `## Skills` section now carries a compact **domain map** (areas + counts + skill names) instead of the full table. The full per-skill table (Use For + Deps) moved to the generated `SKILLS.md` (not embedded); machine data stays in `skills-manifest.json`. Cuts the embedded block ~12× now (and far more at scale), keeping every Cowork session lean toward 300+ skills. All three artifacts generated by `scripts/gen_skills_index.py`.
 
 # Link — Business Operations Agent
 
@@ -65,7 +66,7 @@ Adapted from Andrej Karpathy's agent-coding guidelines. Bias toward caution over
 
 Always read relevant context before any task. Use the active brand's folder:
 
-- `brands/{brand}/brand.md` — voice, colors, approved phrases
+- `brands/{brand}/brand.md` — voice, colors, approved phrases, content strategy
 - `brands/{brand}/product.md` — features and pricing (source of truth)
 - `brands/{brand}/audience.md` — personas and pain points
 - `brands/{brand}/competitors.md` — competitive positioning and messaging
@@ -108,9 +109,9 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 
 <!-- BEGIN skills-table (generated) -->
 <!-- prettier-ignore -->
-**26 skills across 7 areas.**
+**27 skills across 7 areas.**
 - **Setup** (2): `brand-setup` · `plugin-update`
-- **Marketing** (12): `background-generator` · `campaign-presenter` · `content-creation` · `content-generator` · `content-performance-analyst` · `creative-designer` · `data-analysis` · `digital-marketing-analyst` · `research-strategy` · `social-calendar` · `social-publisher` · `trend-radar`
+- **Marketing** (13): `background-generator` · `campaign-presenter` · `content-creation` · `content-generator` · `content-performance-analyst` · `creative-designer` · `data-analysis` · `digital-marketing-analyst` · `research-strategy` · `social-calendar` · `social-publisher` · `trend-radar` · `video-repurposer`
 - **Sales** (3): `apollo-lead-prospector` · `outreach-sequencer` · `proposal-generator`
 - **Customer Success** (2): `churn-predictor` · `customer-onboarder`
 - **Finance** (2): `financial-reporter` · `invoice-collector`
@@ -126,13 +127,30 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 | Strategy + deck | research-strategy → campaign-presenter |
 | Full campaign | research-strategy → content-creation → creative-designer → social-publisher |
 | Content learning loop | social-publisher (PublishLog) → content-performance-analyst (Performance Brief) → social-calendar (plans from what worked) |
-| Timely content | trend-radar → social-calendar |
+| YouTube repurposing | social-calendar (YouTube-First) → video-repurposer (clips + publish) → content-performance-analyst (PublishLog) |
+| Timely content | content-performance-analyst → trend-radar → social-calendar |
 | Analytics deck | data-analysis → campaign-presenter |
 | Sales pipeline | research-strategy → apollo-lead-prospector → outreach-sequencer → proposal-generator |
 | Customer retention | customer-onboarder → churn-predictor |
 | Monthly close | invoice-collector → financial-reporter → investor-update-writer |
 | Strategic intelligence | competitor-monitor → investor-update-writer |
 | Strategic decision | research-strategy → decision-advisor |
+
+### Content Engine — 5 Phases
+
+The organic-content loop — **measure → learn → create** — runs across five phases. Phase 1 feeds Phase 2; Phase 5 writes the PublishLog that feeds Phase 1 next cycle.
+
+| # | Phase | Skills | Output |
+|---|---|---|---|
+| 1 | **Data** | `content-performance-analyst` | Performance Brief — own post performance + competitor benchmarking, written to `${BRAND}_PERFORMANCE_DB` |
+| 2 | **Research** | `trend-radar` | Trend candidates — own post performance + competitor benchmarking (from Phase 1) + web research synthesized together, then written to `${BRAND}_TREND_DB` |
+| 3 | **Plan** | `social-calendar` | Weekly plan — Static Mode (14 posts, Mon–Sat) or YouTube-First Mode (one video + Clip Release Schedule), per `brand.md` `## Content Strategy` |
+| 4 | **Create** | `content-creation` (script) → record YouTube → `video-repurposer` (clips + captions) | YouTube video live + clips ready per platform |
+| 5 | **Publish** | `social-publisher` / `video-repurposer` | Clips published to connected platforms; PublishLog written (feeds Phase 1) |
+
+> **Phase 2 synthesis rule:** Before writing to `${BRAND}_TREND_DB`, `trend-radar` must synthesize three inputs: (1) own post performance data, (2) competitor content benchmarking, and (3) web research. All three come from Phase 1's Performance Brief + the web scan in Phase 2. When no own posts exist yet, input (1) is skipped — synthesize (2) + (3) only. Candidate angles must be differentiated from competitor coverage. Never write to the DB before synthesis is complete.
+
+> *Phases 4–5 above describe the **YouTube-First** flow. **Static Mode** keeps the original path: `content-creation` → `creative-designer` → `content-generator` / `social-publisher`.*
 
 ## Tools & Integrations
 

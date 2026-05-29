@@ -7,7 +7,7 @@ use_for: "Daily live-trend/newsjacking scan — surfaces timely topics scored fo
 deps:
   mcp: ["Notion", "Slack"]
   gateway: ["DataforSEO (opt — trending keywords)", "FiveAgents (logging)"]
-  files: ["brand.md", "audience.md", "competitors.md"]
+  files: ["brand.md", "audience.md", "competitors.md", "PerformanceBrief_*.md (opt — Phase 1 output from content-performance-analyst)"]
   env: ["`${BRAND}_TREND_DB` (auto-bootstraps)"]
 ---
 
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v1.0.0 | May 28, 2026 |
+| Link | v2.14.0 | May 29, 2026 |
 
 **Description:** Daily live-trend scan — timely topics scored, deduplicated, written as candidate topics for the social calendar.
 
 ### Change Log
+
+**v2.14.0** — May 29, 2026
+- **Synthesis-before-write rule.** Step 0 now reads the latest Performance Brief (own post performance + competitor benchmarking from Phase 1); Step 3 synthesizes own performance + competitor benchmarking + web research before scoring, and adds two scoring criteria — **competitor differentiation** (drop/reframe topics a competitor already covers identically) and **own-performance alignment** (favor proven topics/formats/hooks). Step 4 forbids writing to `${BRAND}_TREND_DB` before synthesis is complete. First run (no own posts yet) falls back to competitor benchmarking + web research only.
 
 **v1.0.0** — May 28, 2026
 - New skill. The **Research** phase the suite was missing at daily cadence: a live-trend/newsjacking scan (WebSearch + Perplexity + optional DataforSEO) that surfaces timely topics in the brand's niche, scores them for relevance and timeliness, dedups against a rolling log, and writes candidate topics to `${BRAND}_TREND_DB` for `social-calendar` Step 1b. Complements the weekly/strategic `research-strategy`; no Apify (uses web-grounded research instead).
@@ -52,6 +55,9 @@ Read before scanning, so "relevant" means relevant to *this* brand:
 - `brands/{brand}/brand.md` — niche, voice, what the brand is about
 - `brands/{brand}/audience.md` — personas + pain points (the relevance test)
 - `brands/{brand}/competitors.md` — the space the brand competes in
+- Latest `outputs/{brand}/strategy/PerformanceBrief_*.md` — if Phase 1 (`content-performance-analyst`) has run, read it in full. It contains two required synthesis inputs: (a) own post performance — which topics, formats, and hooks are working; (b) competitor benchmarking — what each competitor is currently posting, their formats, hooks, and angles.
+
+**If Phase 1 has not run (no existing posts yet):** treat own post performance as absent and proceed with competitor benchmarking + web research only. In this case, competitor research from `competitors.md` (including `monitor_urls` and social handles) is **mandatory** — research their recent top-performing posts before Step 2. Never skip competitor research when Phase 1 output is absent.
 
 ---
 
@@ -100,18 +106,29 @@ Read the actual results — don't rank on headline alone.
 
 ## Step 3 — Evaluate & score
 
+**Synthesize all available inputs before scoring.** Do not score candidates in isolation — first map the full picture:
+- What is the brand already doing well (from own post performance in the Performance Brief)? Favor topics/formats that map to proven winners.
+- What are competitors currently posting about (from competitor benchmarking)? Identify which web trends they are already covering.
+- What differentiated angle can the brand take on overlapping topics?
+
+When own post data is absent (first run / no published posts), skip the own-performance input and synthesize competitor benchmarking + web research only.
+
 For each candidate, score and keep only what clears the bar:
 
 1. **Relevance** — does it map to a brand persona's pain/desire (`audience.md`)? High / Medium / Low. Drop Low.
 2. **Timeliness** — Breaking / This week / Evergreen-ish. Favor fresh; an evergreen topic needs a strong angle to make the cut.
 3. **Angle fit** — which **hook archetype** (`content-creation/hook-library.md`) does it naturally fit? If none, it's probably not a post.
 4. **Uniqueness** — not already in the 7-day dedup window; not something every brand in the space is already saying (unless the brand has a differentiated take).
+5. **Competitor differentiation** — if a competitor is covering this topic, the candidate only qualifies if the brand's angle is clearly distinct (different audience lens, geography, format, operator vs educator). A topic covered identically by a competitor is dropped or reframed. The `Suggested Angle` must explicitly reflect this differentiation.
+6. **Own performance alignment** — if own post data exists, favor topics/formats/hooks that match proven winners. Flag candidates that contradict what the data shows works.
 
 Keep the **Top 5–8**.
 
 ---
 
 ## Step 4 — Write candidates + present
+
+**Only write to `${BRAND}_TREND_DB` after synthesis is complete.** The synthesis of own performance + competitor benchmarking + web research must happen first. Never write mid-research or before scoring.
 
 1. **Upsert** each kept topic into `${BRAND}_TREND_DB` with `Status="Candidate"`, `Date Seen=today`, real `Source`/`Source URL`, `Relevance`, `Timeliness`, suggested `Hook Archetype`, and a one-line `Suggested Angle`.
 2. Present a short ranked list in chat:
@@ -145,11 +162,12 @@ These rows are what `social-calendar` Step 1b pulls for timely/newsjacking slots
 ## Quality Checklist
 
 - [ ] Active brand resolved; `agents/link.md` + brand context read first
+- [ ] **Synthesis done before scoring/writing** — own performance (Performance Brief, if any) + competitor benchmarking + web research mapped together; first run (no own posts) used competitor + web research only (competitor research mandatory)
 - [ ] `${BRAND}_TREND_DB` exists (bootstrapped + ID persisted if first run)
 - [ ] 7-day dedup applied — no repeats without a new development
 - [ ] Every candidate has a real source URL (no fabricated links/headlines)
-- [ ] Each scored on Relevance + Timeliness + Hook Archetype; Low-relevance dropped
-- [ ] Top 5–8 written to `${BRAND}_TREND_DB` as `Candidate`
+- [ ] Each scored on Relevance + Timeliness + Hook Archetype + competitor differentiation + own-performance alignment; Low-relevance dropped, competitor-identical topics dropped/reframed
+- [ ] Top 5–8 written to `${BRAND}_TREND_DB` as `Candidate` — only after synthesis is complete
 - [ ] Slack notification sent
 - [ ] Agent run logged to dashboard
 

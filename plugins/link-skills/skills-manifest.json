@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.9.1"
+    "version": "v2.14.0"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.11.1"
+    "version": "v2.14.0"
   },
   {
     "name": "background-generator",
@@ -244,8 +244,8 @@
   {
     "name": "social-calendar",
     "area": "Marketing",
-    "use_for": "Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule",
-    "description": "Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand. Runs weekly on Sunday cron schedule.",
+    "use_for": "Plan a weekly social media content calendar — Static Mode (14 posts across LinkedIn, Facebook, Instagram) or YouTube-First Mode (one weekly video + platform clips), per brand.md Content Strategy. Runs weekly on Sunday cron schedule",
+    "description": "Plan a weekly social media content calendar for any active brand — Static Mode (14 posts across LinkedIn, Facebook, Instagram) or YouTube-First Mode (one weekly video + platform clips), selected by brand.md Content Strategy. Runs weekly on Sunday cron schedule.",
     "deps": {
       "mcp": [
         "Notion",
@@ -264,7 +264,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.12.0"
+    "version": "v2.14.0"
   },
   {
     "name": "social-publisher",
@@ -306,13 +306,43 @@
       "files": [
         "brand.md",
         "audience.md",
-        "competitors.md"
+        "competitors.md",
+        "PerformanceBrief_*.md (opt — Phase 1 output from content-performance-analyst)"
       ],
       "env": [
         "`${BRAND}_TREND_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v1.0.0"
+    "version": "v2.14.0"
+  },
+  {
+    "name": "video-repurposer",
+    "area": "Marketing",
+    "use_for": "Repurpose a YouTube video into platform-specific clips with captions for all connected platforms. Run after the weekly YouTube video is uploaded.",
+    "description": "Take a published YouTube video URL, extract clips per the social calendar's Clip Release Schedule, write platform-native captions with comment-to-DM CTAs, and publish to connected platforms (LinkedIn, Instagram, TikTok, Twitter/X, Facebook) via Zernio at the scheduled times.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [
+        "Zernio (publishing)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md"
+      ],
+      "env": [
+        "`${BRAND}_LATE_LI`",
+        "`${BRAND}_LATE_IG`",
+        "`${BRAND}_LATE_TT`",
+        "`${BRAND}_LATE_TW`",
+        "`${BRAND}_LATE_FB`",
+        "`${BRAND}_NOTION_DB`"
+      ]
+    },
+    "version": "v2.14.0"
   },
   {
     "name": "apollo-lead-prospector",

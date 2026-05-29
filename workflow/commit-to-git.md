@@ -192,6 +192,11 @@ If a skill is in the file table below but missing from link.md's Skills table, t
 | 21 | `plugins/link-skills/skills/competitor-monitor/SKILL.md` | competitor-monitor | Skill |
 | 22 | `plugins/link-skills/skills/investor-update-writer/SKILL.md` | investor-update-writer | Skill |
 | 23 | `plugins/link-skills/skills/meeting-analyzer/SKILL.md` | meeting-analyzer | Skill |
+| 24 | `plugins/link-skills/skills/decision-advisor/SKILL.md` | decision-advisor | Skill |
+| 25 | `plugins/link-skills/skills/content-performance-analyst/SKILL.md` | content-performance-analyst | Skill |
+| 26 | `plugins/link-skills/skills/trend-radar/SKILL.md` | trend-radar | Skill |
+| 27 | `plugins/link-skills/skills/video-downloader/SKILL.md` | video-downloader | Skill |
+| 28 | `plugins/link-skills/skills/video-repurposer/SKILL.md` | video-repurposer | Skill |
 
 ### 4d. Upsert each row into Notion
 
@@ -214,7 +219,7 @@ Use Notion MCP tool notion-update-page (existing) or notion-create-pages (new):
 
 > ⚠️ **All six fields — every time.** Do not split the update into "version fields" and "documentation fields". Write Version + Last Changed + Last Changelog + Area + Description + Tools in a single `notion-update-page` call per row. Omitting Description/Tools is a common mistake when the SKILL.md was the only file touched.
 
-**Optimization:** if the skill's Maintenance section was NOT touched in this commit (no version bump for that skill), and link.md's Skills table row for that skill also wasn't touched, you can skip the upsert for that row entirely. Most commits only touch 1–4 of the 23 rows.
+**Optimization:** if the skill's Maintenance section was NOT touched in this commit (no version bump for that skill), and link.md's Skills table row for that skill also wasn't touched, you can skip the upsert for that row entirely. Most commits only touch 1–4 of the 28 rows.
 
 **Do not proceed to Step 5 until every row in the table above that was touched is present and up to date in Notion.**
 
@@ -294,7 +299,7 @@ Build a map of existing rows **keyed by `Slug`** (the canonical join key — sur
 
 ### 5c. Build the touched-skills inventory
 
-Use the same 23-row file table from Step 4c. **Only consider rows whose SKILL.md or `agents/link.md` row was modified in this commit** — most commits touch 1–4 rows. If neither the skill's SKILL.md nor its `link.md` row was touched, skip it entirely (no Notion call).
+Use the same 28-row file table from Step 4c. **Only consider rows whose SKILL.md or `agents/link.md` row was modified in this commit** — most commits touch 1–4 rows. If neither the skill's SKILL.md nor its `link.md` row was touched, skip it entirely (no Notion call).
 
 For each touched row, gather from `plugins/link-skills/agents/link.md` Skills table and the skill's `## Maintenance` block:
 
@@ -603,7 +608,7 @@ git ls-remote --tags origin | grep {new_version}
 - [ ] All modified SKILL.md / link.md files have updated maintenance sections (Version + Last Changed + Changelog entry for the new version)
 - [ ] Every `### Change Log` section (in `plugins/link-skills/agents/link.md` AND every `plugins/link-skills/skills/*/SKILL.md`) contains at most 5 entries (newest at top, oldest trimmed) — Step 3c
 - [ ] No skill or agent was left with a stale "Last Changed" date
-- [ ] Notion Agents Library DB (resolved via `AGENTS_LIBRARY_DB` env var or fuzzy name search) is fully up to date — all 23 rows present, and every touched row has correct **Version / Last Changed / Last Changelog / Area / Description / Tools** (all six fields sourced from the skill's Maintenance section + `agents/link.md` Skills table; Description and Tools must be written even when only the Maintenance section changed)
+- [ ] Notion Agents Library DB (resolved via `AGENTS_LIBRARY_DB` env var or fuzzy name search) is fully up to date — all 28 rows present, and every touched row has correct **Version / Last Changed / Last Changelog / Area / Description / Tools** (all six fields sourced from the skill's Maintenance section + `agents/link.md` Skills table; Description and Tools must be written even when only the Maintenance section changed)
 - [ ] If `agents/link.md` Skills table changed in this commit (Area / "Use For" / Deps columns), the corresponding Notion row's Area / Description / Tools were re-synced — even if the skill's own Maintenance section wasn't bumped
 - [ ] Notion Skills Documentation DB (resolved via `SKILLS_DOCUMENTATION_DB` env var or fuzzy name search) — every touched skill has **properties updated** (Name / Slug / Area, never Status) AND **body content updated** (What it does / Dependencies / Latest changes sections, sourced from link.md Use For + Deps + SKILL.md changelog)
 - [ ] If `agents/link.md` Skills table `Area` column changed for a skill, the Skills Documentation row's Area was re-synced (mapping `All` → `General` for the Link agent)

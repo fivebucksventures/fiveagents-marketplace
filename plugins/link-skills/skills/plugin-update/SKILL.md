@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.1 | May 28, 2026 |
+| Link | v2.14.0 | May 29, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.14.0** — May 29, 2026
+- **Migration support for the YouTube-First pipeline.** Added a Step 1b `brand.md` checklist row for `## Content Strategy`; a Step 3e gap-fill (re-runs `brand-setup` Step 4a); Step 3k changelog→brand-action rows for YouTube-First Mode + the trend-radar synthesis requirement; and Step 1d/3f coverage for the new `${BRAND}_LATE_TT` / `${BRAND}_LATE_TW` organic account IDs (TikTok / Twitter-X) that `video-repurposer` needs. Brands missing `## Content Strategy` default to static planning until it's filled.
 
 **v2.11.1** — May 28, 2026
 - **Registered the two new v2.13.0 auto-bootstrapped DBs** — `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the Step 1d auto-bootstrap inventory and the Step 3f defer-or-bootstrap list; Step 1d checklist count corrected 7 → 9. New skills are otherwise auto-detected from the shipped `skills-manifest.json` (Step 1's registry read).
@@ -32,10 +35,6 @@ deps:
 **v2.10.1** — May 21, 2026
 - **New Step 1i — fb.ai media library detection.** `fivebucks_list_media_folders` now called during the Step 1 inspection sweep; result (populated / empty) reported in the Step 2 gap report between the social-templates row and `brand.md sections`. Consistent with how Steps 1a (design-system/) and 1h (social templates) are handled. Steps renumbered: 1i (Notion DB) → 1j, 1j (version audit) → 1k; all cross-references updated.
 - **Step 3h — Visual System block refresh added (brand-setup Step 9c equivalent).** Runs unconditionally on every plugin-update execution. Probes `design-system/` locally, `fivebucks_get_brand_kit`, `fivebucks_list_templates`, and `fivebucks_list_media_folders`, then idempotently replaces the `<!-- BEGIN/END visual-system -->` markers in `CLAUDE.md` (or appends if absent). Fixes stale blocks for brands set up before Step 9c was introduced or before the media library row was added in v2.8.0.
-
-**v2.8.1** — May 20, 2026
-- Added the same **fb.ai paid-product context** before any `fivebucks.ai` link in Step 3b.
-- Step 3b design-system install now uses the Cowork directory-access flow (`mcp__cowork__request_cowork_directory` on the user-provided path; skipped in local Claude Code; in-project fallback if the user declines).
 
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
@@ -173,6 +172,7 @@ Read `brands/{brand}/brand.md` and check for these section headers (added in dif
 | `## Approved Phrases` | v2.0 | present / missing |
 | `## Do NOT Say` | v2.0 | present / missing |
 | `## Social Publishing` (Zernio profile + connected platforms) | v2.2.1 | present / missing |
+| `## Content Strategy` (Primary channel + distribution platforms + cadence) | v2.14.0 | present / missing |
 
 ### 1c. funnel.md schema
 
@@ -195,6 +195,7 @@ Read `.claude/settings.local.json` (search up from cwd). Check the `env` block:
 | `REPORT_EMAIL` | v2.0 |
 | `LATE_API_KEY` | v2.1.0 |
 | `{BRAND}_LATE_FB` / `_IG` / `_LI` | v2.2.1 |
+| `{BRAND}_LATE_TT` / `_TW` (TikTok / Twitter-X organic — `video-repurposer`, YouTube-First) | v2.14.0 |
 | `{BRAND}_NOTION_DB` | v2.2.10 (social-calendar bootstraps if missing) |
 
 **Optional:**
@@ -520,12 +521,13 @@ For each missing section header in `brand.md`, append it without rewriting exist
 
 - **Locale missing** — extract Currency / Timezone / Meta USD exchange rate from the website (re-use Step 4 logic). Append a `## Locale` section to `brand.md`.
 - **Social Publishing missing** — re-run `brand-setup` Step 7b Step D (auto-discover Zernio profile + connected accounts via `late_list_profiles` + `late_list_accounts`). Append a `## Social Publishing` section.
+- **Content Strategy missing** — run `brand-setup` Step 4a. Ask the user: (1) Primary channel: `youtube` or `static`? (2) If `youtube`: which platforms for distribution, which are currently connected, clips per video. Write the `## Content Strategy` section to `brand.md`. This section is read by `social-calendar` at runtime to select planning mode — without it, `social-calendar` defaults to static mode.
 
 ### 3f. Env vars (only the missing ones)
 
 For each missing required env var, ask the user for the value and append/update `.claude/settings.local.json` under `env`. Preserve all existing keys — never overwrite the file wholesale.
 
-For missing `{BRAND}_LATE_FB/IG/LI`: re-run `late_list_profiles` + `late_list_accounts` to auto-discover.
+For missing `{BRAND}_LATE_FB/IG/LI/TT/TW`: re-run `late_list_profiles` + `late_list_accounts` to auto-discover. (`_TT` = TikTok, `_TW` = Twitter/X — organic publishing IDs needed by `video-repurposer` for YouTube-First clip publishing; skip any platform not connected to Zernio.)
 
 For missing `{BRAND}_NOTION_DB`: ask the user if they want to bootstrap now (calls `notion-create-database` per `social-calendar` Step 3a) or defer to first social-calendar run.
 
@@ -800,6 +802,8 @@ For each skill/agent flagged as changed in Step 1k, read its `### Change Log` bu
 | `competitor-monitor introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/competitors.md` has the new `monitor_urls`/`track_pages`/`exec_team` fields per competitor. If not → run brand-setup Step 5l (extension) |
 | `meeting-analyzer introduced (link-skills v2.4.0)` | ⏭ Optional — ask user if they want operations.md set up. If yes → brand-setup Step 5k |
 | `digital-marketing-analyst v2.3.0 / data-analysis v2.3.0 — Windsor.ai fallback via Zernio (v2.5.0–v2.5.1)` | ✅ Check `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) + `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID) + `${BRAND}_LATE_META_ADS_ACCOUNT_ID` + `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` in env. Both Google vars and both LinkedIn vars are required pairs for Zernio ads calls. LinkedIn vars are optional — skip if the brand doesn't run LinkedIn Ads. If missing → run Step 3f auto-discover (also handles legacy `_LATE_GOOGLE_ADS_ACCOUNT_ID` → `_LATE_GOOGLE_ADS` rename) |
+| `social-calendar YouTube-First Mode added (v2.14.0)` | ✅ Check `brands/{brand}/brand.md` has `## Content Strategy` section. If missing → run brand-setup Step 4a to define primary channel. Without it, social-calendar defaults to static mode regardless of the brand's actual publishing workflow. |
+| `trend-radar synthesis requirement added (v2.14.0)` | ✅ No brand file action required — the skill now synthesizes competitor research + web research before writing to Trend DB. Existing `competitors.md` already serves as the competitor input. |
 
 For changelog entries not in this table, apply judgment: if the change touches a per-brand configuration file (`brand.md`, `funnel.md`, `.claude/settings.local.json`, `CLAUDE.md`) → flag for review. If it is a skill-internal logic change → no brand action needed.
 

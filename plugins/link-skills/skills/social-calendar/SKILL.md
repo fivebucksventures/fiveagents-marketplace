@@ -1,9 +1,9 @@
 ---
 name: social-calendar
-description: Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand. Runs weekly on Sunday cron schedule.
+description: Plan a weekly social media content calendar for any active brand — Static Mode (14 posts across LinkedIn, Facebook, Instagram) or YouTube-First Mode (one weekly video + platform clips), selected by brand.md Content Strategy. Runs weekly on Sunday cron schedule.
 allowed-tools: Read, Grep, Glob, Bash, WebSearch
 area: Marketing
-use_for: "Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram. Runs weekly on Sunday cron schedule"
+use_for: "Plan a weekly social media content calendar — Static Mode (14 posts across LinkedIn, Facebook, Instagram) or YouTube-First Mode (one weekly video + platform clips), per brand.md Content Strategy. Runs weekly on Sunday cron schedule"
 deps:
   mcp: ["Notion", "Slack"]
   gateway: ["FiveAgents (logging)"]
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.12.0 | May 28, 2026 |
+| Link | v2.14.0 | May 29, 2026 |
 
-**Description:** Plan weekly 14-post social media content calendar across LinkedIn, Facebook, Instagram for any active brand
+**Description:** Plan a weekly social media content calendar for any active brand — Static Mode (14 posts) or YouTube-First Mode (one weekly video + platform clips), selected by brand.md Content Strategy
 
 ### Change Log
+
+**v2.14.0** — May 29, 2026
+- **YouTube-First Mode added.** Step 1 now reads `brand.md` `## Content Strategy` (`Primary channel`, `Connected platforms`, `Clips per video`, `Cadence`) to pick the planning flow. New **Step 2a (YouTube-First Mode)** plans one weekly YouTube video + a per-platform **Clip Release Schedule** — publish day/time per clip, Twitter/X support, comment-to-DM CTAs — restricted to connected platforms; the schedule is the handoff to `video-repurposer` (Phase 4–5). The original 14-post flow is renamed **Step 2b (Static Mode)**. The quality checklist branches per mode. Brands without `## Content Strategy` default to Static.
 
 **v2.12.0** — May 28, 2026
 - **Planning now closes the learning loop.** Step 1b reads two new inputs before the market-research pass: (1) the latest **Performance Brief** from `content-performance-analyst` (`${BRAND}_PERFORMANCE_DB` / `outputs/{brand}/strategy/PerformanceBrief_*`) to bias the mix toward proven-winning formats/personas/hook archetypes/Directions, and (2) **`trend-radar`** candidate topics (`${BRAND}_TREND_DB`) for 2–3 timely/newsjacking slots. Step 2's Content Angle now names a **hook archetype** from `content-creation/hook-library.md` so production and performance analysis share one hook vocabulary.
@@ -37,9 +40,6 @@ deps:
   - `meta-post` — A→`01 Hero Visual`, B→`02 Quote Card`, C→`03 Listicle Teaser` (matches brand-setup's meta-post directions; confirm against the manifest once a meta-post template is uploaded).
   - `content-generator` treats the label as a fast path but resolves the real slide by **Direction position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`, so a brand that labels its slides differently still renders correctly.
   - Left blank for Carousel, Story/Reel (meta-story uses `_direction`), Reel(Argil), and non-template formats. Carousel still rotates via the existing `coverVariant-bodyVariant` Direction values — no `slide_ids`.
-
-**v2.7.0** — May 20, 2026
-- Direction selection extended to the two single-image fb.ai template types: `linkedin-post` and `meta-post` now take a `direction` (A/B/C), so the Direction column is required for them too (previously left blank for LinkedIn). Variant availability is checked against the template `manifest` (`fivebucks_get_template`) rather than a local template folder's entry HTML.
 
 
 # SKILL.md — Social Calendar
@@ -61,6 +61,15 @@ Read these files before planning:
 - `brands/{brand}/product.md`
 - `brands/{brand}/audience.md`
 - `brands/{brand}/competitors.md`
+
+After reading brand context, check `brands/{brand}/brand.md` for `## Content Strategy`:
+- Read `Primary channel` value: `youtube` or `static`
+- Read `Connected platforms` — in YouTube-First Mode, only plan clips for the platforms listed here
+- Read `Clips per video` — default clip count per platform in YouTube-First Mode
+- Read `Cadence` — publishing rhythm
+- If `## Content Strategy` is absent → default to `static` mode and note the gap
+
+This single field drives which planning flow runs in Step 2.
 
 ---
 
@@ -84,7 +93,70 @@ Read the research output from `outputs/{brand}/strategy/` after it completes.
 
 ---
 
-## Step 2 — Plan 14 Posts
+## Step 2a — YouTube-First Mode
+
+*Run this step only if `Primary channel: youtube` in `brand.md`. Otherwise skip to Step 2b.*
+
+Plan one YouTube video for the upcoming week plus a clip release schedule for each connected platform. All content must be informed by Step 1b inputs: Performance Brief, Trend Radar candidates, and competitor research.
+
+### Part 1 — YouTube Video Plan
+
+| Field | Notes |
+|---|---|
+| Title | Hook-led, ≤60 chars — use proven title mechanics: specific outcome, time-pressure hook, or curiosity gap |
+| Publish Day & Time | Mon or Tue evening, 6–9pm (brand timezone from `brand.md Locale`) |
+| Format | `talking-head` / `screen-share` / `hybrid` |
+| Target persona | One persona slug from `audience.md` |
+| Trend Radar topic | Candidate from `${BRAND}_TREND_DB` it maps to — mark that row `Status=Planned` |
+| Intro hook | First 30s — what the viewer will learn |
+| Talking points | 3–5 key points (one line each) |
+| CTA | Comment-to-DM format: "Comment '[keyword]' and I'll send you [specific resource]" — never generic subscribe asks |
+| Est. length | 5–15 min |
+
+### Part 2 — Clip Release Schedule
+
+For each platform listed under `Connected platforms` in `brand.md`, plan the number of clips specified under `Clips per video` (default 1–2 if unset). Do NOT plan clips for platforms not listed as connected.
+
+| Clip # | Platform | Publish Day | Publish Time | Duration | Moment to clip | Caption angle | Hook Archetype | CTA |
+|---|---|---|---|---|---|---|---|---|
+
+**Scheduling rules** (read timezone from `brand.md Locale`):
+- YouTube publishes first (Mon or Tue evening), clips roll out Tue–Fri — never before the YouTube video is live
+- Never publish two clips on the same platform on the same day
+- **LinkedIn:** Tue or Thu, 7:30–8:30am local time
+- **Instagram Reels:** Wed 12pm or Thu 9am local time
+- **TikTok:** Fri 9am local time
+- **Twitter/X:** Thu 12pm local time
+- **Facebook:** Wed or Thu, 1–3pm local time
+
+**Clip guidelines per platform:**
+- LinkedIn: 60–90s, professional insight or story angle
+- Instagram: ≤60s Reels, hook in first 3s
+- TikTok: ≤60s, fastest hook from the video
+- Twitter/X: ≤30s, sharpest one-liner from the video
+- Facebook: 60–90s, broader audience angle
+
+### Part 3 — Captions
+
+For each clip, write a platform-native caption. Read voice and tone from `brand.md`. Use comment-to-DM CTAs — never generic subscribe asks.
+
+- **LinkedIn:** 150–300 words, professional + story-led, 3–5 hashtags
+- **Instagram:** Hook in line 1 (≤125 chars before "more"), 80–150 words, 3–5 hashtags
+- **TikTok:** ≤150 chars, casual, 3–5 hashtags
+- **Twitter/X:** ≤280 chars (URLs = 23 chars), 2–3 hashtags
+- **Facebook:** 100–200 words, conversational, 2–3 hashtags
+
+All clips set to `Status = Planned` pending YouTube upload.
+
+**Save to Notion** — same DB as static mode (`${BRAND}_NOTION_DB`); if the env var is unset (first-ever run for this brand), create the DB first via the **Step 3a** bootstrap, then persist its ID. Page title: `SocialCalendar_[DDMon]-[DDMonYYYY]`. Content: YouTube Video Plan table + Clip Release Schedule table + Captions section.
+
+After saving, skip Step 2b and proceed to Slack notification.
+
+---
+
+## Step 2b — Static Mode
+
+*Run this step only if `Primary channel: static` in `brand.md` (or if `## Content Strategy` is absent). Otherwise this step was already handled by Step 2a.*
 
 Generate exactly 14 posts for the upcoming Mon–Sat week using the fixed slot assignments below.
 
@@ -225,7 +297,9 @@ if format.lower() == "story":
 
 ---
 
-## Step 2b — Verify Format Rules Before Saving
+## Step 2c — Verify Format Rules Before Saving
+
+*Static Mode only — skipped in YouTube-First Mode.*
 
 Run this check on **every row** before proceeding to Step 3. Fix any failing row in place — do not save until all rows pass.
 
@@ -246,6 +320,8 @@ If any row fails, correct it before Step 3 — do not post a failing row as a kn
 ---
 
 ## Step 3 — Save to Notion
+
+*Static Mode only — YouTube-First Mode already saved its calendar in Step 2a. (Step 3a's DB bootstrap below is shared: Step 2a reuses it on first runs.)*
 
 Use **Notion MCP** to save the calendar to Notion. The calendar page must live **inside the brand's social-calendar database** so `content-generator` Step 1 can find it via `${BRAND}_NOTION_DB`.
 
@@ -390,8 +466,9 @@ Notion: {url}
 
 **Before calling `slack_send_message`, you MUST first call `ToolSearch` with query `"slack_send_message"` to load the tool schema.** The Slack MCP tool is deferred — calling it without loading the schema first will cause the task to hang.
 
-DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY_USER"`):
+DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY_USER"`). Use the message that matches the mode you planned in:
 
+**Static Mode:**
 ```
 📅 [{brand}] Social Calendar Ready — Week of [DD Mon YYYY]
 • 14 posts planned (Mon–Sat)
@@ -400,21 +477,31 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 • Notion: [page URL]
 ```
 
+**YouTube-First Mode:**
+```
+📅 [{brand}] Content Plan Ready — Week of [DD Mon YYYY]
+• 1 YouTube video + [N] clips across [connected platforms]
+• Video: [title]
+• Notion: [page URL]
+```
+
 ---
 
 ## Quality Checklist
 
-- [ ] Exactly 14 posts
+- [ ] **Mode check:** read `brands/{brand}/brand.md` `## Content Strategy` before planning — YouTube-First Mode (Step 2a) if `Primary channel: youtube`, Static Mode (Step 2b) otherwise
+- [ ] **YouTube-First:** YouTube Video Plan includes publish day/time; Clip Release Schedule includes publish day + time per clip for each connected platform only; comment-to-DM CTAs used; Trend Radar candidate marked Planned if used
+- [ ] **Static:** Exactly 14 posts
 - [ ] Formats match fixed slot table
 - [ ] Monday LinkedIn = Post, Monday Facebook = Post, Monday Instagram = Post
 - [ ] Tuesday Instagram = Story, Wednesday LinkedIn = Carousel
 - [ ] Thursday Facebook = Post, Thursday Instagram = Story
 - [ ] Friday Facebook = Story, Friday LinkedIn = Post, Friday Instagram = Carousel, Saturday Instagram = Carousel
-- [ ] Persona rotation applied — no persona used more than 2× across 14 posts
+- [ ] **Static:** Persona rotation applied — no persona used more than 2× across the 14 posts
 - [ ] Content mix is research-driven (Step 1b) — if research was available, mix reflects findings; if research was unavailable, default mix used (5 edu / 3 proof / 3 product / 2 CTA / 1 engage); at minimum 2 Direct CTA posts present
 - [ ] All raw scene descriptions (before wrapping) end with "No text. No logos. No watermarks."
 - [ ] Story image briefs are wrapped in the full-frame composition template before saving to Notion — the saved `Image Brief` cell must contain "fills the ENTIRE frame"; LinkedIn and Carousel briefs are saved verbatim (no wrapping)
-- [ ] **Step 2b verification passed** — every row passed the format-rules table (Direction correct per format type; no row missing Direction except `LinkedIn Carousel`)
+- [ ] **Step 2c verification passed (Static Mode)** — every row passed the format-rules table (Direction correct per format type; no row missing Direction except `LinkedIn Carousel`)
 - [ ] **Direction rotated for variety** — same-format posts spread across `A`/`B`/`C` (and carousel `coverVariant-bodyVariant` combos); no long runs of the same Direction in one platform's feed
 - [ ] **No same-day Stories** — Instagram Story and Facebook Story are on different dates
 - [ ] Notion page URL logged to memory
@@ -426,6 +513,8 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 
 See `docs/new_agent_onboarding/metrics-spec.md` for the full JSONB contract.
 
+**Mode-aware:** the payload below is the **Static Mode** shape. In **YouTube-First Mode**, set `mode: "youtube"`, drop `posts_planned` / `posts` / `content_mix` / `persona_distribution`, and instead log `videos_planned: 1`, `clips_planned: [N]`, and a `clips[]` array (platform / duration / caption angle); keep `calendar_status` + `notion_url`.
+
 ```
 Use gateway MCP tool `fiveagents_log_run`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -436,6 +525,7 @@ Use gateway MCP tool `fiveagents_log_run`:
 - started_at: "<ISO timestamp>"
 - completed_at: "<ISO timestamp>"
 - metrics: {
+    "mode": "static",
     "date": "YYYY-MM-DD",
     "week": "DD-DD Mon YYYY",
     "posts_planned": 14,
