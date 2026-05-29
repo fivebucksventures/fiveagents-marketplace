@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.0 | May 29, 2026 |
+| Link | v2.14.1 | May 30, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.14.1** — May 30, 2026
+- **fb.ai media library context entry clarified.** The Context Files entry now documents the media-pool behavior used by `content-generator` and `creative-designer`: folders matched to template type by exact name (case-insensitive), with the explicit fallback that **photos from ALL folders are pooled when no folder name matches** — so library photos are used regardless of folder naming; only a total absence of folders leaves image slots empty. Names both `fivebucks_list_media_folders` and `fivebucks_list_media_files` as the discovery path.
 
 **v2.14.0** — May 29, 2026
 - **YouTube-First content pipeline.** `social-calendar` now plans in one of two modes driven by the new `## Content Strategy` section in `brand.md` (written by `brand-setup` Step 4a): YouTube-First (one weekly video + a per-platform Clip Release Schedule for connected platforms) or Static (the existing 14-post week). New Marketing skill **`video-repurposer`** executes Phase 4–5 (download YouTube → extract clips → publish via Zernio). Added the **Content Engine — 5 Phases** table to the Skills section, and `content strategy` to the `brand.md` context-file descriptor.
@@ -25,9 +28,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 **v2.11.1** — May 22, 2026
 - **Argil fully removed from platform scope.** Removed `avatars.md` context-file entry, Argil from the Deps gateway legend, the Argil API gateway section, the "Full social post (video)" skill chain, and the `.mp4` output convention. Calendly corrected to `outreach-sequencer` + `customer-onboarder` (consistent with the v2.4.3 Deps audit that removed Calendly from `meeting-analyzer`).
-
-**v2.11.0** — May 20, 2026
-- Visual consistency rule rebuilt as a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`. Added a **Brand kit field map** documenting only the non-obvious `fivebucks_get_brand_kit` JSON mappings (secondary→`tokens.colors.accent`, text→`tokens.colors.dark`, no font weight scale); everything else is read from `tokens` at runtime. Restored the local `design-system/` context entry (crucial free baseline, optional fb.ai mirror) and added the **fb.ai media library** entry (`fivebucks_list_media_files`, brand-setup Step 4d).
 
 # Link — Business Operations Agent
 
@@ -73,7 +73,7 @@ Always read relevant context before any task. Use the active brand's folder:
 - `brands/{brand}/funnel.md` — conversion funnel stages and benchmarks
 - `brands/{brand}/design-system/` — **Claude Design** visual system (colors, fonts, components, spacing), stored **locally** (installed via brand-setup Step 4b — the crucial, free baseline). Optional but recommended. When present, it is the authoritative source for visual identity. The same design system can **optionally also** be uploaded to fb.ai (discoverable via `fivebucks_get_brand_kit`, needs `FIVEBUCKS_API_KEY` + paid plan) so fb.ai social templates render with the brand's colors/fonts. When neither is present, fall back to colors / fonts / voice in `brands/{brand}/brand.md`.
 - **Social-post templates (fb.ai)** — the brand's Claude-designed Carousel / Story / LinkedIn / IG-FB single-image templates live on fb.ai (installed via `brand-setup` Step 4c). Discover them via `fivebucks_list_templates` (needs `FIVEBUCKS_API_KEY`); render via `fivebucks_create_post` → `fivebucks_render_post`. Optional — when absent (or no fb.ai key), fall back to Gemini + Pillow generation.
-- **fb.ai media library** — brand photos uploaded via brand-setup Step 4d. Access via `fivebucks_list_media_files` (needs `FIVEBUCKS_API_KEY`). Optional — when absent, skills fall back to Gemini image generation.
+- **fb.ai media library** — brand photos uploaded via brand-setup Step 4d. Discover folders via `fivebucks_list_media_folders`, list files via `fivebucks_list_media_files` (needs `FIVEBUCKS_API_KEY`). Template-path skills (`content-generator`, `creative-designer`) build a media pool at run start: folders are matched to template type by **exact name (case-insensitive)** — `LinkedIn Post`→`linkedin-post`, `Meta Story`→`meta-story`, `Meta Carousel`→`meta-carousel`, `Meta Post`→`meta-post`. **Fallback:** if no folder name matches a type, photos from **ALL** folders are pooled for that type — so library photos are used regardless of folder naming. Only when **no folders exist at all** is the pool empty (image slots left blank — not a failure). Optional — when absent, skills fall back to Gemini image generation.
 - `brands/{brand}/sales.md` — sales operations config: sender persona, ICP filters, sequence templates, proposal terms. Required by `apollo-lead-prospector`, `outreach-sequencer`, `proposal-generator`. If absent → those skills exit cleanly with a "configure brand sales context first" message; other skills unaffected.
 - `brands/{brand}/customer-success.md` — onboarding milestones, health-score weights, intervention playbooks. Required by `customer-onboarder`, `churn-predictor`. Same fallback rule as sales.md.
 - `brands/{brand}/finance.md` — payment terms, escalation tone ladder, KPI definitions, alert thresholds, runway calc method. Required by `invoice-collector`, `financial-reporter`.

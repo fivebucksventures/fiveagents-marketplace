@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.14.0';
-const DEFAULT_DATE = 'May 29, 2026';
+const DEFAULT_VERSION = 'v2.14.1';
+const DEFAULT_DATE = 'May 30, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.14.1',
+    date: 'May 30, 2026',
+    changes: [
+      'content-generator v2.12.1: media pool fallback restructured from a dense paragraph into a numbered sub-step list with bold-labelled fallbacks — so Claude reliably runs both fallback levels (exact folder-name match → all-folders pool → empty), fixing posts that published with no photos despite a populated media library.',
+      'creative-designer v2.12.1: same numbered media-pool restructure for parity with content-generator — folders matched by exact name, fall back to pooling all folders, then empty; library photos are now used regardless of folder naming.',
+      'link.md v2.14.1: fb.ai media library Context Files entry clarified — documents the exact-name folder matching and the explicit all-folder fallback (photos used regardless of folder naming), naming both fivebucks_list_media_folders and fivebucks_list_media_files.',
+    ],
+  },
   {
     version: 'v2.14.0',
     date: 'May 29, 2026',
@@ -149,18 +158,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'brand-setup v2.5.1: Step 7b Step D Google Ads env var renamed from ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → ${BRAND}_LATE_GOOGLE_ADS (Zernio SocialAccount _id) + new ${BRAND}_LATE_GOOGLE_ADS_CID (Google Ads customer ID via late_list_ad_accounts; on 429 / empty, prompts user). LinkedIn Ads discovery added: new ${BRAND}_LATE_LINKEDIN_ADS + ${BRAND}_LATE_LINKEDIN_ADS_CID pair, same two-ID pattern, distinct from organic ${BRAND}_LATE_LI. CLAUDE.md Account IDs section extended.',
       'plugin-update v2.5.1: Step 3e auto-discover restructured into 4 sub-steps (SocialAccount IDs → Google Ads customer ID → LinkedIn sponsored account ID → legacy rename handler that auto-migrates ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → ${BRAND}_LATE_GOOGLE_ADS). Step 1d env vars table and Step 3j checklist row both extended with the new pair.',
       'agents/link.md v2.6.4: data-analysis + digital-marketing-analyst rows in the Skills table gained Env: deps blocks listing the Zernio fallback env-var pairs (Google Ads + Meta Ads + LinkedIn Ads). digital-marketing-analyst "Use For" updated from "Google Ads, Meta Ads, GA4" → "Google Ads, Meta Ads, LinkedIn Ads (opt), GA4". brand-setup Step 8d-iv parses Deps to compute agent_readiness matrix — without these declarations, the readiness email understated actual env-var dependencies.',
-    ],
-  },
-  {
-    version: 'v2.6.3',
-    date: 'May 14, 2026',
-    changes: [
-      'digital-marketing-analyst v2.3.0: Windsor.ai fallback — if Windsor errors or returns 0 rows, fall back to Zernio late_get_ads_timeline + late_list_ad_campaigns for Google Ads and Meta Ads. GA4 is Windsor-only. Phase 4 (new) — Ads Actions: pause campaigns/ad sets, bulk-pause, duplicate winners, boost posts, create CTWA ads, audit conversion tracking via Zernio.',
-      'data-analysis v2.3.0: matching Windsor.ai fallback in Step 1a (Google Ads + Meta Ads via Zernio; GA4 Windsor-only). Step 7 (new) — act on findings: pause campaigns, drill ad analytics, audit conversion tracking, boost top posts.',
-      'brand-setup v2.5.0: Step 7b Step D now extracts Google Ads and Meta Ads SocialAccount IDs from late_list_accounts and saves as ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID / ${BRAND}_LATE_META_ADS_ACCOUNT_ID. CLAUDE.md Account IDs section extended.',
-      'plugin-update v2.5.0: Step 1d adds two new optional env var rows; Step 3e auto-discovers ads SocialAccount IDs via late_list_accounts; Step 3j adds v2.5.0 mapping row.',
-      'agents/link.md v2.6.3: Zernio API section expanded into 8 sub-categories covering all ~35 ads management tools. Deps updated for digital-marketing-analyst and data-analysis.',
-      'docs/plugin-mcp.md: tool count updated to 57; Zernio split into 8 rows; digital-marketing-analyst and data-analysis rows updated.',
     ],
   },
 ];

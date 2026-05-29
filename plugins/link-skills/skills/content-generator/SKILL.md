@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.12.0 | May 23, 2026 |
+| Link | v2.12.1 | May 30, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.12.1** — May 30, 2026
+- **Media pool fallback made explicit.** Restructured the media pool build from a single dense paragraph into a numbered sub-step list so Claude reliably executes both fallback levels during runs: (1) exact folder-name match first, (2) all-folders pool if no exact match, (3) empty pool if no folders. Previously the fallback clauses were buried in prose and skipped in practice, causing posts to publish with no photos despite a media library folder being present.
 
 **v2.12.0** — May 23, 2026
 - **New media pool — photos are now auto-injected from fb.ai folders.** At run start (cached alongside the template list, called once), `fivebucks_list_media_folders` builds `media_pool[type]` by matching folders to template types by exact name (`LinkedIn Post`→`linkedin-post`, `Meta Story`→`meta-story`, `Meta Carousel`→`meta-carousel`, `Meta Post`→`meta-post`) and listing each folder's files. Fallbacks: pool all folders when no exact name match; empty pool when no folders exist; skip silently on any error (never fails the run).
@@ -35,9 +38,6 @@ deps:
 **v2.10.0** — May 20, 2026
 - **`fivebucks_render_post` slide selection is now template-type-specific** (Step 4c-template §6). Single-image types (`linkedin-post`, `meta-post`) render all three direction artboards into the DOM and fb.ai applies no direction filter for them, so the skill now **passes `slide_ids`** for them. The slide is resolved by the Direction's **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]` — authoritative — with the calendar `SlideId` cell as a fast path. Expected labels differ by type: `linkedin-post` A→`01 Hook Headline`/B→`02 Stat Hero`/C→`03 Pull Quote` (verified live); `meta-post` A→`01 Hero Visual`/B→`02 Quote Card`/C→`03 Listicle Teaser`. Omitting `slide_ids` for these renders all 3 (or errors). Multi-slide types are unchanged — `meta-story` omits `slide_ids` and sets `_direction`; `meta-carousel` omits `slide_ids` and rotates `coverVariant`/`bodyVariant`.
 - Calendar table 11 → 12 columns: `SlideId` inserted at index `[10]`, `Status` moves to `[11]`. Step 1c row parsing and the Step 6 status-update string match updated accordingly.
-
-**v2.8.0** — May 20, 2026
-- Brand palette resolution for the Gemini image-path is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
 
 
 # SKILL.md — Content Generator
@@ -294,23 +294,31 @@ Use gateway MCP tool fivebucks_list_templates:
 
 Returns an array of templates, each with `id`, `name`, `type` (`meta-carousel` | `meta-story` | `linkedin-post` | `meta-post`), `dimensions`, and `manifest`. Build a `type → {id, manifest}` map and **cache it for the entire daily run** — don't call per post. If no template of the type this post needs exists, fall back to **Step 4c-image**.
 
-Also at run start, build the **media pool** (cache alongside the template list — call once, not per post):
+Also at run start, build the **media pool** (cache alongside the template list — call once, not per post). Execute these sub-steps in order — do not skip the fallbacks:
 
-```
-Use gateway MCP tool fivebucks_list_media_folders:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-```
+1. **Call `fivebucks_list_media_folders` once** (cache the result alongside the template list):
 
-Match returned folders to template types by exact name (case-insensitive):
+   ```
+   Use gateway MCP tool fivebucks_list_media_folders:
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   ```
 
-| Folder name | Template type |
-|---|---|
-| `LinkedIn Post` | `linkedin-post` |
-| `Meta Story` | `meta-story` |
-| `Meta Carousel` | `meta-carousel` |
-| `Meta Post` | `meta-post` |
+2. **Match each returned folder to a template type by exact name (case-insensitive):**
 
-For each matched folder, call `fivebucks_list_media_files` and store the file list as `media_pool[type]`. **Fallback:** if a template type has no matching folder, pool all folders (call `fivebucks_list_media_files` for every folder and combine into a single list for that type). **Fallback:** if no folders exist at all, `media_pool` is empty — photo injection is skipped for the whole run. On any error from `fivebucks_list_media_folders`, skip silently and treat the pool as empty — never fail the run.
+   | Folder name | Template type |
+   |---|---|
+   | `LinkedIn Post` | `linkedin-post` |
+   | `Meta Story` | `meta-story` |
+   | `Meta Carousel` | `meta-carousel` |
+   | `Meta Post` | `meta-post` |
+
+3. **For each matched folder:** call `fivebucks_list_media_files` → store the file list as `media_pool[type]`.
+
+4. **Fallback — no exact match:** if a template type has no folder with a matching name, combine **ALL** returned folders — call `fivebucks_list_media_files` for every folder and merge into a single list. Use that combined list as `media_pool[type]`. (Do not leave the type's pool empty just because its named folder is missing.)
+
+5. **Fallback — no folders at all:** if `fivebucks_list_media_folders` returns an empty list, set `media_pool` to empty. Photo injection is skipped for the entire run — this is normal, not an error.
+
+6. **On any API error** from `fivebucks_list_media_folders`: skip silently, treat the pool as empty. Never fail or warn the run.
 
 #### 2. Read the manifest
 
@@ -935,7 +943,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Image dimensions are correct for platform/format
 - [ ] Template-path used when a matching fb.ai template exists for the format; image-path used otherwise (no `failed` run for missing templates)
 - [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)
-- [ ] **Template-path:** media pool built at run start — `fivebucks_list_media_folders` called once; each folder matched to template type by exact name (`LinkedIn Post`, `Meta Story`, `Meta Carousel`, `Meta Post`); fallback to all-folder pool when no exact match; empty pool → image slots left empty (not a failure)
+- [ ] **Template-path:** media pool built — `fivebucks_list_media_folders` called once; exact-name match first (case-insensitive); if no match → ALL folders pooled for that type; if no folders → pool empty (not a failure)
 - [ ] **Template-path:** `overrides` map copy → manifest field keys (skip `bound:false`, `select` values from `options`); direction set (`_direction` A/B/C for meta-story — never `all`; `direction` for single-image types)
 - [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: each slide re-hosted on Zernio (`late_presign_upload` + PUT → permanent `publicUrl`) then posted one-per-slide via `late_create_post` with `is_draft=False` + `publish_now=True`; 1-second sleep between slides; 5-second sleep + one retry after ~5 consecutive FB posts (FB rate-limit); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`late_presign_upload` + PUT) then passed as `media_items` to a single `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
 - [ ] **Template-path:** `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)

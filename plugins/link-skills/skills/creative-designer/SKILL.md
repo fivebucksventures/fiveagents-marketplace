@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding"
 deps:
   mcp: []
-  gateway: ["Gemini", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
+  gateway: ["Gemini", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)", "fivebucks (media library — fivebucks_list_media_folders / fivebucks_list_media_files)"]
   files: ["brand.md", "audience.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
@@ -15,11 +15,17 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.11.1 | May 22, 2026 |
+| Link | v2.12.1 | May 30, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.12.1** — May 30, 2026
+- **Media pool fallback made explicit (parity with content-generator v2.12.1).** Restructured the Step 1 media pool build from a single dense paragraph into a numbered sub-step list with bold-labelled fallbacks so both levels are reliably executed: (1) exact folder-name match first, (2) all-folders pool if no exact match, (3) empty pool if no folders. Matches content-generator's structure exactly.
+
+**v2.12.0** — May 30, 2026
+- **Media pool added (parity with content-generator).** At run start, calls `fivebucks_list_media_folders` and builds `media_pool[type]` using the same exact-name matching table as content-generator (LinkedIn Post / Meta Story / Meta Carousel / Meta Post); fallback to all-folder pool when no exact match; empty pool leaves image slots empty. Step 4a item 3 updated: user-provided photo takes priority, then media pool, then empty. Removes the stale `fivebucks_presign_media_upload` path from the injection step (upload-new-photo is a separate, explicit user action — not auto-injection).
 
 **v2.11.1** — May 22, 2026
 - **Reel and Argil fully removed.** Removed Facebook/Instagram Reel rows from dimensions and format tables, Reel from decision tree and upload table. Renamed `is_story_reel` → `is_story` in both Pillow code blocks; guard titles updated to "Story full-frame guard". "Reels UI stack" / "Reels right-rail" labels replaced with "Meta bottom/side safe zone". meta-story corrected to "IG + FB Stories". Removed "Generating AI avatar video ads via Argil API" from When-to-use list.
@@ -30,12 +36,6 @@ deps:
 
 **v2.10.0** — May 20, 2026
 - **Step 4a render: `slide_ids` is now template-type-specific** (mirrors content-generator Step 4c-template §6). Single-image types (`linkedin-post`, `meta-post`) require `slide_ids` — they render all 3 direction artboards and fb.ai applies no direction filter for them. The slide is resolved by Direction **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`, with per-type label fast paths (`linkedin-post`: Hook Headline/Stat Hero/Pull Quote; `meta-post`: Hero Visual/Quote Card/Listicle Teaser). Multi-slide types omit `slide_ids` (`meta-story` uses `_direction`; `meta-carousel` renders all 6 and rotates `coverVariant`/`bodyVariant`).
-
-**v2.8.0** — May 20, 2026
-- Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (kit gives font families only; weight scale stays local).
-
-**v2.7.0** — May 20, 2026
-- **Template-path migrated to fb.ai (`fivebucks_*`).** Step 4a now detects templates via `fivebucks_list_templates` (by `type`) and renders via `fivebucks_create_post` → `fivebucks_render_post` → re-host on Zernio — replacing the dead `template_list`/`template_render` + presign-slots flow. All four types supported (meta-carousel / meta-story / linkedin-post / meta-post). Canonical implementation lives in `content-generator/SKILL.md` Step 4c-template. The Gemini + Pillow fallback (Step 4b) is unchanged.
 
 # Creative Designer Skill
 
@@ -153,6 +153,26 @@ fb.ai renders each template server-side and returns signed PNG URLs — no local
 - **skills/creative-designer/style-guide.md** — Generic fallback rules (use only when the fb.ai brand kit, design-system/, and brand.md are all silent on a topic)
 - Confirm the headline and key message (from content-creation or user input)
 - Call `fivebucks_list_templates` once (cache for the run) and note which template `type`s exist on fb.ai: `meta-carousel`, `meta-story`, `linkedin-post`, `meta-post`. (Skip if `FIVEBUCKS_API_KEY` is unset → image-path only.)
+- **Build the media pool** (once per run, cache alongside the template list — call once, not per asset; only when `FIVEBUCKS_API_KEY` is set and a template match exists). Mirrors content-generator Step 1c exactly. Execute these sub-steps in order — do not skip the fallbacks:
+
+  1. **Call `fivebucks_list_media_folders` once** (cache the result alongside the template list).
+
+  2. **Match each returned folder to a template type by exact name (case-insensitive):**
+
+     | Folder name | Template type |
+     |---|---|
+     | `LinkedIn Post` | `linkedin-post` |
+     | `Meta Story` | `meta-story` |
+     | `Meta Carousel` | `meta-carousel` |
+     | `Meta Post` | `meta-post` |
+
+  3. **For each matched folder:** call `fivebucks_list_media_files` → store the file list as `media_pool[type]`.
+
+  4. **Fallback — no exact match:** if a template type has no folder with a matching name, combine **ALL** returned folders — call `fivebucks_list_media_files` for every folder and merge into a single list. Use that combined list as `media_pool[type]`. (Do not leave the type's pool empty just because its named folder is missing.)
+
+  5. **Fallback — no folders at all:** if `fivebucks_list_media_folders` returns an empty list, set `media_pool` to empty. Photo injection is skipped — image slots left empty; this is normal, not an error.
+
+  6. **On any API error** from `fivebucks_list_media_folders`: skip silently, treat the pool as empty. Never fail or warn the run.
 
 ### Step 2: Define the layout structure
 Sketch the component hierarchy before writing code:
@@ -194,7 +214,7 @@ all other cases (banners, ads, mockups, no matching template) → fall through t
 
 1. `fivebucks_list_templates` (cached) → pick the template whose `type` matches; read its `manifest` (fields + image slots + slides). If none, fall through to Step 4b.
 2. Build `overrides` from the post copy (manifest field keys; skip `bound:false`, `select` values from `options`). Set direction: `_direction` (A/B/C) for meta-story; un-prefixed `direction` (A/B/C) for linkedin-post / meta-post; `coverVariant` / `bodyVariant` for meta-carousel if present.
-3. (Optional) assign photos via the fb.ai media library (`fivebucks_presign_media_upload` → `requests.put` → `fivebucks_confirm_media_upload` → `"media:{fileId}"`); otherwise leave image slots empty (template renders its placeholder).
+3. Inject photos from the media pool built at run start. Priority: (1) user-provided photo if supplied in the session — always preferred; (2) `media_pool[type]` — for `linkedin-post` / `meta-post` assign one photo to `bg_image`; for `meta-carousel` / `meta-story` cycle through the pool for body slots `s2_image`…`s5_image` (up to 4; reuse from start if pool has fewer than 4); add companion overrides `{slot}_image_position: "center"` and `{slot}_image_fit: "cover"` for each assigned slot; (3) if pool empty and no user photo, leave all image slots empty — the template renders its own branded placeholder. Never fail or warn for an empty pool.
 4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id)` → 1-hour signed PNG URLs. **Omit `slide_ids` for every type** — fb.ai selects the slide(s) from the direction override server-side: `meta-story` `_direction` (A/B/C) → that direction's 6 slides; `meta-carousel` → all 6; `linkedin-post` / `meta-post` `direction` (A/B/C) → the single matching slide. Never use `_direction: all` (renders 18 and burns the same 1.0 quota). See content-generator Step 4c-template §6 for the canonical rule.
 5. **Publish output — split by template type:**
    - **`meta-story`**: `fivebucks_render_post` returns 6 signed PNG URLs (slide-1 through slide-6). **Always re-host on Zernio first** — Supabase signed URLs expire after ~1 hour; Zernio stores URLs by reference so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `late_presign_upload` + PUT for each slide → pass the permanent `publicUrl` to `late_create_post`. One call per slide = 6 separate Story posts per platform. Sleep 1 second between slides; sleep 5 seconds + retry once after ~5 consecutive FB posts (Facebook rate-limits rapid sequential story posts). See `content-generator/SKILL.md` Step 4c-template §7 for the canonical implementation.
@@ -726,6 +746,8 @@ Before finalizing any design output:
 - [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → **Story**: each slide re-hosted on Zernio (`late_presign_upload` + PUT → permanent `publicUrl`) then posted one-per-slide, 1-second sleep between slides, 5-second sleep + retry after ~5 consecutive FB posts; **Carousel/single-image**: re-host on Zernio first then one `late_create_post`); else Gemini-only fallback (Step 4b) documented
 - [ ] Template-path: `fivebucks_list_templates` called once and cached; `overrides` built from manifest field keys; direction set per type (`_direction` for meta-story; `direction` for single-image; `coverVariant`/`bodyVariant` for meta-carousel)
 - [ ] Template-path: `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
+- [ ] Template-path: media pool built — `fivebucks_list_media_folders` called once; exact-name match first (case-insensitive); if no match → ALL folders pooled for that type; if no folders → pool empty (not a failure)
+- [ ] Template-path: user-provided photo takes precedence over media pool; pool photo used if no user photo; image slots left empty if pool also empty
 - [ ] Template-path: Pillow text overlay AND Pillow logo overlay BOTH skipped — gateway render includes all chrome
 - [ ] Gemini-only fallback path (Step 4b): Story/Reel full-frame guard applied — `image_prompt` passed to Gemini contains `"fills the ENTIRE frame"` for every 9:16 asset
 - [ ] Gemini-only fallback path (Step 4b): Pillow text overlay AND Pillow logo overlay (both inside Step 4b) BOTH applied — Gemini background has no copy and no logo
