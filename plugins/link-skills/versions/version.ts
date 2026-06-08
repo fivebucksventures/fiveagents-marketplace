@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.14.2';
+const DEFAULT_VERSION = 'v2.14.3';
 const DEFAULT_DATE = 'June 08, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.14.3',
+    date: 'June 08, 2026',
+    changes: [
+      'content-performance-analyst v1.0.1: Step 0 pre-flight switched to late_get_post_analytics (Zernio Analytics add-on) as primary engagement source; 402/403 analytics_addon_required error triggers graceful fallback to late_list_posts + competitor benchmarking — run never blocks. Optional late_get_follower_stats added for per-account follower/growth context (reach denominator). Step 2.3 field mapping made explicit (impressions/likes/comments/shares/saves/engagementRate). Frontmatter deps gateway updated to name Zernio Analytics add-on as a distinct entry.',
+      'link.md v2.14.3: Zernio API section expanded with Analytics add-on sub-bullet (late_get_post_analytics / late_get_follower_stats, requires upgrade) — documents the new tools used by content-performance-analyst.',
+    ],
+  },
   {
     version: 'v2.14.2',
     date: 'June 08, 2026',
@@ -147,14 +155,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: late_get_ad_tree documented as the recommended path for Campaign → Ad Group/Set → Ad hierarchy in Google + Meta Zernio fallbacks (date-filterable, paginated 20/page default, max 100). late_list_ad_campaigns clearly flagged as lifetime-only (no date filter) — campaign metadata only. Google Ads adSets[] response field is actually ad-groups (Zernio naming quirk).',
       'digital-marketing-analyst v2.3.3: critical template gotcha documented — meta_ads.no_active_campaigns: true skips the entire Meta summary box. Always set false; use new all_campaigns_paused field for pause state. Payload schema additions: Meta last_spend_date / days_dark / lp_views / leads / video_views / spend_*_lifetime + note on lifetime campaign rows / spend_usd: null for Zernio source; Google Ads conversions_note; richer GA4 funnel block (click_to_session_*_pct + per-stage event counts keyed off brand funnel.md).',
       'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: brand-agnostic refactor — removed Five Agents-specific 2026-03-08 GA4 tracking-bug date (now read from brands/{brand}/funnel.md ga4_clean_data_start if set). Removed hardcoded trials KPI from Slack/log/combined_summary templates (now primary_conversions driven by brand\'s primary conversion event + primary_conversion_event / primary_conversion_label companion fields). Removed signup form assumption from analysis guidelines. Google Ads Zernio quirks: conversions always 0 — source proxy from brand\'s primary GA4 event in funnel.md (no hardcoded event name).',
-    ],
-  },
-  {
-    version: 'v2.6.5',
-    date: 'May 16, 2026',
-    changes: [
-      'agents/link.md v2.6.5: change log trimmed to the last 5 entries per Step 3c policy. Oldest entry (v2.4.1) removed.',
-      'brand-setup v2.5.2 + content-generator v2.5.4 + creative-designer v2.5.4 + data-analysis v2.3.2 + digital-marketing-analyst v2.3.2 + plugin-update v2.5.2: change log history trimmed across SKILL.md files — housekeeping pass to keep file-level history compact. No functional change.',
     ],
   },
 ];

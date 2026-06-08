@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.1 | May 30, 2026 |
+| Link | v2.14.3 | June 08, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.14.3** — June 08, 2026
+- **Zernio Analytics add-on documented.** Added `late_get_post_analytics` / `late_get_follower_stats` as an *Analytics add-on (requires upgrade)* sub-bullet under the Zernio API section — these tools are now used by `content-performance-analyst` for per-post engagement metrics. Updated SKILL.md frontmatter deps to name "Zernio Analytics add-on" as a distinct gateway dep.
 
 **v2.14.1** — May 30, 2026
 - **fb.ai media library context entry clarified.** The Context Files entry now documents the media-pool behavior used by `content-generator` and `creative-designer`: folders matched to template type by exact name (case-insensitive), with the explicit fallback that **photos from ALL folders are pooled when no folder name matches** — so library photos are used regardless of folder naming; only a total absence of folders leaves image slots empty. Names both `fivebucks_list_media_folders` and `fivebucks_list_media_files` as the discovery path.
@@ -25,9 +28,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 **v2.13.0** — May 28, 2026
 - **Organic content learning loop added (3 skills + wiring).** New Marketing skills **`content-performance-analyst`** (Data: per-post engagement from the **Zernio API**, joined to the calendar's authored attributes via the social-publisher PublishLog, plus competitor content benchmarking via web research, into a Performance Brief; shared `${BRAND}_PERFORMANCE_DB` with `Owner`/`Source` columns) and **`trend-radar`** (Research: daily live-trend scan → `${BRAND}_TREND_DB` candidates). New Productivity utility **`video-downloader`** (yt-dlp + optional Whisper; standalone). Enhancements: `social-publisher` PublishLog now captures the post ID/URL join key; `social-calendar` Step 1b reads the Performance Brief + trend candidates; `content-creation` adds `hook-library.md` hook archetypes. Added two skill chains (content learning loop, timely content). These complete the content pipeline's missing Data spine + daily Research front-end. See **Content Engine — 5 Phases** in the Skills section below.
-
-**v2.11.1** — May 22, 2026
-- **Argil fully removed from platform scope.** Removed `avatars.md` context-file entry, Argil from the Deps gateway legend, the Argil API gateway section, the "Full social post (video)" skill chain, and the `.mp4` output convention. Calendly corrected to `outreach-sequencer` + `customer-onboarder` (consistent with the v2.4.3 Deps audit that removed Calendly from `meeting-analyzer`).
 
 # Link — Business Operations Agent
 
@@ -176,6 +176,7 @@ All external API calls go through the fiveagents-gateway remote MCP server (`htt
 - **Gemini API** — image generation → `gemini_generate_image` / `gemini_generate_text`
 - **Zernio API** — social publishing + ads management
   - *Publishing:* `late_presign_upload` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post` / `late_list_profiles` / `late_list_accounts`
+  - *Analytics add-on (requires upgrade):* `late_get_post_analytics` / `late_get_follower_stats`
   - *Ads — accounts & campaigns:* `late_list_ad_accounts` / `late_list_ad_campaigns` / `late_update_ad_campaign` / `late_update_ad_campaign_status` / `late_bulk_update_ad_campaign_status` / `late_duplicate_ad_campaign` / `late_update_ad_set` / `late_update_ad_set_status`
   - *Ads — individual ads:* `late_create_ad` / `late_get_ad` / `late_list_ads` / `late_update_ad` / `late_delete_ad`
   - *Ads — analytics:* `late_get_ad_analytics` / `late_get_ads_timeline` / `late_get_ad_tree` / `late_get_ad_comments` / `late_list_tiktok_business_centers`

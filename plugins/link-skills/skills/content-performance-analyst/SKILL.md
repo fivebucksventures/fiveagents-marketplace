@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Analyze organic content performance — own published posts (engagement by topic/format/persona/angle/hook/Direction, outlier scoring) plus competitor content benchmarking — into a Performance Brief that feeds social-calendar"
 deps:
   mcp: ["Notion", "Slack"]
-  gateway: ["Zernio", "FiveAgents (logging)"]
+  gateway: ["Zernio", "Zernio Analytics add-on", "FiveAgents (logging)"]
   files: ["brand.md", "audience.md", "competitors.md", "funnel.md (opt)"]
   env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"]
 ---
@@ -15,11 +15,16 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v1.0.0 | May 28, 2026 |
+| Link | v1.0.1 | June 08, 2026 |
 
 **Description:** Analyze organic content performance — own posts + competitor benchmarking — into a Performance Brief that feeds the social calendar.
 
 ### Change Log
+
+**v1.0.1** — June 08, 2026
+- Step 0 pre-flight: primary engagement source switched to `late_get_post_analytics` (Zernio Analytics add-on); 402/403 add-on error triggers graceful fallback to `late_list_posts` + competitor benchmarking. Added optional `late_get_follower_stats` for reach denominator.
+- Step 2.3: explicit field mapping from `late_get_post_analytics` response (impressions/likes/comments/shares/saves/engagementRate).
+- Frontmatter deps: `gateway` now lists `Zernio Analytics add-on` alongside Zernio.
 
 **v1.0.0** — May 28, 2026
 - New skill. The organic-content **Data** phase the suite was missing: pulls per-post engagement from Zernio (own posts) joined to the social-calendar's authored attributes, benchmarks competitor content via web research, scores outliers vs the brand's own baseline, and writes a Performance Brief that `social-calendar` Step 1b reads. Closes the create→publish→measure→learn loop. Distinct from `data-analysis` / `digital-marketing-analyst` (paid ads + GA4) and `competitor-monitor` (competitor *website*/strategy diffs).
@@ -48,14 +53,12 @@ You are an organic-content performance analyst for the active brand. You measure
 
 ## Step 0 — Data sources & pre-flight
 
-All own-post engagement comes from the **Zernio API** (the gateway `late_*` tools) — the same source content-engine uses and the platform every brand already publishes through. Competitor data comes from web research. No other connector.
+All own-post engagement comes from **`late_get_post_analytics`** (Zernio Analytics add-on). Pre-flight: call it with a small limit. If it returns metrics → use them. If it errors 402 `analytics_addon_required` (or 403 `requiresAddon`) → mark rows **metrics-pending**, state the gap, and fall back to `late_list_posts` (publish status only) + competitor benchmarking — don't block. Optionally call `late_get_follower_stats` for per-account follower/growth context (reach denominator).
 
 | Rows | Source | Notes |
 |---|---|---|
-| Your posts (all platforms) | **Zernio** `late_list_posts` (status `published`) — read the engagement fields the response carries (likes/comments/shares/impressions where present) | The single organic source. If a field isn't returned for a platform, leave it blank — don't fabricate |
+| Your posts (all platforms) | **Zernio Analytics** `late_get_post_analytics` — primary; `late_list_posts` (status `published`) — fallback for publish status only | If a field isn't returned for a platform, leave it blank — don't fabricate |
 | Competitors (all) | **Web research** (`WebSearch` / `perplexity` / `WebFetch`) over handles in `competitors.md` | Always approximate — see Step 3 |
-
-**Pre-flight (gates the analysis layer):** on the first run for a brand, call `late_list_posts` (status `published`, small limit) and inspect the response for per-post engagement fields. If present → use them. **If Zernio returns publish status only (no engagement)**, mark rows **metrics-pending**, state the gap at the top of the Brief, and lean on qualitative signals + competitor benchmarking until the metric feed is confirmed — but do **not** block the run.
 
 ---
 
@@ -106,7 +109,7 @@ After creation, **persist the new DB ID to `.claude/settings.local.json`** under
 
 1. **Get the published set + join key.** Read the brand's recent `outputs/{brand}/published/PublishLog_*.md` (written by `social-publisher` — carries `Date · Platform · Topic · Late ID · Post URL`). This is the authoritative list of what went live.
 2. **Recover authored attributes.** For each published post, join back to the brand's social-calendar history in `${BRAND}_NOTION_DB` by **Topic + Platform + Date** to recover `Persona`, `Format`, `Content Angle`, `Direction`, and `Hook Archetype` (the dimensions the calendar authored — no need to re-derive them from the creative).
-3. **Fetch engagement** from **Zernio** `late_list_posts` (status `published`), matching by the Late post ID captured in the PublishLog. Record `Likes/Comments/Shares/Saves/Impressions` for whatever the response carries; compute `Engagement = likes+comments+shares+saves`. Leave unreturned fields blank (never fabricate).
+3. **Fetch engagement** from **`late_get_post_analytics`** (match by `post_id`, or list + filter by `account_id`/`date_from`/`date_to`). Map: `Impressions ← impressions`, `Likes ← likes`, `Comments ← comments`, `Shares ← shares`, `Saves ← saves`, `Engagement ← likes+comments+shares+saves` (or `engagementRate`). Leave unreturned fields blank (never fabricate).
 4. **Outlier score (self only).** Compute the brand's per-platform average engagement over rows with real metrics, then `Outlier Score = Engagement / platform_avg`. Flag outliers at `>= 2×` (content-engine's threshold). Skip rows that are too recent to have settled (note them; don't block).
 5. **Upsert** one row per post into `${BRAND}_PERFORMANCE_DB` with `Owner="self"`, `Source="zernio"`, `Captured At=today`. Match on `Post ID` to avoid duplicates across runs (update metrics in place — this is the `metrics_updated_at` refresh).
 

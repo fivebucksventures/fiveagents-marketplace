@@ -133,6 +133,7 @@
       ],
       "gateway": [
         "Zernio",
+        "Zernio Analytics add-on",
         "FiveAgents (logging)"
       ],
       "files": [
@@ -146,7 +147,7 @@
         "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v1.0.0"
+    "version": "v1.0.1"
   },
   {
     "name": "creative-designer",
