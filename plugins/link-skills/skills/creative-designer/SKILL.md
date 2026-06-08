@@ -15,11 +15,17 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.12.1 | May 30, 2026 |
+| Link | v2.12.2 | June 08, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.12.2** — June 08, 2026
+- **`add_text_overlay` comment corrected: `ratio ≥ 1.78` → `ratio ≥ 1.7`.** Comment and code disagreed on the Story detection threshold; code (`>= 1.7`) is authoritative.
+- **Rate limit rule now mentions `late_create_post`.** Steps 1 and 3 said "upload `_final.png` to Zernio" — the upload presigns to S3/CDN but the social post isn't live until `late_create_post`. Agents following the old rule would upload silently and never publish.
+- **Step 4 upload code: `final_image.png` → `_final.png`.** The Python snippet used `'path/to/final_image.png'` while the ⚠️ guard above it said "always upload `_final.png`".
+- **Step 4 `late_create_post` snippet expanded.** Previously only showed `media_items`. Now includes `content`, `platforms` (with `platformSpecificData.contentType` — required for Stories), `publish_now`, and `is_draft`.
 
 **v2.12.1** — May 30, 2026
 - **Media pool fallback made explicit (parity with content-generator v2.12.1).** Restructured the Step 1 media pool build from a single dense paragraph into a numbered sub-step list with bold-labelled fallbacks so both levels are reliably executed: (1) exact folder-name match first, (2) all-folders pool if no exact match, (3) empty pool if no folders. Matches content-generator's structure exactly.
@@ -34,8 +40,6 @@ deps:
 - **Story publish split** (Step 4a, mirrors content-generator): `meta-story` renders re-host each slide on Zernio first (`late_presign_upload` + PUT → permanent `publicUrl`) before calling `late_create_post` — Supabase signed URLs expire after ~1 hour and must never be passed directly. 1-second sleep between slides; 5-second sleep + retry after ~5 consecutive FB posts (FB rate-limit). See content-generator §7 for canonical loop.
 - **`slide_ids` removed for all types** (Step 4a bullet 4) — fb.ai selects slides from the direction override server-side; `fivebucks_render_post` always omits `slide_ids` for every template type.
 
-**v2.10.0** — May 20, 2026
-- **Step 4a render: `slide_ids` is now template-type-specific** (mirrors content-generator Step 4c-template §6). Single-image types (`linkedin-post`, `meta-post`) require `slide_ids` — they render all 3 direction artboards and fb.ai applies no direction filter for them. The slide is resolved by Direction **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`, with per-type label fast paths (`linkedin-post`: Hook Headline/Stat Hero/Pull Quote; `meta-post`: Hero Visual/Quote Card/Listicle Teaser). Multi-slide types omit `slide_ids` (`meta-story` uses `_direction`; `meta-carousel` renders all 6 and rotates `coverVariant`/`bodyVariant`).
 
 # Creative Designer Skill
 
@@ -335,9 +339,9 @@ Use **Python Pillow** for all text overlay and logo compositing (see Steps 2 and
 > "Dramatic close-up of a glowing purple number '275M' floating in dark space, abstract particle field background in purple and pink tones, cinematic lighting, square format. No text other than the number. No logos. No watermarks."
 
 **Rate limit rule — ALWAYS follow this sequence when generating multiple images:**
-1. Generate image 1 → apply text overlay → apply logo → save to `outputs/` → upload to Zernio
+1. Generate image 1 → apply text overlay → apply logo → save `_final.png` to `outputs/` → upload `_final.png` to Zernio → call `late_create_post` to publish (never upload the raw Gemini background)
 2. Wait ~15 seconds before next generation (API allows 10 IPM; 15s is a safe buffer)
-3. Generate image 2 → apply text overlay → apply logo → save → upload to Zernio
+3. Generate image 2 → apply text overlay → apply logo → save `_final.png` → upload `_final.png` to Zernio → call `late_create_post` to publish
 4. Repeat
 
 Never generate multiple images in parallel or back-to-back. One at a time with a short pause. If a 429 RESOURCE_EXHAUSTED error occurs, wait 60 seconds and retry once.
@@ -367,7 +371,7 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
 
     pad = int(target_w * 0.06)
     # Per-canvas insets — Story uses Meta safe zones only; Feed uses pad-derived only.
-    # is_story: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 → feed treatment.
+    # is_story: True only for 9:16 (ratio ≥ 1.7). IG portrait 4:5 = 1.25 → feed treatment.
     # target_h > target_w is NOT sufficient: IG portrait (1080×1350) would wrongly get 9:16 safe zones.
     is_story = (target_h / target_w) >= 1.7
     if is_story:
@@ -651,6 +655,8 @@ Read the final image and visually inspect it. Check every item below. Determine 
 Re-render until all checks pass. Only then proceed to upload.
 
 **Step 4 — Upload to Zernio (for social posts):**
+
+⚠️ **Always upload `_final.png`. Steps 2 (text overlay) and 3 (logo overlay) must both complete before uploading. Never upload the raw Gemini background or `_with_text.png`.**
 ```
 1. Use gateway MCP tool `late_presign_upload`:
    - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
@@ -661,14 +667,18 @@ Re-render until all checks pass. Only then proceed to upload.
 2. Use Python requests to upload the file directly to S3 (do NOT use `late_upload_media` MCP — it requires passing large base64 through context):
 ```python
 import requests
-with open('path/to/final_image.png', 'rb') as f:
+with open('path/to/_final.png', 'rb') as f:
     requests.put(uploadUrl, data=f, headers={'Content-Type': 'image/png'})
 ```
 
 3. Use gateway MCP tool `late_create_post`:
-   - media_items: [{ url: publicUrl from step 1 }]
+   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+   - content: <copy text with hashtags>
+   - platforms: [{ platform: "<instagram|facebook|linkedin>", accountId: "<LATE_ACCOUNTS[platform]>", platformSpecificData: { contentType: "<story>" } }]   # contentType required for Stories; omit for feed posts
+   - media_items: [{ url: "<publicUrl from step 1>", type: "image" }]
+   - publish_now: true
+   - is_draft: false
 ```
-Use `publicUrl` from step 1 in `late_create_post` media array.
 
 **Standard asset sizes and Zernio platform destinations:**
 | Format | Canvas | Zernio `platforms` |

@@ -15,11 +15,20 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.12.1 | May 30, 2026 |
+| Link | v2.12.2 | June 08, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.12.2** — June 08, 2026
+- **Stale `_raw.png` reference removed.** Step 4g cleanup and Quality Checklist both referenced `_raw.png` as an intermediate file to delete — that filename is never created (Gemini backgrounds save to `brands/{brand}/backgrounds/`). Only `_with_text.png` is a real intermediate. Agents following the old instruction silently no-op'd on a non-existent file.
+- **`TOOLS.md` dead reference removed.** Step 5 intro said "See TOOLS.md → 'Social Publishing' for account IDs" — that file does not exist; account IDs are documented inline in Step 5 itself.
+- **Step 6 `old_str` now matches `"Processing"`.** Fix 2 (Step 5) writes `"Processing"` before `late_create_post`. The previous Step 6 `old_str` was still `"Planned"` — after Fix 2, the Notion row reads `"Processing"` so the Step 6 `update_content` call was silently no-op'ing and the row never reached `"Published"`.
+- **Template-path carousel/single-image no longer refers to Step 5.** §7 said "pass `media_items` in `late_create_post` (Step 5)" — Step 5 has an "Image-path only" guard. Reference removed; note added that template-path posts don't proceed to Step 5.
+- **`LATE_CONTENT_TYPE` dict now includes `"reel"` key.** Step 5 said "for Reels and Stories" but the dict had no Reel entry. Agents handling a calendar row with Format = `"Reel"` had no contentType to look up.
+- **Step 4c routing table + decision logic: Reel row added.** The dimension table listed Reels but Step 4c had no routing entry — Reels fell through to the "Any | Post" catch-all. Now explicit: Reel → always Step 4c-image, 9:16 canvas, `contentType: "reel"`.
+- **`add_text_overlay` comment corrected: `ratio ≥ 1.78` → `ratio ≥ 1.7`.** Comment and code disagreed on the Story/Reel detection threshold; code (`>= 1.7`) is authoritative.
 
 **v2.12.1** — May 30, 2026
 - **Media pool fallback made explicit.** Restructured the media pool build from a single dense paragraph into a numbered sub-step list so Claude reliably executes both fallback levels during runs: (1) exact folder-name match first, (2) all-folders pool if no exact match, (3) empty pool if no folders. Previously the fallback clauses were buried in prose and skipped in practice, causing posts to publish with no photos despite a media library folder being present.
@@ -34,10 +43,6 @@ deps:
 **v2.11.0** — May 21, 2026
 - **Story publish split**: `meta-story` renders re-host each slide on Zernio first (`late_presign_upload` + PUT → permanent `publicUrl`) before calling `late_create_post` — Supabase signed URLs expire after ~1 hour and must never be passed directly to Zernio. 1-second sleep between slides; 5-second sleep + retry after ~5 consecutive FB posts (FB rate-limit). Step 4c-template §7 rewritten.
 - **`slide_ids` removed for all template types** — fb.ai now filters single-image templates (`linkedin-post`, `meta-post`) by the `direction` override server-side. `fivebucks_render_post` always omits `slide_ids`; Step 4c-template §6 rewritten. Calendar table 12 → 11 columns (SlideId column removed; Status moves to `[10]`).
-
-**v2.10.0** — May 20, 2026
-- **`fivebucks_render_post` slide selection is now template-type-specific** (Step 4c-template §6). Single-image types (`linkedin-post`, `meta-post`) render all three direction artboards into the DOM and fb.ai applies no direction filter for them, so the skill now **passes `slide_ids`** for them. The slide is resolved by the Direction's **position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]` — authoritative — with the calendar `SlideId` cell as a fast path. Expected labels differ by type: `linkedin-post` A→`01 Hook Headline`/B→`02 Stat Hero`/C→`03 Pull Quote` (verified live); `meta-post` A→`01 Hero Visual`/B→`02 Quote Card`/C→`03 Listicle Teaser`. Omitting `slide_ids` for these renders all 3 (or errors). Multi-slide types are unchanged — `meta-story` omits `slide_ids` and sets `_direction`; `meta-carousel` omits `slide_ids` and rotates `coverVariant`/`bodyVariant`.
-- Calendar table 11 → 12 columns: `SlideId` inserted at index `[10]`, `Status` moves to `[11]`. Step 1c row parsing and the Step 6 status-update string match updated accordingly.
 
 
 # SKILL.md — Content Generator
@@ -263,17 +268,19 @@ Check the post `Format` from the calendar. "A `<type>` template exists" means th
 |---|---|---|---|
 | FB/IG | Carousel | Static images | If a `meta-carousel` template exists on fb.ai → **Step 4c-template**. Else → **Step 4c-image** (Gemini background → text overlay → logo). |
 | FB/IG | Story | Static image | If a `meta-story` template exists → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
+| FB/IG | Reel | 9:16 static image | **Step 4c-image** (Gemini background → text overlay → logo; `aspect_ratio: "9:16"`). Pass `contentType: "reel"` in Step 5 — no fb.ai template type exists for Reels. |
 | FB/IG | Post (single image) | Static image | If a `meta-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
 | LinkedIn | Post | Static image | If a `linkedin-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
 | Any | Post | Static image | **Step 4c-image** (no matching template) |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar.
-2. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND a `meta-carousel` template exists → use **Step 4c-template**.
-3. If Format = `"Story"` AND platform ∈ {Instagram, Facebook} AND a `meta-story` template exists → use **Step 4c-template**.
-4. If Format = `"Post"` AND platform ∈ {Instagram, Facebook} AND a `meta-post` template exists → use **Step 4c-template**.
-5. If Format = `"Post"` AND platform = LinkedIn AND a `linkedin-post` template exists → use **Step 4c-template**.
-6. All other formats (or no matching template) → use **Step 4c-image** (Gemini-generated background + text overlay + logo).
+2. If Format = `"Reel"` AND platform ∈ {Instagram, Facebook} → use **Step 4c-image** (9:16 canvas; `platformSpecificData.contentType: "reel"` in Step 5 — no fb.ai template type exists for Reels).
+3. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND a `meta-carousel` template exists → use **Step 4c-template**.
+4. If Format = `"Story"` AND platform ∈ {Instagram, Facebook} AND a `meta-story` template exists → use **Step 4c-template**.
+5. If Format = `"Post"` AND platform ∈ {Instagram, Facebook} AND a `meta-post` template exists → use **Step 4c-template**.
+6. If Format = `"Post"` AND platform = LinkedIn AND a `linkedin-post` template exists → use **Step 4c-template**.
+7. All other formats (or no matching template) → use **Step 4c-image** (Gemini-generated background + text overlay + logo).
 
 ### Step 4c-template — Render via fb.ai (`fivebucks_*`)
 
@@ -435,7 +442,7 @@ for i, signed_url in enumerate(render_urls, start=1):
     media_urls.append(presign["publicUrl"])
 ```
 
-Pass `media_urls` (in slide order) as `media_items` in `late_create_post` (Step 5) — a carousel becomes multiple `media_items`; single-image types are one.
+Pass `media_urls` (in slide order) as `media_items` in `late_create_post` here — a carousel becomes multiple `media_items`; single-image types are one. (Template-path posts do not proceed to Step 5 — that section is image-path only.)
 
 **Skip Steps 4d, 4e, 4f, 4g** — no Pillow overlays, no local tmp files. Day-of-week `text_align` / `logo_position` rotations apply only to Step 4c-image.
 
@@ -516,7 +523,7 @@ def add_text_overlay(input_path, output_path, headline, subline, target_w, targe
 
     pad = int(target_w * 0.06)
     # Per-canvas insets — Story/Reel uses Meta safe zones only; Feed uses pad-derived only.
-    # is_story_reel: True only for 9:16 (ratio ≥ 1.78). IG portrait 4:5 = 1.25 → feed treatment.
+    # is_story_reel: True only for 9:16 (ratio ≥ 1.7). IG portrait 4:5 = 1.25 → feed treatment.
     # target_h > target_w is NOT sufficient: IG portrait (1080×1350) would wrongly get 9:16 safe zones.
     is_story_reel = (target_h / target_w) >= 1.7
     if is_story_reel:
@@ -731,7 +738,7 @@ outputs/{brand}/posts/[Platform]/[TopicSlug]_[DDMonYYYY]_final.png
 
 ### Step 4g — Cleanup
 
-Only `_final.png` (or `_final.mp4`) should remain in the output folder. Delete any intermediate files (`_raw.png`, `_with_text.png`) for every post before moving to Step 5.
+Only `_final.png` (or `_final.mp4`) should remain in the output folder. Delete any intermediate files (`_with_text.png`) for every post before moving to Step 5.
 
 ---
 
@@ -803,7 +810,11 @@ Re-render until all checks pass. Only then proceed to Step 5.
 
 ## Step 5 — Publish to Zernio API
 
-Upload the image and copy directly to Zernio API and publish immediately. See TOOLS.md → "Social Publishing" for account IDs and helper functions.
+Upload the image and copy directly to Zernio API and publish immediately.
+
+⚠️ **Image-path only: always upload `_final.png` from `outputs/{brand}/posts/[Platform]/`. Never upload the raw Gemini background from `brands/{brand}/backgrounds/` or the intermediate `_with_text.png`. Steps 4d–4g must be complete before this step runs.**
+
+**Fix 2 — Before calling `late_create_post`:** write Notion Status → `"Processing"` for this row (same `notion-update-page update_content` call as Step 6, matching `Planned` → `Processing`). This ensures a crash after publish but before the Step 6 `Published` write leaves the row in a non-`Planned` state — the next run's `Status == Planned` filter skips it entirely.
 
 **IMPORTANT: Always pass `platformSpecificData.contentType` for Reels and Stories.** Without this, Zernio defaults everything to a feed Post regardless of image dimensions.
 
@@ -847,6 +858,7 @@ LATE_ACCOUNTS = {
 ```python
 LATE_CONTENT_TYPE = {
     "story":    {"instagram": "story", "facebook": "story"},
+    "reel":     {"instagram": "reel",  "facebook": "reel"},
     "carousel": {},   # Zernio handles carousels via multiple mediaItems — no contentType needed
     "post":     {},   # default feed post — no contentType needed
 }
@@ -883,7 +895,7 @@ Use mcp__claude_ai_Notion__notion-update-page:
 - command: "update_content"
 - content_updates: [
     {
-      "old_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | Planned |",
+      "old_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | Processing |",
       "new_str": "| <Date> | <Platform> | <Format> | <Topic> | <Persona> | <ContentAngle> | <CTA> | <Hashtags> | <ImageBrief> | <Direction> | Published |"
     }
   ]
@@ -954,7 +966,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] **Image-path:** Logo at 0.18 scale with correct day-of-week `logo_position`
 - [ ] Day-of-week rotation does NOT apply on template-path (template chrome is fixed)
 - [ ] Final images saved to correct `outputs/{brand}/posts/[Platform]/` folder
-- [ ] Intermediate files deleted — `_raw.png` and `_with_text.png` removed after `_final.png` confirmed
+- [ ] Intermediate files deleted — `_with_text.png` removed after `_final.png` confirmed
 - [ ] `platformSpecificData.contentType` set correctly for Reels/Stories (never omitted)
 - [ ] Published to Zernio API with correct mode (publishNow or isDraft)
 - [ ] Notion Social Calendar rows updated to "Published" (if published) or "Draft Ready" (if draft) — never hardcoded

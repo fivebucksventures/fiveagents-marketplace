@@ -119,7 +119,7 @@
         "`${BRAND}_LATE_FB/IG/LI`"
       ]
     },
-    "version": "v2.12.1"
+    "version": "v2.12.2"
   },
   {
     "name": "content-performance-analyst",
@@ -168,7 +168,7 @@
       ],
       "env": []
     },
-    "version": "v2.12.1"
+    "version": "v2.12.2"
   },
   {
     "name": "data-analysis",

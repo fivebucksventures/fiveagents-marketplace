@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.14.1';
-const DEFAULT_DATE = 'May 30, 2026';
+const DEFAULT_VERSION = 'v2.14.2';
+const DEFAULT_DATE = 'June 08, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.14.2',
+    date: 'June 08, 2026',
+    changes: [
+      'content-generator v2.12.2: stale _raw.png reference removed from Step 4g and Quality Checklist (filename never created; only _with_text.png is a real intermediate); TOOLS.md dead reference removed from Step 5; Step 6 old_str now matches "Processing" not "Planned" (Fix 2 writes Processing before late_create_post — old match caused Step 6 to silently no-op); §7 carousel reference to "(Step 5)" removed (template-path does not proceed to image-path Step 5); LATE_CONTENT_TYPE dict now has "reel" key; Step 4c routing table and decision logic add explicit Reel row (always image-path, contentType: reel); add_text_overlay comment corrected from ratio ≥ 1.78 to 1.7.',
+      'creative-designer v2.12.2: add_text_overlay comment corrected from ratio ≥ 1.78 to 1.7; rate limit rule now includes late_create_post after the Zernio upload (upload alone does not publish); Step 4 upload code corrected from final_image.png to _final.png; late_create_post snippet expanded with content, platforms (including platformSpecificData.contentType for Stories), publish_now, and is_draft.',
+    ],
+  },
   {
     version: 'v2.14.1',
     date: 'May 30, 2026',
@@ -147,17 +155,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
     changes: [
       'agents/link.md v2.6.5: change log trimmed to the last 5 entries per Step 3c policy. Oldest entry (v2.4.1) removed.',
       'brand-setup v2.5.2 + content-generator v2.5.4 + creative-designer v2.5.4 + data-analysis v2.3.2 + digital-marketing-analyst v2.3.2 + plugin-update v2.5.2: change log history trimmed across SKILL.md files — housekeeping pass to keep file-level history compact. No functional change.',
-    ],
-  },
-  {
-    version: 'v2.6.4',
-    date: 'May 15, 2026',
-    changes: [
-      'data-analysis v2.3.1 + digital-marketing-analyst v2.3.1: Google Ads Zernio fallback now passes BOTH account_id (Zernio SocialAccount _id) AND ad_account_id (Google Ads customer ID, 10-digit). Passing only the SocialAccount ID was returning empty results — this is a bug fix for the Windsor.ai → Zernio fallback path.',
-      'data-analysis v2.3.1 + digital-marketing-analyst v2.3.1: NEW LinkedIn Ads support (opt-in per brand). Windsor.ai primary (source: linkedin, fields incl. lead_form_opens / lead_form_completions); Zernio fallback uses same two-ID pattern (account_id + ad_account_id) as Google Ads. data-analysis adds the LinkedIn block to Step 1a; digital-marketing-analyst adds NEW Phase 2.5 (linkedin-data-pull cron) + weekly Step 1d, plus conditional load in Phase 3 Email Stitcher and conditional Slack DM line. Skipped silently when ${BRAND}_LATE_LINKEDIN_ADS / _CID env vars are absent.',
-      'brand-setup v2.5.1: Step 7b Step D Google Ads env var renamed from ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → ${BRAND}_LATE_GOOGLE_ADS (Zernio SocialAccount _id) + new ${BRAND}_LATE_GOOGLE_ADS_CID (Google Ads customer ID via late_list_ad_accounts; on 429 / empty, prompts user). LinkedIn Ads discovery added: new ${BRAND}_LATE_LINKEDIN_ADS + ${BRAND}_LATE_LINKEDIN_ADS_CID pair, same two-ID pattern, distinct from organic ${BRAND}_LATE_LI. CLAUDE.md Account IDs section extended.',
-      'plugin-update v2.5.1: Step 3e auto-discover restructured into 4 sub-steps (SocialAccount IDs → Google Ads customer ID → LinkedIn sponsored account ID → legacy rename handler that auto-migrates ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID → ${BRAND}_LATE_GOOGLE_ADS). Step 1d env vars table and Step 3j checklist row both extended with the new pair.',
-      'agents/link.md v2.6.4: data-analysis + digital-marketing-analyst rows in the Skills table gained Env: deps blocks listing the Zernio fallback env-var pairs (Google Ads + Meta Ads + LinkedIn Ads). digital-marketing-analyst "Use For" updated from "Google Ads, Meta Ads, GA4" → "Google Ads, Meta Ads, LinkedIn Ads (opt), GA4". brand-setup Step 8d-iv parses Deps to compute agent_readiness matrix — without these declarations, the readiness email understated actual env-var dependencies.',
     ],
   },
 ];
