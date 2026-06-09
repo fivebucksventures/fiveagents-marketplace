@@ -147,7 +147,7 @@
         "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v1.0.2"
+    "version": "v1.0.3"
   },
   {
     "name": "creative-designer",
@@ -312,10 +312,11 @@
         "PerformanceBrief_*.md (opt — Phase 1 output from content-performance-analyst)"
       ],
       "env": [
-        "`${BRAND}_TREND_DB` (auto-bootstraps)"
+        "`${BRAND}_TREND_DB` (auto-bootstraps)",
+        "`${BRAND}_PERFORMANCE_DB` (read-only — populated by content-performance-analyst)"
       ]
     },
-    "version": "v2.14.0"
+    "version": "v2.14.1"
   },
   {
     "name": "video-repurposer",

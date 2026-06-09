@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v1.0.2 | June 09, 2026 |
+| Link | v1.0.3 | June 09, 2026 |
 
 **Description:** Analyze organic content performance — own posts + competitor benchmarking — into a Performance Brief that feeds the social calendar.
 
 ### Change Log
+
+**v1.0.3** — June 09, 2026
+- Step 3: completeness is now mandatory — all competitors in `competitors.md` must be processed; partial runs must be flagged. `${BRAND}_PERFORMANCE_DB` competitor coverage is a hard dependency for `trend-radar` Step 2b.
 
 **v1.0.2** — June 09, 2026
 - Step 0: Primary engagement source for all rows (own + competitors) switched to **Claude in Chrome**; Zernio retained as fallback for own posts; web-research retained as fallback for competitors. Added `Source = "chrome-browser"`.
@@ -182,6 +185,8 @@ Platform determines which fields are **required**, **optional**, or **N/A**.
 ---
 
 ## Step 3 — Build COMPETITOR rows (Owner = <handle>)
+
+**Completeness is mandatory.** Process **every** competitor listed in `brands/{brand}/competitors.md` — no partial runs. `${BRAND}_PERFORMANCE_DB` competitor coverage is a hard dependency for `trend-radar` Step 2b (competitor remix). If any competitor is skipped, flag it explicitly and re-run before trend-radar executes.
 
 For each competitor in `brands/{brand}/competitors.md`:
 1. **Primary — Claude in Chrome:** Use computer use to navigate to the competitor's profile in the user's authenticated Chrome, scroll their recent posts, and read top-performing content — hooks, formats, topics, and any visible engagement signals (reactions/comments/shares/views counts). Set `Source = "chrome-browser"`.

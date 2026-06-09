@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.14.4';
+const DEFAULT_VERSION = 'v2.14.5';
 const DEFAULT_DATE = 'June 09, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.14.5',
+    date: 'June 09, 2026',
+    changes: [
+      'trend-radar v2.14.1: Step 2b Competitor Remix added — reads top 3 posts per competitor from ${BRAND}_PERFORMANCE_DB (sorted by Engagement Rate; recency fallback), generates brand\'s adapted take for each, and writes them as Type="competitor-remix" candidates to ${BRAND}_TREND_DB. Step 3 competitor-differentiation drop rule skipped for remix candidates. TREND_DB schema gains Type select (trend / competitor-remix). ${BRAND}_PERFORMANCE_DB added as read-only env dep.',
+      'content-performance-analyst v1.0.3: Step 3 completeness enforced — all competitors in competitors.md must be processed; partial runs must be flagged. ${BRAND}_PERFORMANCE_DB competitor coverage is a hard dependency for trend-radar Step 2b.',
+    ],
+  },
   {
     version: 'v2.14.4',
     date: 'June 09, 2026',
@@ -143,15 +151,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'Phase 1 — thinned the CLAUDE.md embed. agents/link.md (embedded into every brand CLAUDE.md) now carries a compact domain map (areas + counts + names) instead of the full per-skill table; the embedded block dropped ~12x (~9 KB → ~0.7 KB at 23 skills). Full per-skill table moved to the generated, non-embedded SKILLS.md.',
       'agents/link.md v2.10.0: Working discipline section added; compact domain map between generated markers; decision-advisor row + chain; fivebucks_* tool references.',
       'brand-setup v2.7.1: Step 8d readiness reads skills-manifest.json (Phase 0); 8d-i translation table fivebucks label fix (stale gateway: templates row → gateway: fivebucks). plugin-update v2.7.1: reads the pre-generated manifest (no generator run in Cowork).',
-    ],
-  },
-  {
-    version: 'v2.7.0',
-    date: 'May 20, 2026',
-    changes: [
-      'Social-post templates migrated to fb.ai (fivebucks_* gateway tools). The dead template_upload/template_list/template_render API and local brands/{brand}/social-meta-*-template/ folders are gone. Templates are authored in Claude Design, uploaded via the fb.ai dashboard, discovered via fivebucks_list_templates (by type: meta-carousel | meta-story | linkedin-post | meta-post), and rendered via fivebucks_create_post → fivebucks_render_post → re-host on Zernio. Affects content-generator, creative-designer, brand-setup (Step 4c), plugin-update, content-creation, social-calendar, background-generator, agents/link.md.',
-      'brand-setup Step 4c collapsed four near-identical install blocks into one shared flow (author → export → fb.ai dashboard upload → fivebucks_list_templates verify) + four type-specific Claude Design prompts using the native-image contract (per-slot _image/_image_position/_image_fit; template renders its own <img> + tint overlay; logo bundled at assets/logo.png, never in EDITMODE).',
-      'New credential FIVEBUCKS_API_KEY (fbai_live_..., vault service fivebucks) added to brand-setup Step 2 + Step 7 and plugin.json userConfig. Optional — the Gemini + Pillow fallback path is unchanged when absent.',
     ],
   },
 ];

@@ -8,18 +8,24 @@ deps:
   mcp: ["Notion", "Slack"]
   gateway: ["DataforSEO (opt — trending keywords)", "FiveAgents (logging)"]
   files: ["brand.md", "audience.md", "competitors.md", "PerformanceBrief_*.md (opt — Phase 1 output from content-performance-analyst)"]
-  env: ["`${BRAND}_TREND_DB` (auto-bootstraps)"]
+  env: ["`${BRAND}_TREND_DB` (auto-bootstraps)", "`${BRAND}_PERFORMANCE_DB` (read-only — populated by content-performance-analyst)"]
 ---
 
 ## Maintenance
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.0 | May 29, 2026 |
+| Link | v2.14.1 | June 09, 2026 |
 
 **Description:** Daily live-trend scan — timely topics scored, deduplicated, written as candidate topics for the social calendar.
 
 ### Change Log
+
+**v2.14.1** — June 09, 2026
+- Step 2b added: Competitor Remix — reads top 3 posts per competitor from `${BRAND}_PERFORMANCE_DB` (by Engagement Rate; recency fallback), generates brand's adapted take for each, and surfaces them as `Type = "competitor-remix"` candidates. Skips competitors with no DB rows and flags them.
+- Step 3: competitor-remix candidates skip the differentiation drop rule (they are differentiated by construction); still scored on Relevance, Timeliness, Angle fit, and own-performance alignment.
+- `${BRAND}_TREND_DB` schema: `Type` select field added (`trend` / `competitor-remix`) for filtering in Notion.
+- Frontmatter deps: `${BRAND}_PERFORMANCE_DB` added to env (read-only, populated by `content-performance-analyst`).
 
 **v2.14.0** — May 29, 2026
 - **Synthesis-before-write rule.** Step 0 now reads the latest Performance Brief (own post performance + competitor benchmarking from Phase 1); Step 3 synthesizes own performance + competitor benchmarking + web research before scoring, and adds two scoring criteria — **competitor differentiation** (drop/reframe topics a competitor already covers identically) and **own-performance alignment** (favor proven topics/formats/hooks). Step 4 forbids writing to `${BRAND}_TREND_DB` before synthesis is complete. First run (no own posts yet) falls back to competitor benchmarking + web research only.
@@ -56,6 +62,7 @@ Read before scanning, so "relevant" means relevant to *this* brand:
 - `brands/{brand}/audience.md` — personas + pain points (the relevance test)
 - `brands/{brand}/competitors.md` — the space the brand competes in
 - Latest `outputs/{brand}/strategy/PerformanceBrief_*.md` — if Phase 1 (`content-performance-analyst`) has run, read it in full. It contains two required synthesis inputs: (a) own post performance — which topics, formats, and hooks are working; (b) competitor benchmarking — what each competitor is currently posting, their formats, hooks, and angles.
+- `${BRAND}_PERFORMANCE_DB` — query competitor rows (`Owner != "self"`) to get each competitor's top posts for Step 2b. Note which competitors have rows and which don't (gaps = `content-performance-analyst` hasn't covered them yet).
 
 **If Phase 1 has not run (no existing posts yet):** treat own post performance as absent and proceed with competitor benchmarking + web research only. In this case, competitor research from `competitors.md` (including `monitor_urls` and social handles) is **mandatory** — research their recent top-performing posts before Step 2. Never skip competitor research when Phase 1 output is absent.
 
@@ -84,7 +91,8 @@ Use mcp__claude_ai_Notion__notion-create-database:
     "Timeliness":  { "select": { "options": [ {"name":"Breaking"}, {"name":"This week"}, {"name":"Evergreen-ish"} ] } },
     "Hook Archetype": { "select": {} },           // suggested archetype from content-creation/hook-library.md
     "Suggested Angle": { "rich_text": {} },
-    "Status":      { "select": { "options": [ {"name":"Candidate"}, {"name":"Planned"}, {"name":"Skipped"} ] } }
+    "Status":      { "select": { "options": [ {"name":"Candidate"}, {"name":"Planned"}, {"name":"Skipped"} ] } },
+    "Type":        { "select": { "options": [ {"name":"trend"}, {"name":"competitor-remix"} ] } }
   }
 ```
 
@@ -104,6 +112,21 @@ Read the actual results — don't rank on headline alone.
 
 ---
 
+## Step 2b — Competitor Remix
+
+For each competitor in `competitors.md` that has rows in `${BRAND}_PERFORMANCE_DB`:
+
+1. Query competitor rows for that `Owner` handle — sort by `Engagement Rate` descending (fall back to `Likes` if Engagement Rate is unpopulated; fall back to most-recent 3 by `Posted Date` if no metrics at all). Take the **top 3**.
+2. For each of the 3 posts, extract: `Topic`, `Hook Archetype`, `Format`, `Content Angle`, `Post URL`.
+3. Generate the brand's adapted take — same core topic, reframed through the brand's persona (`audience.md`), voice (`brand.md`), and a clearly differentiated angle. Assign a new `Hook Archetype` and write a one-line `Suggested Angle` that is distinct from what the competitor did.
+4. Stage as a remix candidate: `Type = "competitor-remix"`, `Source = "competitor-remix · <competitor handle>"`, `Source URL = <competitor's Post URL>`.
+
+**If a competitor has no rows in `${BRAND}_PERFORMANCE_DB`:** skip them, note the gap ("`content-performance-analyst` has not run for <handle>"), and do not block the rest of the step.
+
+These candidates enter Step 3. They **skip criterion 5** (competitor differentiation) — they are differentiated by construction. They still go through criteria 1–4 and 6.
+
+---
+
 ## Step 3 — Evaluate & score
 
 **Synthesize all available inputs before scoring.** Do not score candidates in isolation — first map the full picture:
@@ -119,7 +142,7 @@ For each candidate, score and keep only what clears the bar:
 2. **Timeliness** — Breaking / This week / Evergreen-ish. Favor fresh; an evergreen topic needs a strong angle to make the cut.
 3. **Angle fit** — which **hook archetype** (`content-creation/hook-library.md`) does it naturally fit? If none, it's probably not a post.
 4. **Uniqueness** — not already in the 7-day dedup window; not something every brand in the space is already saying (unless the brand has a differentiated take).
-5. **Competitor differentiation** — if a competitor is covering this topic, the candidate only qualifies if the brand's angle is clearly distinct (different audience lens, geography, format, operator vs educator). A topic covered identically by a competitor is dropped or reframed. The `Suggested Angle` must explicitly reflect this differentiation.
+5. **Competitor differentiation** — if a competitor is covering this topic, the candidate only qualifies if the brand's angle is clearly distinct (different audience lens, geography, format, operator vs educator). A topic covered identically by a competitor is dropped or reframed. The `Suggested Angle` must explicitly reflect this differentiation. **Competitor-remix candidates skip this criterion** — their angle was already differentiated in Step 2b.
 6. **Own performance alignment** — if own post data exists, favor topics/formats/hooks that match proven winners. Flag candidates that contradict what the data shows works.
 
 Keep the **Top 5–8**.
@@ -130,15 +153,22 @@ Keep the **Top 5–8**.
 
 **Only write to `${BRAND}_TREND_DB` after synthesis is complete.** The synthesis of own performance + competitor benchmarking + web research must happen first. Never write mid-research or before scoring.
 
-1. **Upsert** each kept topic into `${BRAND}_TREND_DB` with `Status="Candidate"`, `Date Seen=today`, real `Source`/`Source URL`, `Relevance`, `Timeliness`, suggested `Hook Archetype`, and a one-line `Suggested Angle`.
-2. Present a short ranked list in chat:
+1. **Upsert** each kept topic into `${BRAND}_TREND_DB` with `Status="Candidate"`, `Date Seen=today`, real `Source`/`Source URL`, `Relevance`, `Timeliness`, suggested `Hook Archetype`, one-line `Suggested Angle`, and `Type` (`"trend"` for web-sourced candidates; `"competitor-remix"` for Step 2b candidates).
+2. Present a short ranked list in chat — remix candidates shown as a distinct group:
 
 ```
 # Trend Radar — {brand} — [DD Mon YYYY]
 Scanned: news + community + keywords · [N] evaluated → [M] candidates · [K] repeats filtered
+Competitor Remix: [R] adapted from competitor top posts
 
+## Trending topics
 1. [Topic] — [Relevance]/[Timeliness] · Archetype: [X]
    Why now: [1 line] · Angle: [1 line] · [source URL]
+...
+
+## Competitor remixes
+1. [Topic] (via [competitor handle]) — [Relevance] · Archetype: [X]
+   Their angle: [1 line] · Your take: [1 line] · [original post URL]
 ...
 ```
 
@@ -152,7 +182,7 @@ These rows are what `social-calendar` Step 1b pulls for timely/newsjacking slots
 
 ```
 📡 [{brand}] Trend Radar — [DD Mon YYYY]
-• [M] timely topics ([K] repeats filtered)
+• [M] timely topics ([K] repeats filtered) + [R] competitor remixes
 • Top: [#1 topic] — [why now, ≤8 words]
 • Candidates saved to Trend Radar DB for this week's calendar
 ```
@@ -167,7 +197,9 @@ These rows are what `social-calendar` Step 1b pulls for timely/newsjacking slots
 - [ ] 7-day dedup applied — no repeats without a new development
 - [ ] Every candidate has a real source URL (no fabricated links/headlines)
 - [ ] Each scored on Relevance + Timeliness + Hook Archetype + competitor differentiation + own-performance alignment; Low-relevance dropped, competitor-identical topics dropped/reframed
-- [ ] Top 5–8 written to `${BRAND}_TREND_DB` as `Candidate` — only after synthesis is complete
+- [ ] Step 2b competitor remix run — top 3 per competitor pulled from `${BRAND}_PERFORMANCE_DB`; gaps (missing competitors) flagged
+- [ ] Remix candidates have `Type = "competitor-remix"` and a clearly differentiated `Suggested Angle`
+- [ ] Top 5–8 written to `${BRAND}_TREND_DB` as `Candidate` with correct `Type` — only after synthesis is complete
 - [ ] Slack notification sent
 - [ ] Agent run logged to dashboard
 
@@ -190,6 +222,7 @@ Use gateway MCP tool `fiveagents_log_run`:
     "date": "YYYY-MM-DD",
     "evaluated": 0,
     "candidates": 0,
+    "competitor_remix_candidates": 0,
     "repeats_filtered": 0,
     "top_topic": "...",
     "trend_db_url": "https://notion.so/..."
