@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.3 | June 08, 2026 |
+| Link | v2.15.0 | June 09, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.15.0** — June 09, 2026
+- **Competitor video structure analysis wired across the Content Engine.** `trend-radar` Step 2c uses Claude in Chrome to visit competitor-remix YouTube source URLs, open the transcript, and extract a 6-part `video_structure` anatomy (credibility hook, pattern interruptor, framework, build-with-escalation, reflection beat, close/CTA) stored on the `${BRAND}_TREND_DB` entry. `social-calendar` Step 2a Part 1b reads that structure and maps each element to the brand's own credibility angle, writing a Video Structure table to the calendar with clips traced to video sections. `content-creation` Step 2b turns the Video Structure table into a YouTube script skeleton (added "YouTube video script" to its format taxonomy). Updated the **Content Engine — 5 Phases** table (Phase 2 / Phase 3 / Phase 4 notes); `trend-radar` deps add Claude in Chrome (opt — degrades to text-only when absent). Added **Claude in Chrome MCP** to the MCP Connectors list — it was already the primary engagement-metrics source for `content-performance-analyst` but had never been documented as a connector.
 
 **v2.14.3** — June 08, 2026
 - **Zernio Analytics add-on documented.** Added `late_get_post_analytics` / `late_get_follower_stats` as an *Analytics add-on (requires upgrade)* sub-bullet under the Zernio API section — these tools are now used by `content-performance-analyst` for per-post engagement metrics. Updated SKILL.md frontmatter deps to name "Zernio Analytics add-on" as a distinct gateway dep.
@@ -25,9 +28,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 **v2.13.1** — May 28, 2026
 - **`video-downloader` reworked to run inline (Cowork-correct).** Removed the bundled `scripts/download_video.py` and the `$CLAUDE_PLUGIN_ROOT` path — Cowork (the runtime) doesn't expose that variable and link-skills has no bundled-runtime-script convention. yt-dlp now runs inline (`python3 -m pip install yt-dlp` → `python3 -m yt_dlp`) in the skill's Bash block, matching content-generator's local-glue pattern. No other skill affected.
-
-**v2.13.0** — May 28, 2026
-- **Organic content learning loop added (3 skills + wiring).** New Marketing skills **`content-performance-analyst`** (Data: per-post engagement from the **Zernio API**, joined to the calendar's authored attributes via the social-publisher PublishLog, plus competitor content benchmarking via web research, into a Performance Brief; shared `${BRAND}_PERFORMANCE_DB` with `Owner`/`Source` columns) and **`trend-radar`** (Research: daily live-trend scan → `${BRAND}_TREND_DB` candidates). New Productivity utility **`video-downloader`** (yt-dlp + optional Whisper; standalone). Enhancements: `social-publisher` PublishLog now captures the post ID/URL join key; `social-calendar` Step 1b reads the Performance Brief + trend candidates; `content-creation` adds `hook-library.md` hook archetypes. Added two skill chains (content learning loop, timely content). These complete the content pipeline's missing Data spine + daily Research front-end. See **Content Engine — 5 Phases** in the Skills section below.
 
 # Link — Business Operations Agent
 
@@ -143,9 +143,9 @@ The organic-content loop — **measure → learn → create** — runs across fi
 | # | Phase | Skills | Output |
 |---|---|---|---|
 | 1 | **Data** | `content-performance-analyst` | Performance Brief — own post performance + competitor benchmarking, written to `${BRAND}_PERFORMANCE_DB` |
-| 2 | **Research** | `trend-radar` | Trend candidates — own post performance + competitor benchmarking (from Phase 1) + web research synthesized together, then written to `${BRAND}_TREND_DB` |
-| 3 | **Plan** | `social-calendar` | Weekly plan — Static Mode (14 posts, Mon–Sat) or YouTube-First Mode (one video + Clip Release Schedule), per `brand.md` `## Content Strategy` |
-| 4 | **Create** | `content-creation` (script) → record YouTube → `video-repurposer` (clips + captions) | YouTube video live + clips ready per platform |
+| 2 | **Research** | `trend-radar` | Trend candidates — own post performance + competitor benchmarking (from Phase 1) + web research synthesized together, then written to `${BRAND}_TREND_DB`. **Step 2c** uses Claude in Chrome to analyze competitor YouTube videos (transcript → 6-part `video_structure` anatomy) for competitor-remix candidates |
+| 3 | **Plan** | `social-calendar` | Weekly plan — Static Mode (14 posts, Mon–Sat) or YouTube-First Mode (one video + Clip Release Schedule), per `brand.md` `## Content Strategy`. **Step 2a Part 1b** applies the competitor `video_structure` to plan a structurally matching video (clips trace to video sections) |
+| 4 | **Create** | `content-creation` (script) → record YouTube → `video-repurposer` (clips + captions) | YouTube video live + clips ready per platform. **Step 2b** of `content-creation` turns the Video Structure table (from Phase 3) into the script skeleton when present |
 | 5 | **Publish** | `social-publisher` / `video-repurposer` | Clips published to connected platforms; PublishLog written (feeds Phase 1) |
 
 > **Phase 2 synthesis rule:** Before writing to `${BRAND}_TREND_DB`, `trend-radar` must synthesize three inputs: (1) own post performance data, (2) competitor content benchmarking, and (3) web research. All three come from Phase 1's Performance Brief + the web scan in Phase 2. When no own posts exist yet, input (1) is skipped — synthesize (2) + (3) only. Candidate angles must be differentiated from competitor coverage. Never write to the DB before synthesis is complete.
@@ -157,6 +157,7 @@ The organic-content loop — **measure → learn → create** — runs across fi
 ### MCP Connectors (OAuth — client connects in Claude settings)
 - **Notion MCP** — content calendar, page management
 - **Slack MCP** — messaging and notifications
+- **Claude in Chrome MCP** *(optional)* — drives the user's own authenticated Chrome (computer use) to read content that sits behind login walls or has no API. Used by `content-performance-analyst` as the **primary** engagement-metrics source (own posts + competitors, via each platform's analytics/insights UI) and by `trend-radar` Step 2c to open competitor YouTube videos and extract the `video_structure` anatomy from the transcript. Every consumer degrades gracefully when it's absent (Zernio/web-research fallback for analytics; text-only metadata for trend-radar).
 - **Gmail MCP** — search, read, create drafts
 - **Google Calendar MCP** — calendar access
 - **Windsor.ai MCP** *(required for every brand)* — Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data. Universal source; brand-setup mandates all three connectors. Meta data is pulled with `source: "facebook"`.

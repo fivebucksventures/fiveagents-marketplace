@@ -91,7 +91,7 @@
       ],
       "env": []
     },
-    "version": "v2.9.0"
+    "version": "v2.10.0"
   },
   {
     "name": "content-generator",
@@ -129,7 +129,8 @@
     "deps": {
       "mcp": [
         "Notion",
-        "Slack"
+        "Slack",
+        "Claude in Chrome (opt — primary engagement-metrics source; degrades to Zernio/web-research when absent)"
       ],
       "gateway": [
         "Zernio",
@@ -147,7 +148,7 @@
         "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v1.0.3"
+    "version": "v1.0.4"
   },
   {
     "name": "creative-designer",
@@ -266,7 +267,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.14.0"
+    "version": "v2.15.0"
   },
   {
     "name": "social-publisher",
@@ -299,7 +300,8 @@
     "deps": {
       "mcp": [
         "Notion",
-        "Slack"
+        "Slack",
+        "Claude in Chrome (opt — competitor video structure analysis; degrades to text-only when absent)"
       ],
       "gateway": [
         "DataforSEO (opt — trending keywords)",
@@ -316,7 +318,7 @@
         "`${BRAND}_PERFORMANCE_DB` (read-only — populated by content-performance-analyst)"
       ]
     },
-    "version": "v2.14.1"
+    "version": "v2.15.0"
   },
   {
     "name": "video-repurposer",

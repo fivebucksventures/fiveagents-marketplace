@@ -1,5 +1,5 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.14.5';
+const DEFAULT_VERSION = 'v2.15.0';
 const DEFAULT_DATE = 'June 09, 2026';
 
 // Export constants initially with default values
@@ -9,6 +9,17 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.15.0',
+    date: 'June 09, 2026',
+    changes: [
+      'trend-radar v2.15.0: Competitor video structure analysis added (Step 2c) — for competitor-remix candidates with YouTube source URLs, Claude in Chrome visits the video, opens the transcript, and extracts a 6-part video_structure anatomy (credibility hook, pattern interruptor, framework/mental model, build-with-escalation, reflection beat, close/CTA). The video_structure JSON is stored on the ${BRAND}_TREND_DB entry (Notion page body, json code fence under "Video Structure Analysis") and saved locally to outputs/{brand}/strategy/VideoStructure_*.json. Degrades gracefully when Chrome MCP is unavailable (text-only metadata preserved). Frontmatter deps + allowed-tools add Claude in Chrome (opt).',
+      'social-calendar v2.15.0: Competitor video structure matching added (Step 2a Part 1b) — YouTube-First Mode reads the video_structure JSON from trend_db and maps each structural element to the brand\'s own credibility angle, writing a Video Structure table to the calendar. Clips gain a Source Section column tracing each clip to a video section (1–6 or escalation step), preventing topic-mismatch bugs. Degrades gracefully when no video structure is available.',
+      'content-creation v2.10.0: Video structure script support added (Step 2b) — when writing YouTube video scripts, reads the Video Structure table from the social calendar (sourced from trend-radar Step 2c) and turns each structural section into a script segment with technique-specific writing guidance. When present, the video structure overrides the generic AIDA/PAS/BAB framework. Falls back to generic frameworks when no video structure is available.',
+      'content-performance-analyst v1.0.4: frontmatter deps corrected — Claude in Chrome added to deps.mcp (opt); it has been the primary engagement-metrics source since v1.0.2 but was never declared, so the generated manifest/SKILLS.md omitted it.',
+      'link.md v2.15.0: Content Engine — 5 Phases table updated (Phase 2 Step 2c competitor video analysis via Claude in Chrome; Phase 3 Step 2a Part 1b video-structure application; Phase 4 Step 2b script-skeleton note); trend-radar deps note Claude in Chrome (opt); Claude in Chrome MCP added to the MCP Connectors list (already used by content-performance-analyst, previously undocumented).',
+    ],
+  },
   {
     version: 'v2.14.5',
     date: 'June 09, 2026',
@@ -140,17 +151,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       '3-tier brand color/font lookup wired across agents/link.md + 8 visual skills: fb.ai brand kit (fivebucks_get_brand_kit) → local design-system/ → brand.md. New Brand kit field map in link.md documents only the non-obvious JSON mappings (secondary→tokens.colors.accent, text→tokens.colors.dark, no font weight scale). Gamma payloads (financial-reporter, investor-update-writer, proposal-generator) no longer request an unfillable secondary {HEX}.',
       'fb.ai template upload moved to the new dashboard URLs (/dashboard/social-posts/api-keys → /templates); credential setup points to the api-keys page.',
       'Skills bumped: brand-setup v2.8.0, plugin-update v2.8.0, background-generator v2.8.0, content-creation v2.8.0, content-generator v2.8.0, creative-designer v2.8.0, campaign-presenter v2.3.0, financial-reporter v2.5.0, proposal-generator v2.5.0, investor-update-writer v2.6.0, agents/link.md v2.11.0.',
-    ],
-  },
-  {
-    version: 'v2.8.0',
-    date: 'May 20, 2026',
-    changes: [
-      'NEW skill decision-advisor (v2.8.0, Strategy area): structures a hard business decision — frame → options → weighted-criteria scoring → pre-mortem/stress-test → recommendation + decision record. No external integrations (reads brand context files). MIT-attributed patterns (alirezarezvani/claude-skills).',
-      'Phase 0 — generated skill registry (foundation for scaling to 300+ skills). Each SKILL.md now carries area/use_for/deps frontmatter as the single source of truth; scripts/gen_skills_index.py generates skills-manifest.json (machine) + SKILLS.md (full human table) + the domain map in agents/link.md. brand-setup Step 8d + plugin-update read the committed manifest (the generator is build/CI-time only — never run in Cowork). CI drift gate (.github/workflows/skills-registry-check.yml) + formatter-exclusion (.prettierignore) protect the generated artifacts.',
-      'Phase 1 — thinned the CLAUDE.md embed. agents/link.md (embedded into every brand CLAUDE.md) now carries a compact domain map (areas + counts + names) instead of the full per-skill table; the embedded block dropped ~12x (~9 KB → ~0.7 KB at 23 skills). Full per-skill table moved to the generated, non-embedded SKILLS.md.',
-      'agents/link.md v2.10.0: Working discipline section added; compact domain map between generated markers; decision-advisor row + chain; fivebucks_* tool references.',
-      'brand-setup v2.7.1: Step 8d readiness reads skills-manifest.json (Phase 0); 8d-i translation table fivebucks label fix (stale gateway: templates row → gateway: fivebucks). plugin-update v2.7.1: reads the pre-generated manifest (no generator run in Cowork).',
     ],
   },
 ];

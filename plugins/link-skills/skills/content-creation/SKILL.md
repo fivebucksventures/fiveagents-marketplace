@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.9.0 | May 28, 2026 |
+| Link | v2.10.0 | June 09, 2026 |
 
 **Description:** Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
 
 ### Change Log
+
+**v2.10.0** — June 09, 2026
+- **Video structure script support added (Step 2b).** When writing YouTube video scripts, content-creation now reads the Video Structure table from the social calendar (populated by `social-calendar` Step 2a Part 1b, sourced from `trend-radar` Step 2c competitor analysis). Each structural section — credibility hook, pattern interruptor, framework, build-with-escalation, reflection beat, close/CTA — becomes a script segment with technique-specific writing guidance. The competitor's proven structure is preserved while the brand's own credibility anchor and content replaces the competitor's. Falls back to generic storytelling frameworks when no video structure is available.
 
 **v2.9.0** — May 28, 2026
 - **Hook craft added.** Step 1 + Step 3 now read `hook-library.md` and pick a named **hook archetype** for the opening line / headline / carousel cover. The chosen archetype aligns with the social-calendar entry's Content Angle, and `content-performance-analyst` reports which archetypes win per brand — so hook selection is data-informed over time.
@@ -34,10 +37,6 @@ deps:
 - Carousel/Story copy outputs now produce structured _copy.json with per-slide blocks + character budgets
 - Direction is NOT content-creation's concern (lives in social-calendar's Notion column)
 - Naming convention split: social ([Slug]_[Date]) vs non-social ([ContentType]_[Date])
-
-**v2.2.10** — May 04, 2026
-- Reads design-system/ to size copy against text frames
-- For IG/FB carousel/story copy, inspects template to write per-slide blocks within slot lengths
 
 # Content Creation Skill
 
@@ -58,6 +57,7 @@ Use this skill when the task involves:
 - Drafting email sequences or single emails
 - Creating ad copy (Google, LinkedIn, Meta)
 - Writing video ad scripts for Argil AI avatar videos
+- Writing long-form YouTube video scripts (follows the Video Structure table from `social-calendar` Step 2a Part 1b — see Step 2b below)
 - Writing blog posts or SEO articles
 - Creating social media copy (LinkedIn, Twitter/X)
 - Writing product descriptions or feature callouts
@@ -254,6 +254,26 @@ Select from skills/content-creation/storytelling-frameworks.md:
 - **BAB** (Before → After → Bridge) — Best for social posts, short ads
 - **Problem-Solution** — Best for blog posts, comparison pages
 
+### Step 2b: Apply video structure (YouTube scripts only)
+
+*Run this step only when the content format is a YouTube video script and the social calendar entry includes a Video Structure table (written by `social-calendar` Step 2a Part 1b). Skip for all other formats.*
+
+1. **Read the Video Structure table** from the social calendar Notion page. It contains 6 structural sections, each with a timestamp target, the brand's adapted version, and the technique.
+2. **Use the structure as the script skeleton.** Each section becomes a script segment:
+
+| Script Segment | Source | Writing Notes |
+|---|---|---|
+| Opening (0:00–0:30) | Section 1: Credibility Hook | Write the hook using the brand's credential. Match the technique (if `corporate_pedigree`, open with the corporate journey; if `speed_result`, open with the build timeline). First 3 seconds must arrest attention. |
+| Pattern Break (0:30–1:30) | Section 2: Pattern Interruptor | If `flash_forward`: write a segment showing the end result before explaining how. If `show_dont_tell`: write a live demo beat. The viewer should think "wait, how did they do that?" |
+| Framework (1:30–3:00) | Section 3: Framework | Teach the mental model. Use simple language, enumerate clearly ("There are 3 ways..."). This is the educational core. |
+| Main Body (3:00–end-2min) | Section 4: Build with Escalation | Follow the escalation steps from the structure. Each step gets its own script section with rising stakes/complexity. Include transition lines between steps ("Now here's where it gets interesting..."). |
+| Reflection (near end) | Section 5: Reflection Beat | Write an honest, personal reflection. Use first person. This is the vulnerability moment — the script should feel unrehearsed here. |
+| Close (final 30s) | Section 6: Close/CTA | Match the CTA mechanic from the structure. If `comment_to_dm`: write the exact comment keyword and what the viewer receives. |
+
+3. **The storytelling framework from Step 2 is subordinate to the video structure.** When a video structure is present, it overrides the generic framework (AIDA/PAS/BAB). The video structure IS the framework.
+
+**If no Video Structure table exists** in the social calendar entry: fall back to Step 2's storytelling framework selection as before.
+
 ### Step 3: Draft the headline / hook
 Write 3 headline options before choosing one:
 - **For social posts:** pick a **hook archetype** from `hook-library.md` that fits the angle (the social-calendar entry's Content Angle names the intended archetype — honor it). Use the archetype's opening-line pattern for the format (LinkedIn first line / carousel cover / IG-FB headline). Avoid the "openers to never use."
@@ -307,7 +327,8 @@ outputs/{brand}/strategy/             ← blog, email, landing page, ad copy
 | Email | `outputs/{brand}/strategy/` |
 | Landing page | `outputs/{brand}/strategy/` |
 | Ad copy | `outputs/{brand}/strategy/` |
-| Video ad script | `outputs/{brand}/strategy/` |
+| Video ad script (Argil) | `outputs/{brand}/strategy/` |
+| YouTube video script | `outputs/{brand}/strategy/` |
 
 ### Video Ad Scripts (for Argil)
 
@@ -340,15 +361,16 @@ Examples:
 - `Email_10Mar2026_copy.md`
 - `LandingPage_10Mar2026_copy.md`
 - `AdCopy_10Mar2026_copy.md`
+- `YouTubeScript_10Mar2026_copy.md`
 
 **Output metadata:**
 ```markdown
 ---
 Date: YYYY-MM-DD
 Skill Used: content-creation
-Framework: AIDA | PAS | BAB | Problem-Solution
+Framework: AIDA | PAS | BAB | Problem-Solution | Video-Structure
 Persona: [Persona name from audience.md]
-Format: Landing page | Email | Ad copy | Blog post | Social post
+Format: Landing page | Email | Ad copy | Blog post | Social post | YouTube video script
 Campaign: [Campaign name]
 Language: EN | ID
 Status: Draft | Final
@@ -402,9 +424,9 @@ Use gateway MCP tool `fiveagents_log_run`:
 - completed_at: "<ISO timestamp>"
 - metrics: {
     "date": "YYYY-MM-DD",
-    "format": "<linkedin-post|facebook-post|blog|email|ad_copy|landing_page>",
+    "format": "<linkedin-post|facebook-post|blog|email|ad_copy|landing_page|youtube-script>",
     "persona": "<slug>",
-    "framework": "<problem-agitate-solve|aida|bab|problem-solution>",
+    "framework": "<problem-agitate-solve|aida|bab|problem-solution|video-structure>",
     "language": "en",
     "campaign": "<campaign name>",
     "content_status": "Final",

@@ -5,7 +5,7 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 area: Marketing
 use_for: "Analyze organic content performance — own published posts (engagement by topic/format/persona/angle/hook/Direction, outlier scoring) plus competitor content benchmarking — into a Performance Brief that feeds social-calendar"
 deps:
-  mcp: ["Notion", "Slack"]
+  mcp: ["Notion", "Slack", "Claude in Chrome (opt — primary engagement-metrics source; degrades to Zernio/web-research when absent)"]
   gateway: ["Zernio", "Zernio Analytics add-on", "FiveAgents (logging)"]
   files: ["brand.md", "audience.md", "competitors.md", "funnel.md (opt)"]
   env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"]
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v1.0.3 | June 09, 2026 |
+| Link | v1.0.4 | June 09, 2026 |
 
 **Description:** Analyze organic content performance — own posts + competitor benchmarking — into a Performance Brief that feeds the social calendar.
 
 ### Change Log
+
+**v1.0.4** — June 09, 2026
+- Frontmatter deps corrected: `Claude in Chrome` added to `deps.mcp` (opt) — it has been the primary engagement-metrics source since v1.0.2 but was never declared, so the generated manifest/SKILLS.md omitted it. Degrades to Zernio/web-research when absent.
 
 **v1.0.3** — June 09, 2026
 - Step 3: completeness is now mandatory — all competitors in `competitors.md` must be processed; partial runs must be flagged. `${BRAND}_PERFORMANCE_DB` competitor coverage is a hard dependency for `trend-radar` Step 2b.

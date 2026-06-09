@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.0 | May 29, 2026 |
+| Link | v2.15.0 | June 09, 2026 |
 
 **Description:** Plan a weekly social media content calendar for any active brand — Static Mode (14 posts) or YouTube-First Mode (one weekly video + platform clips), selected by brand.md Content Strategy
 
 ### Change Log
+
+**v2.15.0** — June 09, 2026
+- **Competitor video structure matching added (Step 2a Part 1b).** YouTube-First Mode now reads the `video_structure` JSON from trend_db (written by `trend-radar` Step 2c) and maps each structural element — credibility hook, pattern interruptor, framework, escalation, reflection, close — to the brand's own angle. The adapted structure is written as a Video Structure table in the calendar. Clips now have a `Source Section` column tracing each clip to a video section, preventing topic-mismatch bugs. Degrades gracefully when no video structure is available (plans from topic/angle as before).
 
 **v2.14.0** — May 29, 2026
 - **YouTube-First Mode added.** Step 1 now reads `brand.md` `## Content Strategy` (`Primary channel`, `Connected platforms`, `Clips per video`, `Cadence`) to pick the planning flow. New **Step 2a (YouTube-First Mode)** plans one weekly YouTube video + a per-platform **Clip Release Schedule** — publish day/time per clip, Twitter/X support, comment-to-DM CTAs — restricted to connected platforms; the schedule is the handoff to `video-repurposer` (Phase 4–5). The original 14-post flow is renamed **Step 2b (Static Mode)**. The quality checklist branches per mode. Brands without `## Content Strategy` default to Static.
@@ -33,14 +36,6 @@ deps:
 **v2.11.0** — May 21, 2026
 - **SlideId column removed (12 → 11 columns)** — fb.ai now filters `linkedin-post` and `meta-post` by the post's `direction` override server-side, returning only the matching slide. `content-generator` no longer passes `slide_ids`; social-calendar no longer needs to pre-resolve slide labels. Direction is all you need for single-image types.
 - **Direction rotation guidance added** — spread A/B/C across same-format posts for variety; avoid long runs of the same Direction in one platform's feed.
-
-**v2.10.0** — May 20, 2026
-- **New `SlideId` column** (calendar table 11 → 12 columns) for the two single-image fb.ai template types (`linkedin-post`, `meta-post`). These templates render all three direction artboards into the DOM and fb.ai applies no direction filter for them, so `content-generator` must pass `slide_ids` to render the one slide for the chosen Direction. social-calendar writes the slide label **per type** (the labels differ between the two templates):
-  - `linkedin-post` — A→`01 Hook Headline`, B→`02 Stat Hero`, C→`03 Pull Quote` (verified against the live fb.ai manifest).
-  - `meta-post` — A→`01 Hero Visual`, B→`02 Quote Card`, C→`03 Listicle Teaser` (matches brand-setup's meta-post directions; confirm against the manifest once a meta-post template is uploaded).
-  - `content-generator` treats the label as a fast path but resolves the real slide by **Direction position** (A=1st, B=2nd, C=3rd) against `manifest.slides[]`, so a brand that labels its slides differently still renders correctly.
-  - Left blank for Carousel, Story/Reel (meta-story uses `_direction`), Reel(Argil), and non-template formats. Carousel still rotates via the existing `coverVariant-bodyVariant` Direction values — no `slide_ids`.
-
 
 # SKILL.md — Social Calendar
 
@@ -113,12 +108,57 @@ Plan one YouTube video for the upcoming week plus a clip release schedule for ea
 | CTA | Comment-to-DM format: "Comment '[keyword]' and I'll send you [specific resource]" — never generic subscribe asks |
 | Est. length | 5–15 min |
 
+### Part 1b — Apply Competitor Video Structure (when available)
+
+If the Trend Radar candidate used for this video has a `video_structure` JSON in its Notion page body (written by `trend-radar` Step 2c), read it and use it to plan the video's internal structure.
+
+**Procedure:**
+
+1. **Fetch the trend_db page** for the candidate marked `Status=Planned` — use `mcp__claude_ai_Notion__notion-fetch` with the page ID.
+2. **Parse the `video_structure` JSON** from the page body (inside a ```json code fence under the "Video Structure Analysis" heading).
+3. **Map each structural element to the brand's own angle:**
+
+| Competitor Element | Brand Adaptation Rule |
+|---|---|
+| `credibility_hook` | Replace the competitor's credential with the brand's own credibility anchor (from `brand.md` or brand context — e.g. corporate pedigree, specific experience, unique access). Never copy the competitor's claim. |
+| `pattern_interruptor` | Keep the same technique (flash-forward, show-don't-tell, etc.) but apply it to the brand's content. If the competitor shows a finished product, the brand shows its finished product. |
+| `framework` | Teach a framework relevant to the brand's expertise. If the competitor taught a 3-type taxonomy, the brand teaches its own taxonomy from its domain knowledge. |
+| `build_with_escalation` | Match the escalation pattern (time-based, complexity-based, etc.) but with the brand's own build/journey. Preserve the same number of escalation steps. |
+| `reflection_beat` | Add a personal/honest reflection from the brand's perspective — what the brand owner learned, what surprised them, what they'd change. |
+| `close_cta` | Match the CTA mechanic (comment-to-DM, etc.) but with the brand's own resource/offer. |
+
+4. **Write the adapted structure into the YouTube Video Plan** as a new table:
+
+#### Video Structure (adapted from competitor)
+
+| # | Section | Timestamp Target | Brand's Version | Technique |
+|---|---|---|---|---|
+| 1 | Credibility Hook | 0:00–0:30 | <brand's adapted hook> | <same technique, brand's credential> |
+| 2 | Pattern Interruptor | 0:30–1:30 | <brand's adapted interruptor> | <same technique> |
+| 3 | Framework | 1:30–3:00 | <brand's framework> | <same or adapted technique> |
+| 4 | Build with Escalation | 3:00–<end-2min> | <brand's build steps> | <same escalation pattern> |
+| 5 | Reflection Beat | near end | <brand's reflection> | <same technique> |
+| 6 | Close / CTA | final 30s | <brand's CTA> | <same CTA mechanic> |
+
+Also add a **Competitor Structure Applied** reference:
+
+> Structure adapted from: [competitor channel] — "[video title]" ([source URL])
+> Original hook technique: [technique] | Adapted: [brand's technique]
+
+5. **Ensure clips are derived FROM the video structure.** Each clip in Part 2 must map to a specific section from the structure table above. Do not plan clips about topics unrelated to the video — every clip's "Moment to clip" must reference a section number (1–6) or a specific escalation step from section 4.
+
+**If no `video_structure` is available** (trend-radar Step 2c was skipped, or the candidate is not a competitor-remix, or Chrome MCP was unavailable): plan the video using the current method (topic + angle + talking points from Step 1b research). Note in the calendar: "No competitor structure available — planned from topic/angle."
+
 ### Part 2 — Clip Release Schedule
 
 For each platform listed under `Connected platforms` in `brand.md`, plan the number of clips specified under `Clips per video` (default 1–2 if unset). Do NOT plan clips for platforms not listed as connected.
 
-| Clip # | Platform | Publish Day | Publish Time | Duration | Moment to clip | Caption angle | Hook Archetype | CTA |
-|---|---|---|---|---|---|---|---|---|
+| Clip # | Platform | Publish Day | Publish Time | Duration | Source Section | Moment to clip | Caption angle | Hook Archetype | CTA |
+|---|---|---|---|---|---|---|---|---|---|
+
+Where `Source Section` is the section number (1–6) or escalation step (e.g. "4a: Day 1") from the **Video Structure** table (Part 1b) that this clip is drawn from.
+
+**Validation rule:** Every clip's `Source Section` must reference a valid section from the Video Structure table. If a clip cannot be traced to a video section, it must be removed or rewritten. This prevents clips about topics not covered in the video. *(When no `video_structure` was available and the video was planned from topic/angle, leave `Source Section` blank and note it.)*
 
 **Scheduling rules** (read timezone from `brand.md Locale`):
 - YouTube publishes first (Mon or Tue evening), clips roll out Tue–Fri — never before the YouTube video is live
@@ -148,7 +188,7 @@ For each clip, write a platform-native caption. Read voice and tone from `brand.
 
 All clips set to `Status = Planned` pending YouTube upload.
 
-**Save to Notion** — same DB as static mode (`${BRAND}_NOTION_DB`); if the env var is unset (first-ever run for this brand), create the DB first via the **Step 3a** bootstrap, then persist its ID. Page title: `SocialCalendar_[DDMon]-[DDMonYYYY]`. Content: YouTube Video Plan table + Clip Release Schedule table + Captions section.
+**Save to Notion** — same DB as static mode (`${BRAND}_NOTION_DB`); if the env var is unset (first-ever run for this brand), create the DB first via the **Step 3a** bootstrap, then persist its ID. Page title: `SocialCalendar_[DDMon]-[DDMonYYYY]`. Content: YouTube Video Plan table + Video Structure table (when Part 1b produced one) + Clip Release Schedule table + Captions section. The Video Structure table must be saved when present — `content-creation` Step 2b reads it back off this page to build the YouTube script skeleton.
 
 After saving, skip Step 2b and proceed to Slack notification.
 
@@ -491,6 +531,10 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 
 - [ ] **Mode check:** read `brands/{brand}/brand.md` `## Content Strategy` before planning — YouTube-First Mode (Step 2a) if `Primary channel: youtube`, Static Mode (Step 2b) otherwise
 - [ ] **YouTube-First:** YouTube Video Plan includes publish day/time; Clip Release Schedule includes publish day + time per clip for each connected platform only; comment-to-DM CTAs used; Trend Radar candidate marked Planned if used
+- [ ] **Video structure applied** — if trend_db candidate had a `video_structure` JSON, the Video Structure table is present in the calendar with all 6 elements adapted for the brand
+- [ ] **Credibility anchor is brand-appropriate** — the hook uses the brand's own credential (from `brand.md`), not the competitor's claim
+- [ ] **Clips trace to video sections** — every clip's `Source Section` maps to a valid section in the Video Structure table; no orphan clips about unrelated topics
+- [ ] **Competitor Structure Applied reference** — source attribution present with competitor channel, video title, and URL
 - [ ] **Static:** Exactly 14 posts
 - [ ] Formats match fixed slot table
 - [ ] Monday LinkedIn = Post, Monday Facebook = Post, Monday Instagram = Post

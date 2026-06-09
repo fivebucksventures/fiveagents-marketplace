@@ -1,11 +1,11 @@
 ---
 name: trend-radar
 description: Daily live-trend scan for any active brand — surfaces timely topics, launches, news, and community pain points in the brand's niche, scored for relevance and timeliness, deduplicated against a rolling log, and written as candidate topics the social calendar can pull.
-allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__Claude_in_Chrome__navigate, mcp__Claude_in_Chrome__find, mcp__Claude_in_Chrome__get_page_text, mcp__Claude_in_Chrome__computer, mcp__Claude_in_Chrome__read_page
 area: Marketing
 use_for: "Daily live-trend/newsjacking scan — surfaces timely topics scored for relevance + timeliness, deduplicated, written as candidate topics for the social calendar. Runs daily on cron"
 deps:
-  mcp: ["Notion", "Slack"]
+  mcp: ["Notion", "Slack", "Claude in Chrome (opt — competitor video structure analysis; degrades to text-only when absent)"]
   gateway: ["DataforSEO (opt — trending keywords)", "FiveAgents (logging)"]
   files: ["brand.md", "audience.md", "competitors.md", "PerformanceBrief_*.md (opt — Phase 1 output from content-performance-analyst)"]
   env: ["`${BRAND}_TREND_DB` (auto-bootstraps)", "`${BRAND}_PERFORMANCE_DB` (read-only — populated by content-performance-analyst)"]
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.1 | June 09, 2026 |
+| Link | v2.15.0 | June 09, 2026 |
 
 **Description:** Daily live-trend scan — timely topics scored, deduplicated, written as candidate topics for the social calendar.
 
 ### Change Log
+
+**v2.15.0** — June 09, 2026
+- **Competitor video structure analysis added (Step 2c).** For competitor-remix candidates with YouTube source URLs, Step 2c uses Claude in Chrome to visit the video, open the transcript, and extract a 6-part structural anatomy: credibility hook, pattern interruptor, framework/mental model, build-with-escalation, reflection beat, and close/CTA type. The `video_structure` JSON is stored on the trend_db entry (Notion page body) and saved locally. social-calendar Step 2a reads this structure to plan videos that match the competitor's proven storytelling pattern. Degrades gracefully when Chrome MCP is unavailable (text-only metadata preserved).
 
 **v2.14.1** — June 09, 2026
 - Step 2b added: Competitor Remix — reads top 3 posts per competitor from `${BRAND}_PERFORMANCE_DB` (by Engagement Rate; recency fallback), generates brand's adapted take for each, and surfaces them as `Type = "competitor-remix"` candidates. Skips competitors with no DB rows and flags them.
@@ -125,6 +128,110 @@ For each competitor in `competitors.md` that has rows in `${BRAND}_PERFORMANCE_D
 
 These candidates enter Step 3. They **skip criterion 5** (competitor differentiation) — they are differentiated by construction. They still go through criteria 1–4 and 6.
 
+Candidates whose `Source URL` is a YouTube video go through **Step 2c** first to extract the video's structural anatomy.
+
+---
+
+## Step 2c — Competitor Video Structure Analysis
+
+*Run this step only for competitor-remix candidates from Step 2b whose `Source URL` is a YouTube video URL (contains `youtube.com/watch` or `youtu.be/`). Skip for non-video URLs — those candidates proceed to Step 3 with text-only metadata.*
+
+For each qualifying candidate, use **Claude in Chrome** to visit the YouTube video and extract its structural anatomy. This step requires the Chrome MCP tools (`mcp__Claude_in_Chrome__*`).
+
+### Procedure
+
+1. **Navigate to the video:** `mcp__Claude_in_Chrome__navigate` to the Source URL.
+2. **Open the transcript panel:**
+   - Use `mcp__Claude_in_Chrome__find` to locate the "Show transcript" button (it may be under the description or a '...' menu).
+   - Click it to expand the transcript panel.
+   - Use `mcp__Claude_in_Chrome__get_page_text` to read the full transcript text.
+3. **Read chapter markers (if present):**
+   - Check the video description or chapter list for timestamped sections.
+   - If chapters exist, they map to structural sections — use them as scaffolding.
+4. **Extract the 6-part video anatomy** by analyzing the transcript and chapters:
+
+| # | Structural Element | What to extract | Example |
+|---|---|---|---|
+| 1 | **Credibility Hook** (0:00–0:30) | The opening claim or credential that earns attention. Note: what metric/credential is used? Is it revenue, experience, speed, result? | "I made $150k last month" (revenue) or "After 20 years at Apple..." (corporate pedigree) |
+| 2 | **Pattern Interruptor** (0:30–1:30) | The moment the creator breaks expected flow — showing the finished product first, a surprising demo, or a contrarian statement. Note: what technique? (show-don't-tell, flash-forward, contrarian frame) | "Let me show you the finished app first" (flash-forward) |
+| 3 | **Framework / Mental Model** (1:30–3:00) | The conceptual framework the creator teaches before diving into execution. Usually a 2–4 step mental model or decision tree. | "There are really only 3 types of apps you can build..." |
+| 4 | **Build / Execution with Escalation** (3:00–end-2min) | The main body — how does the creator structure the build? Look for: time-based escalation (Day 1 → Day 2 → Hour 72), complexity escalation (simple → advanced), or chapter-based progression. Note the escalation pattern. | Time-based: "Day 1: Setting up" → "Day 2: Building features" → "Hour 72: Launch" |
+| 5 | **Reflection Beat** (near end, 1–2 min) | A personal/honest moment — lessons learned, what went wrong, what they'd do differently. This builds authenticity. | "Here's what I'd actually change if I did this again..." |
+| 6 | **Close / CTA Type** (final 30s) | How the video ends — monetization pitch, vision statement, community CTA, or resource offer. Note the CTA mechanic (comment-to-DM, link-in-bio, subscribe). | "Comment 'BLUEPRINT' and I'll DM you the template" (comment-to-DM) |
+
+5. **Build the `video_structure` metadata object:**
+
+```json
+{
+  "video_structure": {
+    "source_video_id": "<YouTube video ID>",
+    "source_channel": "<channel name>",
+    "total_duration": "<MM:SS>",
+    "sections": [
+      {
+        "position": 1,
+        "element": "credibility_hook",
+        "timestamp": "0:00–0:30",
+        "technique": "<revenue_claim | corporate_pedigree | speed_result | social_proof | contrarian_stat>",
+        "summary": "<1-line description of what the creator said/showed>"
+      },
+      {
+        "position": 2,
+        "element": "pattern_interruptor",
+        "timestamp": "0:30–1:30",
+        "technique": "<flash_forward | contrarian_frame | show_dont_tell | unexpected_demo | audience_callout>",
+        "summary": "<1-line description>"
+      },
+      {
+        "position": 3,
+        "element": "framework",
+        "timestamp": "1:30–3:00",
+        "technique": "<mental_model | decision_tree | step_process | analogy>",
+        "summary": "<1-line description>"
+      },
+      {
+        "position": 4,
+        "element": "build_with_escalation",
+        "timestamp": "3:00–<end-2min>",
+        "technique": "<time_based | complexity_based | chapter_based | problem_solution_chain>",
+        "escalation_steps": ["<step 1 label>", "<step 2 label>", "<step 3+ label>"],
+        "summary": "<1-line description>"
+      },
+      {
+        "position": 5,
+        "element": "reflection_beat",
+        "timestamp": "<near end>",
+        "technique": "<lessons_learned | honest_failure | what_id_change | personal_story>",
+        "summary": "<1-line description>"
+      },
+      {
+        "position": 6,
+        "element": "close_cta",
+        "timestamp": "<final 30s>",
+        "technique": "<comment_to_dm | link_in_bio | monetization_pitch | vision_statement | community_cta>",
+        "summary": "<1-line description>"
+      }
+    ]
+  }
+}
+```
+
+6. **Store the anatomy on the candidate:** Attach the `video_structure` JSON to the candidate's staging record — Step 4 writes it to the `${BRAND}_TREND_DB` page **body** (as a fenced code block under a "Video Structure Analysis" heading), not into the `Suggested Angle` rich-text property. The `Suggested Angle` field keeps its human-readable one-liner. The structure is also saved to `outputs/{brand}/strategy/VideoStructure_<VideoID>_<DDMonYYYY>.json` as a local reference.
+
+### Fallback
+
+- **If Chrome MCP is unavailable** (tools not connected): skip Step 2c entirely. Log a warning: "Chrome MCP not available — competitor video structure analysis skipped. Candidate proceeds with text-only metadata." The candidate still enters Step 3 normally.
+- **If the transcript panel cannot be opened** (some videos disable it): use `mcp__Claude_in_Chrome__get_page_text` on the video page to get whatever text is available (description, chapters, comments). Extract what structure you can. Note: "Transcript unavailable — structure extracted from description/chapters only."
+- **If the video is not accessible** (private, deleted, geo-blocked): skip that candidate, log it, move on.
+
+### Quality gate
+
+Before proceeding to Step 3, verify:
+- [ ] Each video candidate has a `video_structure` with all 6 elements populated (or explicitly marked as absent with a note)
+- [ ] Timestamps are plausible (sequential, within total duration)
+- [ ] `technique` values use the enum options listed above (for downstream matching)
+- [ ] Local JSON backup saved to `outputs/{brand}/strategy/`
+
 ---
 
 ## Step 3 — Evaluate & score
@@ -154,6 +261,18 @@ Keep the **Top 5–8**.
 **Only write to `${BRAND}_TREND_DB` after synthesis is complete.** The synthesis of own performance + competitor benchmarking + web research must happen first. Never write mid-research or before scoring.
 
 1. **Upsert** each kept topic into `${BRAND}_TREND_DB` with `Status="Candidate"`, `Date Seen=today`, real `Source`/`Source URL`, `Relevance`, `Timeliness`, suggested `Hook Archetype`, one-line `Suggested Angle`, and `Type` (`"trend"` for web-sourced candidates; `"competitor-remix"` for Step 2b candidates).
+
+   **For competitor-remix candidates that went through Step 2c**, append the `video_structure` JSON as a **code block** inside the Notion page body (below the Suggested Angle text). Use a markdown code fence with language tag `json` so it renders cleanly in Notion and is parseable by downstream skills:
+
+   ````
+   ## Video Structure Analysis
+
+   ```json
+   {video_structure JSON from Step 2c}
+   ```
+   ````
+
+   This preserves the existing Suggested Angle as human-readable text while making the structural data machine-readable for `social-calendar`.
 2. Present a short ranked list in chat — remix candidates shown as a distinct group:
 
 ```
@@ -199,6 +318,10 @@ These rows are what `social-calendar` Step 1b pulls for timely/newsjacking slots
 - [ ] Each scored on Relevance + Timeliness + Hook Archetype + competitor differentiation + own-performance alignment; Low-relevance dropped, competitor-identical topics dropped/reframed
 - [ ] Step 2b competitor remix run — top 3 per competitor pulled from `${BRAND}_PERFORMANCE_DB`; gaps (missing competitors) flagged
 - [ ] Remix candidates have `Type = "competitor-remix"` and a clearly differentiated `Suggested Angle`
+- [ ] Step 2c video structure analysis run for all competitor-remix candidates with YouTube source URLs
+- [ ] Each analyzed video has a `video_structure` JSON with 6 structural elements
+- [ ] `video_structure` JSON saved both to Notion (in trend_db page body) and locally (`outputs/{brand}/strategy/VideoStructure_*.json`)
+- [ ] Chrome MCP fallback logged if tools were unavailable
 - [ ] Top 5–8 written to `${BRAND}_TREND_DB` as `Candidate` with correct `Type` — only after synthesis is complete
 - [ ] Slack notification sent
 - [ ] Agent run logged to dashboard
@@ -223,6 +346,7 @@ Use gateway MCP tool `fiveagents_log_run`:
     "evaluated": 0,
     "candidates": 0,
     "competitor_remix_candidates": 0,
+    "videos_analyzed": 0,
     "repeats_filtered": 0,
     "top_topic": "...",
     "trend_db_url": "https://notion.so/..."
