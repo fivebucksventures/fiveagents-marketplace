@@ -15,11 +15,18 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v1.0.1 | June 08, 2026 |
+| Link | v1.0.2 | June 09, 2026 |
 
 **Description:** Analyze organic content performance — own posts + competitor benchmarking — into a Performance Brief that feeds the social calendar.
 
 ### Change Log
+
+**v1.0.2** — June 09, 2026
+- Step 0: Primary engagement source for all rows (own + competitors) switched to **Claude in Chrome**; Zernio retained as fallback for own posts; web-research retained as fallback for competitors. Added `Source = "chrome-browser"`.
+- Step 1: DB schema updated to match actual Notion columns — Platform adds Twitter/TikTok/YouTube (Facebook removed); Format adds Reel/Video; Source adds "chrome-browser"; "Impressions" renamed to "Impressions / Views"; "Engagement Rate" number field added.
+- Step 2: Claude in Chrome primary added before Zernio fallback; field mapping updated for "Impressions / Views" and "Engagement Rate"; upsert Source set dynamically.
+- Step 3: Claude in Chrome primary added before web-research fallback; Source tagging updated.
+- Analytics Field Rules section added: per-platform required/optional/na field table, platform-specific Engagement formulas, Engagement Rate formula, YouTube scrape constraints, and pre-write validation checklist.
 
 **v1.0.1** — June 08, 2026
 - Step 0 pre-flight: primary engagement source switched to `late_get_post_analytics` (Zernio Analytics add-on); 402/403 add-on error triggers graceful fallback to `late_list_posts` + competitor benchmarking. Added optional `late_get_follower_stats` for reach denominator.
@@ -41,7 +48,7 @@ Read `agents/link.md` before starting. It defines the active brand, personality,
 
 You are an organic-content performance analyst for the active brand. You measure which **published organic posts** actually won — by topic, format, persona, content angle, hook archetype, and template Direction — and you benchmark that against competitors' visible content. You output a dense **Performance Brief** that the social calendar reads to bias next week's plan toward what works.
 
-**Your scope:** organic social content (LinkedIn, Facebook, Instagram) — the brand's own posts + competitor content.
+**Your scope:** organic social content (LinkedIn, Instagram, Twitter, TikTok, YouTube) — the brand's own posts + competitor content.
 **NOT your scope:**
 - Paid ads / GA4 funnel → `data-analysis`, `digital-marketing-analyst`.
 - Competitor *website* / pricing / exec / careers diffs → `competitor-monitor`.
@@ -53,12 +60,16 @@ You are an organic-content performance analyst for the active brand. You measure
 
 ## Step 0 — Data sources & pre-flight
 
-All own-post engagement comes from **`late_get_post_analytics`** (Zernio Analytics add-on). Pre-flight: call it with a small limit. If it returns metrics → use them. If it errors 402 `analytics_addon_required` (or 403 `requiresAddon`) → mark rows **metrics-pending**, state the gap, and fall back to `late_list_posts` (publish status only) + competitor benchmarking — don't block. Optionally call `late_get_follower_stats` for per-account follower/growth context (reach denominator).
+Primary engagement source for **all rows** (own posts + competitors) is **Claude in Chrome** — use computer use to operate the user's actual Chrome browser (where they are already authenticated to all platforms), navigate to post and profile URLs, and read engagement metrics directly from the platform's analytics/insights UI. Source-specific fallbacks activate only when the browser approach fails or is unavailable:
 
-| Rows | Source | Notes |
-|---|---|---|
-| Your posts (all platforms) | **Zernio Analytics** `late_get_post_analytics` — primary; `late_list_posts` (status `published`) — fallback for publish status only | If a field isn't returned for a platform, leave it blank — don't fabricate |
-| Competitors (all) | **Web research** (`WebSearch` / `perplexity` / `WebFetch`) over handles in `competitors.md` | Always approximate — see Step 3 |
+| Rows | Primary | Fallback | Notes |
+|---|---|---|---|
+| Your posts (all platforms) | **Claude in Chrome** (computer use, authenticated Chrome) — open each post URL, navigate to the platform's analytics/insights view, read impressions/views, likes, comments, shares, saves, engagement rate | **Zernio Analytics** `late_get_post_analytics`; if 402 `analytics_addon_required` / 403 `requiresAddon`, fall back further to `late_list_posts` (publish status only) | Mark rows **metrics-pending** if both paths fail; never fabricate |
+| Competitors (all) | **Claude in Chrome** (computer use, authenticated Chrome) — navigate to competitor profile pages, scroll recent posts, read any visible engagement signals (reactions/comments/shares/views counts) | **Web research** (`WebSearch` / `perplexity` / `WebFetch`) over handles in `competitors.md` | Competitor metrics always approximate — say so in the Brief |
+
+**Connected platforms:** Call `late_list_accounts` to resolve the brand's connected social accounts. The platform list is authoritative — only work with platforms that appear here. Store the account list (platform + account_id) for use in Steps 1, 2, and 3.
+
+Set `Source = "chrome-browser"` when Claude in Chrome delivers the metrics; `Source = "zernio"` when Zernio is used as fallback for own posts; `Source = "web-research"` when web-research fallback is used for competitors. Optionally call `late_get_follower_stats` for per-account follower/growth context (reach denominator).
 
 ---
 
@@ -79,13 +90,13 @@ Use mcp__claude_ai_Notion__notion-create-database:
 - properties: {
     "Name":           { "title": {} },
     "Owner":          { "select": {} },        // "self" | "<competitor handle>"
-    "Source":         { "select": { "options": [ {"name":"zernio"}, {"name":"web-research"} ] } },
-    "Platform":       { "select": { "options": [ {"name":"LinkedIn"}, {"name":"Facebook"}, {"name":"Instagram"} ] } },
+    "Source":         { "select": { "options": [ {"name":"chrome-browser"}, {"name":"zernio"}, {"name":"web-research"} ] } },
+    "Platform":       { "select": {} },              // options seeded from late_list_accounts at bootstrap; Notion auto-creates new options on upsert
     "Post URL":       { "url": {} },
     "Post ID":        { "rich_text": {} },
     "Posted Date":    { "date": {} },
     "Topic":          { "rich_text": {} },
-    "Format":         { "select": { "options": [ {"name":"Post"}, {"name":"Carousel"}, {"name":"Story"} ] } },
+    "Format":         { "select": { "options": [ {"name":"Post"}, {"name":"Carousel"}, {"name":"Story"}, {"name":"Reel"}, {"name":"Video"} ] } },
     "Persona":        { "rich_text": {} },
     "Content Angle":  { "rich_text": {} },
     "Hook Archetype": { "select": {} },         // one of the 8 in content-creation/hook-library.md
@@ -94,33 +105,89 @@ Use mcp__claude_ai_Notion__notion-create-database:
     "Comments":       { "number": {} },
     "Shares":         { "number": {} },
     "Saves":          { "number": {} },
-    "Impressions":    { "number": {} },
-    "Engagement":     { "number": {} },          // likes+comments+shares+saves
+    "Impressions / Views": { "number": {} },
+    "Engagement":     { "number": {} },          // platform-specific formula — see Analytics Field Rules
+    "Engagement Rate": { "number": {} },         // engagementRate from analytics
     "Outlier Score":  { "number": {} },          // self rows only — engagement / brand per-platform avg
     "Captured At":    { "date": {} }
   }
 ```
 
-After creation, **persist the new DB ID to `.claude/settings.local.json`** under `env.${BRAND}_PERFORMANCE_DB` (read existing settings, add the key, preserve all others, write back). Notify the user once (first-run only). This makes the store discoverable by future runs and by `social-calendar`.
+After creation, seed the `Platform` select options by upserting one placeholder row per connected platform (then deleting it), or simply rely on Notion's auto-create behaviour — the first real upsert for each platform will create its option. **Persist the new DB ID to `.claude/settings.local.json`** under `env.${BRAND}_PERFORMANCE_DB` (read existing settings, add the key, preserve all others, write back). Notify the user once (first-run only). This makes the store discoverable by future runs and by `social-calendar`.
 
 ---
 
-## Step 2 — Build/refresh YOUR post rows (Owner = self, Source = zernio)
+## Analytics Field Rules (read before writing any row)
+
+Platform determines which fields are **required**, **optional**, or **N/A**.
+- `required` — must be populated; no blank
+- `optional` — populate if available; blank is acceptable
+- `na` — leave blank; do **not** write `0` (zero means "zero", not "unknown")
+
+| Field | LinkedIn | Instagram | Facebook | Twitter/X | YouTube | TikTok |
+|---|---|---|---|---|---|---|
+| Impressions / Views | required | required | required | required | required | required |
+| Likes | required | required | required | required | required | required |
+| Comments | required | required | required | required | optional¹ | required |
+| Shares | required | **na** | required | required | **na** | required |
+| Saves | **na** | required | **na** | **na** | **na** | optional |
+| Engagement | required | required | required | required | **na** | required |
+| Engagement Rate | required | required | required | required | **na** | required |
+| Posted Date | required | required | required | required | required | required |
+| Post URL | required | required | required | required | required | required |
+| Post ID | required | required | required | required | required | required |
+| Content Angle | required | required | required | required | required | required |
+| Persona | required | required | required | required | required | required |
+| Hook Archetype | required | required | required | required | required | required |
+| Topic | required | required | required | required | required | required |
+| Format | required | required | required | required | required | required |
+| Direction | required | required | required | required | **na** | required |
+
+**Engagement formula by platform:**
+- LinkedIn: `Likes + Comments + Shares`
+- Instagram: `Likes + Comments + Saves`
+- Facebook: `Likes + Comments + Shares`
+- Twitter/X: `Likes + Comments + Shares`
+- TikTok: `Likes + Comments + Shares + Saves`
+- YouTube: N/A — use Views + Likes as separate signals; do not compute composite
+
+**Engagement Rate:** `Engagement / Impressions * 100` (round to 2 dp) — all platforms except YouTube.
+
+¹ **YouTube Comments:** visible on the public page and in YouTube Studio — populate when available (own posts via Chrome or competitor public page); leave blank only when the count is genuinely hidden.
+
+**YouTube own posts (Source: chrome-browser):** Open YouTube Studio for the video to get Views, Likes, and Comments. Shares and Saves are not exposed in Studio — omit them.
+
+**YouTube competitor posts (Source: web-research or chrome-browser):** Only Views and Likes are reliably scrapeable from the public page. Comments may be visible. Shares, Saves, Direction, Engagement, and Engagement Rate — omit entirely.
+
+**Validation before writing any row:**
+1. Identify the platform
+2. Build payload with only `required` + `optional` fields — omit `na` fields (do not send them as `0` or `null`)
+3. Confirm Posted Date is exact `YYYY-MM-DD` — never estimate from "X days ago"
+4. Confirm Engagement was computed using the platform-correct formula
+
+---
+
+## Step 2 — Build/refresh YOUR post rows (Owner = self)
 
 1. **Get the published set + join key.** Read the brand's recent `outputs/{brand}/published/PublishLog_*.md` (written by `social-publisher` — carries `Date · Platform · Topic · Late ID · Post URL`). This is the authoritative list of what went live.
 2. **Recover authored attributes.** For each published post, join back to the brand's social-calendar history in `${BRAND}_NOTION_DB` by **Topic + Platform + Date** to recover `Persona`, `Format`, `Content Angle`, `Direction`, and `Hook Archetype` (the dimensions the calendar authored — no need to re-derive them from the creative).
-3. **Fetch engagement** from **`late_get_post_analytics`** (match by `post_id`, or list + filter by `account_id`/`date_from`/`date_to`). Map: `Impressions ← impressions`, `Likes ← likes`, `Comments ← comments`, `Shares ← shares`, `Saves ← saves`, `Engagement ← likes+comments+shares+saves` (or `engagementRate`). Leave unreturned fields blank (never fabricate).
-4. **Outlier score (self only).** Compute the brand's per-platform average engagement over rows with real metrics, then `Outlier Score = Engagement / platform_avg`. Flag outliers at `>= 2×` (content-engine's threshold). Skip rows that are too recent to have settled (note them; don't block).
-5. **Upsert** one row per post into `${BRAND}_PERFORMANCE_DB` with `Owner="self"`, `Source="zernio"`, `Captured At=today`. Match on `Post ID` to avoid duplicates across runs (update metrics in place — this is the `metrics_updated_at` refresh).
+3. **Fetch engagement.**
+   - **Primary — Claude in Chrome:** Use computer use to open each post URL in the user's authenticated Chrome, navigate to the platform's analytics/insights view, and read `Impressions / Views`, `Likes`, `Comments`, `Shares`, `Saves`, and `Engagement Rate`. Set `Source = "chrome-browser"`.
+   - **Fallback — Zernio:** If Claude in Chrome fails, call `late_get_post_analytics` (match by `post_id`, or filter by `account_id`/`date_from`/`date_to`). Map: `Impressions / Views ← impressions`, `Likes ← likes`, `Comments ← comments`, `Shares ← shares`, `Saves ← saves`, `Engagement Rate ← engagementRate`, `Engagement ← likes+comments+shares+saves`. Set `Source = "zernio"`. If `late_get_post_analytics` returns 402/403, fall back further to `late_list_posts` (publish status only) and mark rows **metrics-pending**.
+
+   Leave unreturned fields blank — never fabricate. Apply the **Analytics Field Rules** above when building the upsert payload.
+4. **Outlier score (self only, non-YouTube).** Compute the brand's per-platform average engagement over rows with real Engagement values, then `Outlier Score = Engagement / platform_avg`. Flag outliers at `>= 2×` (content-engine's threshold). Skip YouTube rows (Engagement is na) and rows too recent to have settled (note them; don't block).
+5. **Upsert** one row per post into `${BRAND}_PERFORMANCE_DB` with `Owner="self"`, `Source=<as determined in step 3>`, `Captured At=today`. Dedup key: `Post ID` for all platforms except YouTube; use `Post URL` as the dedup key for YouTube rows (Post ID is the video ID extracted from the URL — store it, but match on Post URL to be safe). Update metrics in place on re-runs.
 
 ---
 
-## Step 3 — Build COMPETITOR rows (Owner = <handle>, Source = web-research)
+## Step 3 — Build COMPETITOR rows (Owner = <handle>)
 
 For each competitor in `brands/{brand}/competitors.md`:
-1. Use `WebSearch` / `perplexity` / `WebFetch` to find their recent **top-performing visible posts** on LinkedIn/IG/FB — hooks, formats, topics, and any visible engagement signal (reactions/comments counts when shown).
+1. **Primary — Claude in Chrome:** Use computer use to navigate to the competitor's profile in the user's authenticated Chrome, scroll their recent posts, and read top-performing content — hooks, formats, topics, and any visible engagement signals (reactions/comments/shares/views counts). Set `Source = "chrome-browser"`.
+   **Fallback:** If Claude in Chrome fails, use `WebSearch` / `perplexity` / `WebFetch` to find their recent top-performing visible posts. Set `Source = "web-research"`.
 2. Tag each with the **Hook Archetype** (from `content-creation/hook-library.md`) and `Format` you infer from the post.
-3. **Upsert** rows with `Owner="<competitor handle>"`, `Source="web-research"`. **Metrics are approximate or absent** — populate only what's visibly stated; leave the rest blank. **Do not** compute an Outlier Score for competitor rows (no per-account baseline). This is a *directional* benchmark, not a metric-for-metric match — say so in the Brief.
+3. **Upsert** rows with `Owner="<competitor handle>"`, `Source=<as determined in step 1>`. Apply the **Analytics Field Rules** above — populate only `required`/`optional` fields for the platform; omit `na` fields entirely. **Metrics are approximate or absent** — populate only what's visibly stated; leave the rest blank. **Do not** compute an Outlier Score for competitor rows (no per-account baseline). This is a *directional* benchmark, not a metric-for-metric match — say so in the Brief.
 
 ---
 
@@ -149,7 +216,7 @@ Save to `outputs/{brand}/strategy/PerformanceBrief_[DDMonYYYY].md` (the link-ski
 Date: YYYY-MM-DD
 Skill Used: content-performance-analyst
 Brand: {brand}
-Coverage: Zernio own-post metrics [available | metrics-pending] · Competitors [web-research]
+Coverage: Own posts [chrome-browser | zernio-fallback | metrics-pending] · Competitors [chrome-browser | web-research-fallback]
 Status: Final
 ---
 
@@ -204,7 +271,7 @@ Also confirm the row counts written to `${BRAND}_PERFORMANCE_DB` (self + per com
 - [ ] Step 0 pre-flight run; data coverage stated in the Brief (no fabricated metrics)
 - [ ] `${BRAND}_PERFORMANCE_DB` exists (bootstrapped + ID persisted if first run)
 - [ ] Own rows joined to calendar attributes via PublishLog (Topic+Platform+Date); upserted by Post ID (no dupes)
-- [ ] Outlier scores computed for self rows only; competitor rows have `Source=web-research` and no outlier score
+- [ ] Outlier scores computed for self rows only; competitor rows have no outlier score; `Source` set correctly per data path (chrome-browser / zernio / web-research)
 - [ ] Brief saved to `outputs/{brand}/strategy/` with double-down / stop-fix / you-vs-them / next-calendar guidance
 - [ ] Slack notification sent
 - [ ] Agent run logged to dashboard
@@ -229,7 +296,7 @@ Use gateway MCP tool `fiveagents_log_run`:
     "own_posts_analyzed": 0,
     "own_posts_with_metrics": 0,
     "competitor_posts": 0,
-    "coverage": { "zernio": "metrics|metrics-pending" },
+    "coverage": { "own_posts": "chrome-browser|zernio-fallback|metrics-pending", "competitors": "chrome-browser|web-research-fallback" },
     "winners": { "format": "...", "hook_archetype": "...", "direction": "..." },
     "brief_path": "outputs/{brand}/strategy/PerformanceBrief_...md",
     "performance_db_url": "https://notion.so/..."
@@ -240,7 +307,7 @@ Use gateway MCP tool `fiveagents_log_run`:
 
 ## Part of the pipeline
 
-**Phase 1 (Data) of the content loop.** Reads the PublishLog (`social-publisher`) + calendar (`social-calendar`), pulls Zernio per-post engagement, benchmarks competitors via web research, and emits the Performance Brief that `social-calendar` Step 1b consumes.
+**Phase 1 (Data) of the content loop.** Reads the PublishLog (`social-publisher`) + calendar (`social-calendar`), fetches per-post engagement via Claude in Chrome (with Zernio fallback), benchmarks competitors via Claude in Chrome (with web-research fallback), and emits the Performance Brief that `social-calendar` Step 1b consumes.
 
 ```
 social-publisher (PublishLog: post ID/URL) → content-performance-analyst (this skill → Performance Brief + ${BRAND}_PERFORMANCE_DB) → social-calendar Step 1b (plans from what worked)

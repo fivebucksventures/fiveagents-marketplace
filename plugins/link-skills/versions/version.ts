@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.14.3';
-const DEFAULT_DATE = 'June 08, 2026';
+const DEFAULT_VERSION = 'v2.14.4';
+const DEFAULT_DATE = 'June 09, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,13 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.14.4',
+    date: 'June 09, 2026',
+    changes: [
+      'content-performance-analyst v1.0.2: primary engagement source for all rows (own posts + competitors) switched to Claude in Chrome (computer use, user\'s authenticated Chrome — bypasses login walls on social analytics UIs); Zernio retained as fallback for own posts; web-research retained as fallback for competitors. Platform list now driven by late_list_accounts — no hardcoded platform options. DB schema aligned to actual Notion columns: Format adds Reel/Video; Source adds "chrome-browser"; "Impressions" renamed "Impressions / Views"; "Engagement Rate" number field added.',
+    ],
+  },
   {
     version: 'v2.14.3',
     date: 'June 08, 2026',
@@ -145,16 +152,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'Social-post templates migrated to fb.ai (fivebucks_* gateway tools). The dead template_upload/template_list/template_render API and local brands/{brand}/social-meta-*-template/ folders are gone. Templates are authored in Claude Design, uploaded via the fb.ai dashboard, discovered via fivebucks_list_templates (by type: meta-carousel | meta-story | linkedin-post | meta-post), and rendered via fivebucks_create_post → fivebucks_render_post → re-host on Zernio. Affects content-generator, creative-designer, brand-setup (Step 4c), plugin-update, content-creation, social-calendar, background-generator, agents/link.md.',
       'brand-setup Step 4c collapsed four near-identical install blocks into one shared flow (author → export → fb.ai dashboard upload → fivebucks_list_templates verify) + four type-specific Claude Design prompts using the native-image contract (per-slot _image/_image_position/_image_fit; template renders its own <img> + tint overlay; logo bundled at assets/logo.png, never in EDITMODE).',
       'New credential FIVEBUCKS_API_KEY (fbai_live_..., vault service fivebucks) added to brand-setup Step 2 + Step 7 and plugin.json userConfig. Optional — the Gemini + Pillow fallback path is unchanged when absent.',
-    ],
-  },
-  {
-    version: 'v2.6.6',
-    date: 'May 16, 2026',
-    changes: [
-      'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: silent-failure bug fix — Zernio tool params standardized to snake_case (date_from/date_to, account_id) across late_get_ads_timeline, late_get_ad_tree, late_list_ad_campaigns, late_get_ad_analytics. Old fromDate/toDate/accountId were silently returning empty/wrong data. Verified against live MCP schema.',
-      'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: late_get_ad_tree documented as the recommended path for Campaign → Ad Group/Set → Ad hierarchy in Google + Meta Zernio fallbacks (date-filterable, paginated 20/page default, max 100). late_list_ad_campaigns clearly flagged as lifetime-only (no date filter) — campaign metadata only. Google Ads adSets[] response field is actually ad-groups (Zernio naming quirk).',
-      'digital-marketing-analyst v2.3.3: critical template gotcha documented — meta_ads.no_active_campaigns: true skips the entire Meta summary box. Always set false; use new all_campaigns_paused field for pause state. Payload schema additions: Meta last_spend_date / days_dark / lp_views / leads / video_views / spend_*_lifetime + note on lifetime campaign rows / spend_usd: null for Zernio source; Google Ads conversions_note; richer GA4 funnel block (click_to_session_*_pct + per-stage event counts keyed off brand funnel.md).',
-      'digital-marketing-analyst v2.3.3 + data-analysis v2.3.3: brand-agnostic refactor — removed Five Agents-specific 2026-03-08 GA4 tracking-bug date (now read from brands/{brand}/funnel.md ga4_clean_data_start if set). Removed hardcoded trials KPI from Slack/log/combined_summary templates (now primary_conversions driven by brand\'s primary conversion event + primary_conversion_event / primary_conversion_label companion fields). Removed signup form assumption from analysis guidelines. Google Ads Zernio quirks: conversions always 0 — source proxy from brand\'s primary GA4 event in funnel.md (no hardcoded event name).',
     ],
   },
 ];

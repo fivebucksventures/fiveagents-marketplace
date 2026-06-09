@@ -147,7 +147,7 @@
         "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v1.0.1"
+    "version": "v1.0.2"
   },
   {
     "name": "creative-designer",
