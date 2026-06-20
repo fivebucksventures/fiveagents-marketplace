@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.0 | May 29, 2026 |
+| Link | v2.16.0 | June 20, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.16.0** — June 20, 2026
+- **Migration support for `gig-prospector` (new v2.16.0 Sales skill).** Step 1d adds `${BRAND}_GIGS_DB` to the auto-bootstrap inventory (count 9 → 10, informational only). Step 1a adds an inline schema check for `sales.md` `## Inbound Job Filters`; Step 3a adds a targeted backfill (runs `brand-setup` Step 5g Step H — markets, platforms + account status, product.md-derived keywords) for brands that pursue freelance work. Step 3k maps the `gig-prospector introduced` changelog entry to that optional brand action. The skill itself is auto-detected from the shipped `skills-manifest.json` (Step 1 registry read).
 
 **v2.14.0** — May 29, 2026
 - **Migration support for the YouTube-First pipeline.** Added a Step 1b `brand.md` checklist row for `## Content Strategy`; a Step 3e gap-fill (re-runs `brand-setup` Step 4a); Step 3k changelog→brand-action rows for YouTube-First Mode + the trend-radar synthesis requirement; and Step 1d/3f coverage for the new `${BRAND}_LATE_TT` / `${BRAND}_LATE_TW` organic account IDs (TikTok / Twitter-X) that `video-repurposer` needs. Brands missing `## Content Strategy` default to static planning until it's filled.
@@ -31,11 +34,6 @@ deps:
 
 **v2.10.2** — May 22, 2026
 - **Step cross-references and checklist corrected.** Step 3k: CLAUDE.md embed row fixed from "→ Step 3g" to "→ Step 3h"; Windsor.ai fallback row fixed from "→ Step 3e" to "→ Step 3f". Quality checklist: added Step 3f (env vars) item. Step 1k version audit example table annotated as "example only — read actual versions from disk".
-
-**v2.10.1** — May 21, 2026
-- **New Step 1i — fb.ai media library detection.** `fivebucks_list_media_folders` now called during the Step 1 inspection sweep; result (populated / empty) reported in the Step 2 gap report between the social-templates row and `brand.md sections`. Consistent with how Steps 1a (design-system/) and 1h (social templates) are handled. Steps renumbered: 1i (Notion DB) → 1j, 1j (version audit) → 1k; all cross-references updated.
-- **Step 3h — Visual System block refresh added (brand-setup Step 9c equivalent).** Runs unconditionally on every plugin-update execution. Probes `design-system/` locally, `fivebucks_get_brand_kit`, `fivebucks_list_templates`, and `fivebucks_list_media_folders`, then idempotently replaces the `<!-- BEGIN/END visual-system -->` markers in `CLAUDE.md` (or appends if absent). Fixes stale blocks for brands set up before Step 9c was introduced or before the media library row was added in v2.8.0.
-
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 
@@ -159,6 +157,8 @@ Check existence of each path under `brands/{brand}/`. Mark present/missing:
 
 **Inline schema check — sales.md Booking URL.** If `sales.md` is present, open it and verify the `## Sender Persona` block contains a non-empty `Booking URL:` line. If missing → flag as ⚠ schema gap and route to `brand-setup` Step 5g Step A backfill (single-question fix — only the Booking URL is asked, no need to re-walk the rest of the sub-step). The `outreach-sequencer` standing-link fallback, the `customer-onboarder` kickoff fallback, and the `{link}` placeholder in Reply Routing all depend on this field; brands set up before it was introduced will silently use empty CTAs until backfilled.
 
+**Inline schema check — sales.md Inbound Job Filters (v2.16.0).** If `sales.md` is present, check for a `## Inbound Job Filters` section. If missing → flag as ⏭ optional schema gap and route to the Step 3a targeted backfill (`brand-setup` Step 5g Step H — markets, platforms + account status, product.md-derived search keywords, budget/exclusions/cap). This section powers `gig-prospector`; without it that one skill can't run, but no existing skill breaks — so it's optional, not a required gap. Skip silently for brands that don't pursue freelance/marketplace work.
+
 ### 1b. brand.md sections
 
 Read `brands/{brand}/brand.md` and check for these section headers (added in different versions):
@@ -219,6 +219,7 @@ Read `.claude/settings.local.json` (search up from cwd). Check the `env` block:
 | `${BRAND}_ACTIONS_DB` | meeting-analyzer | v2.4.0 |
 | `${BRAND}_PERFORMANCE_DB` | content-performance-analyst | v2.13.0 |
 | `${BRAND}_TREND_DB` | trend-radar | v2.13.0 |
+| `${BRAND}_GIGS_DB` | gig-prospector | v2.16.0 |
 
 For each: if present + the matching DB exists in Notion → ✅ skip. If missing → not flagged as a gap (the skill will create on first run). The audit reports presence informationally only.
 
@@ -441,6 +442,7 @@ For each missing file in `brands/{brand}/`:
 - `backgrounds/` missing → just `mkdir`. No content needed (Gemini generates fresh per post since v2.2.9).
 - `sales.md` missing → run `brand-setup` Step 5g (Sales context). **Apply the Read-first pre-fill table at the top of Step 5g** — Sender Persona drafts from brand.md (founder name/title), ICP filters draft per persona from audience.md, disqualification blocklist drafts from competitors.md URLs, default tier per persona drafts from product.md Pricing. Only ask the user from scratch for fields that have no source.
 - `sales.md` present but Sender Persona is missing `Booking URL:` (flagged by Step 1a inline schema check) → ask only the single question: "What's your public Calendly scheduling link (e.g. `https://calendly.com/you/intro-call`)?" Append `- Booking URL: {url}` to the Sender Persona block of `brands/{brand}/sales.md`. Do NOT re-run the full Step 5g — Sender Persona Name/Title/Signature/Photo are already populated; this is a targeted backfill only.
+- `sales.md` present but missing `## Inbound Job Filters` (flagged by Step 1a inline schema check) → ask first: "Does this brand pursue freelance/marketplace work (Upwork, Freelancer.com, etc.)?" If no → skip (not a gap; `gig-prospector` simply won't run). If yes → run `brand-setup` Step 5g **Step H** only: confirm Markets, Platforms + account status, **draft Search Keywords from `product.md`** (never hardcode), then Budget Floor / Exclusions / Daily Cap. Append the `## Inbound Job Filters` section to `brands/{brand}/sales.md` — do NOT re-walk the rest of Step 5g. `${BRAND}_GIGS_DB` auto-bootstraps on `gig-prospector`'s first run.
 - `customer-success.md` missing → run `brand-setup` Step 5h. **Apply the Read-first pre-fill table at the top of Step 5h** — Plan Tiers drafts from product.md Pricing, Onboarding Milestone trigger events draft from funnel.md GA4 events, Intervention Playbook copy drafts from brand.md voice. Only ask the user from scratch for fields that have no source.
 - `finance.md` missing → run `brand-setup` Step 5i. **Apply the Read-first pre-fill table at the top of Step 5i** — Escalation Tone Ladder copy drafts from brand.md voice, currency / Alert Threshold formatting from brand.md `## Locale`, KPIs to Highlight defaults to MRR/ARR if product.md Pricing implies subscription else project margin / cash collected. Only ask the user from scratch for fields that have no source.
 - `investors.md` missing → ask first: "Have you raised external capital?" If no → skip (not flagged as gap). If yes → run `brand-setup` Step 5j. **Apply the Read-first pre-fill table at the top of Step 5j** — Sections to Include KPIs draft from finance.md (if present), drafting tone falls back to brand.md voice if user pastes <2 prior updates, sender attribution drafts from sales.md Sender Persona. Only ask the user from scratch for the investor list and prior-updates archive (those have no other source).
@@ -804,6 +806,7 @@ For each skill/agent flagged as changed in Step 1k, read its `### Change Log` bu
 | `digital-marketing-analyst v2.3.0 / data-analysis v2.3.0 — Windsor.ai fallback via Zernio (v2.5.0–v2.5.1)` | ✅ Check `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) + `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID) + `${BRAND}_LATE_META_ADS_ACCOUNT_ID` + `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` in env. Both Google vars and both LinkedIn vars are required pairs for Zernio ads calls. LinkedIn vars are optional — skip if the brand doesn't run LinkedIn Ads. If missing → run Step 3f auto-discover (also handles legacy `_LATE_GOOGLE_ADS_ACCOUNT_ID` → `_LATE_GOOGLE_ADS` rename) |
 | `social-calendar YouTube-First Mode added (v2.14.0)` | ✅ Check `brands/{brand}/brand.md` has `## Content Strategy` section. If missing → run brand-setup Step 4a to define primary channel. Without it, social-calendar defaults to static mode regardless of the brand's actual publishing workflow. |
 | `trend-radar synthesis requirement added (v2.14.0)` | ✅ No brand file action required — the skill now synthesizes competitor research + web research before writing to Trend DB. Existing `competitors.md` already serves as the competitor input. |
+| `gig-prospector introduced (link-skills v2.16.0)` | ⏭ Optional — ask if the brand pursues freelance/marketplace work. If yes → check `brands/{brand}/sales.md` has a `## Inbound Job Filters` section; if missing → run `brand-setup` Step 5g Step H (markets, platforms + account status, product.md-derived keywords, budget/exclusions/cap). `${BRAND}_GIGS_DB` auto-bootstraps on first run; `FREELANCER_OAUTH_TOKEN` is an optional env var that enables the Freelancer.com API source. No existing skill breaks if skipped. |
 
 For changelog entries not in this table, apply judgment: if the change touches a per-brand configuration file (`brand.md`, `funnel.md`, `.claude/settings.local.json`, `CLAUDE.md`) → flag for review. If it is a skill-internal logic change → no brand action needed.
 
@@ -932,7 +935,8 @@ Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; 
 - [ ] Step 0 read every skill/agent maintenance section and built the version delta table
 - [ ] Step 1 ran a full inspection without prompting the user
 - [ ] Step 1a checked all 5 new brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with optional annotations applied to investors.md and operations.md
-- [ ] Step 1d checked the 9 auto-bootstrapped DB env vars (incl. v2.13.0 `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB`) without flagging missing ones as required gaps
+- [ ] Step 1d checked the 10 auto-bootstrapped DB env vars (incl. v2.13.0 `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB` and v2.16.0 `${BRAND}_GIGS_DB`) without flagging missing ones as required gaps
+- [ ] Step 1a inline schema check for sales.md `## Inbound Job Filters` ran; missing section offered as an optional Step 3a backfill (gig-prospector) — not flagged as a required gap
 - [ ] Step 1e probed all 7 v2.4.0 / v2.2.13 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional Meta Ads MCP)
 - [ ] Step 3f walked the user through any ❌ or missing env vars and ran auto-discover for `{BRAND}_LATE_*` vars where applicable
 - [ ] Step 3g walked the user through every ❌/⏭ MCP with the explicit per-MCP prompt — never silently skipped a missing connector

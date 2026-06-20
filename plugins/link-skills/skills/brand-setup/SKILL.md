@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.0 | May 29, 2026 |
+| Link | v2.16.0 | June 20, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.16.0** — June 20, 2026
+- **New Step 5g Step H — Inbound Job Filters** (powers the new `gig-prospector` Sales skill). Captures the **Markets** to monitor (Singapore / Indonesia / Malaysia / Thailand / Australia / Global-Remote), the **Platforms** to scan — each tagged *have account* / *no account* — the **Search Keywords** (drafted from `product.md`, i.e. what the brand actually sells — never hardcoded), and Budget Floor / Exclusions / Daily Cap. Written to a new `## Inbound Job Filters` section in the `sales.md` template. Pre-fill mapping gains `product.md` → Step H (keywords) and `brand.md` → Step H (markets) rows. Skippable for brands that don't pursue marketplace work.
 
 **v2.14.0** — May 29, 2026
 - **New Step 4a — Content Strategy.** Captures the brand's primary content channel (`youtube` vs `static`), distribution + connected platforms, and clips per video; writes a `## Content Strategy` section to `brand.md` (also added to the brand.md template in Step 4). `social-calendar` reads this at runtime to choose YouTube-First vs Static planning mode; platform names are never hardcoded — only what the user confirms is written.
@@ -32,10 +35,6 @@ deps:
 
 **v2.8.3** — May 22, 2026
 - **Argil and avatars.md fully removed.** Removed `avatars.md` from Step 5 overview, Step 3 directory tree, Step 5 opening paragraph, CLAUDE.md workspace template (Step 9b), and Step 10 email `files[]`. Removed Argil from Step 7a connector description, Step 8 validation table, Step 8d translation table, and Step 10 `connections[]`. Calendly corrected to `outreach-sequencer / customer-onboarder` in Step 7b MCP table, Step 8c-bis probe 19, and Step 8 summary table.
-
-**v2.8.2** — May 21, 2026
-- **Step 4c export-marker contract rewritten to match fb.ai's renderer.** The renderer now captures each `data-export-id` element at the manifest canvas size (it pins the element to the viewport, un-scales it, and hides everything else first), so templates no longer need the fragile off-screen mirror pattern. New shared **Export-marker contract** section (alongside the native-image contract) states the rules once: mark the full-size 1:1 artboard exactly once, static string literals only (explicitly forbidding the `data-export-id="${dir}-${i}"` template-literal-in-quotes mistake that leaked a junk slide into a live manifest), never `display:none` the variant being exported. Story prompt (4c-ii) no longer mandates the `position:fixed; left:-99999px` hidden block; Carousel prompt (4c-i) now says to mark the full-size artboard, not the scaled preview wrapper (was exporting at preview resolution ~300×375); LinkedIn / Meta Post prompts (4c-iii/iv) now gate inactive directions with `visibility:hidden`/`opacity:0`/off-screen instead of `display:none`.
-
 
 # Brand Setup — New Client Onboarding
 
@@ -995,7 +994,7 @@ Each client's funnel is unique — the digital-marketing-analyst reads this file
 
 #### Step 5g — Sales context
 
-> The first new v2.4.0 file. `sales.md` powers your outbound sales engine — `apollo-lead-prospector` reads ICP filters from it to query Apollo, `outreach-sequencer` uses the sender persona and sequence templates to drive cold email loops, and `proposal-generator` uses the proposal defaults when packaging deals. Without this file, those 3 skills can't run on this brand at all.
+> The first new v2.4.0 file. `sales.md` powers your sales engine — `apollo-lead-prospector` reads ICP filters from it to query Apollo, `outreach-sequencer` uses the sender persona and sequence templates to drive cold email loops, `proposal-generator` uses the proposal defaults when packaging deals, and (v2.16.0) `gig-prospector` reads the **Inbound Job Filters** (Step H) to discover freelance jobs the brand can bid on. Without this file, those skills can't run on this brand at all.
 >
 > **Expect ~7 questions over 5–10 minutes.** Step B (ICP filters) repeats once per persona, so it scales with how many personas you defined in Step 4. Most prompts have smart defaults — Apollo people-search filters can be derived from `audience.md`, daily quota defaults to 20/persona, sequence shape defaults to 5-touch over 14 days unless you specify otherwise.
 
@@ -1009,6 +1008,8 @@ Generate `brands/{brand}/sales.md`. Unlike `product.md` / `competitors.md` (whic
 | `audience.md` | Personas + their job titles, industries, company sizes, geos, pain points | Step B (ICP Filters — pre-drafted per persona), Step E (Sequence Templates — pain-point hooks per persona) |
 | `competitors.md` | Competitor URLs | Step C (Disqualification — derive `competitor_domains` blocklist from URLs; auto-set "skip if competitor employee" toggle to `yes`) |
 | `product.md` | Pricing section tier names | Step G (Proposal Defaults — Default tier per persona) |
+| `product.md` | Overview / Features / Differentiators (services + tools the brand sells) | Step H (Inbound Job Filters — drafts the Search Keywords from what the brand actually delivers; never hardcoded) |
+| `brand.md` | Locale / geography | Step H (Inbound Job Filters — proposes the default Markets to monitor) |
 
 If a source file is empty or absent, fall back to asking the user from scratch for that field only — don't block the whole sub-step.
 
@@ -1057,6 +1058,23 @@ Default rules — confirm with the user, but only ask if they want to deviate:
 > - Validity period (default: 30 days)
 > - Default tier per persona (read tier names from `brands/{brand}/product.md` Pricing section)
 > - Upsell rules (e.g. "always offer annual billing with 15% discount", "include onboarding add-on for Enterprise")
+
+**Step H — Inbound Job Filters (gig-prospector):**
+
+> `gig-prospector` (v2.16.0) is the **inbound** counterpart to `apollo-lead-prospector`: instead of sourcing people to email, it scans freelance marketplaces every day for open jobs the brand can bid on, scores them for fit, and drops matches into a Notion opportunities DB. This block configures *where it looks* and *what it looks for*. Skip it if the brand does not pursue marketplace/freelance work — `gig-prospector` simply won't run for this brand.
+
+Capture four things. **Pre-draft from context first** (per the table above) — only ask the user to confirm or edit:
+
+1. **Markets** — which markets to monitor. Pre-propose from `brand.md` Locale/geography; offer the full set: `Singapore`, `Indonesia`, `Malaysia`, `Thailand`, `Australia`, `Global-Remote`. Multi-select.
+   > Which markets should I watch for freelance jobs? (Singapore / Indonesia / Malaysia / Thailand / Australia / Global-Remote — pick any.)
+2. **Platforms + account status** — which marketplaces to search, and **whether the brand has an account on each** (account status decides whether `gig-prospector` can read login-walled listings vs public pages only). Propose the platforms that serve the chosen markets:
+   > For each platform you want me to scan, tell me if you already have an account there (so I can reach listings behind a login). Recommended set by market: **Upwork** (global), **Freelancer.com** (global + SG/MY/ID/AU), **Projects.co.id** / **Sribu** (Indonesia), **Fastwork** (Thailand/Indonesia), **Freelancing.my** (Malaysia), plus **PeoplePerHour** (global, secondary) and **Jobbers.io** (SG/MY, lower-confidence). **Airtasker** (Australia) only if you do task/services work — it's low-yield for tech/automation. Singapore has no dedicated project marketplace (use the global platforms). Skip gig-catalog sites (Fiverr) and employment boards (JobStreet/Indeed) — they aren't project-bidding marketplaces. Add any others you use.
+
+   Record each as `platform — have account` / `platform — no account`. If they have a **Freelancer.com** account and want the deterministic API source, note that an optional `FREELANCER_OAUTH_TOKEN` can be added later (Step 7b vault) to scan it without browser scraping.
+3. **Search Keywords** — **derive these from `product.md`, do not hardcode.** Read the Overview / Features / Differentiators and draft the concrete services + tools the brand sells (e.g. the platforms it builds on, "integration", "workflow", the apps it connects), then show the drafted list and ask the user to confirm/trim/add. These become the per-platform search terms.
+4. **Budget Floor, Exclusions, Daily Cap** — minimum acceptable budget/rate (optional), keywords/client-types/geos to skip, and max opportunities to add per day (default 30).
+
+> **Account & login note:** `gig-prospector` reads listings through **Claude in Chrome** (the user's own authenticated browser — it beats Cloudflare and reads behind logins) and pauses for the user to sign in if a login wall appears. So "have account" platforms get full coverage; "no account" platforms get public-page coverage only. This is configuration, not a connection step — no OAuth here.
 
 Save as `brands/{brand}/sales.md` with the following sections:
 
@@ -1116,6 +1134,17 @@ Save as `brands/{brand}/sales.md` with the following sections:
   - {persona-slug-1}: {tier name from product.md}
   - {persona-slug-2}: {tier name}
 - Upsell rules: ...
+
+## Inbound Job Filters
+# Read by gig-prospector (v2.16.0). Omit this whole section if the brand does not pursue freelance/marketplace work.
+- Markets: [Singapore | Indonesia | Malaysia | Thailand | Australia | Global-Remote]   # any subset
+- Platforms:                                # each tagged "have account" / "no account"
+  - {platform-1}: have account | no account
+  - {platform-2}: have account | no account
+- Search Keywords: [...]                     # DERIVED from product.md (services + tools the brand sells); never hardcoded
+- Budget Floor: {e.g. $500 fixed / $25/hr — or "none"}
+- Exclusions: [...]                          # keywords / client types / geographies to skip
+- Daily Cap: {N}                             # max opportunities added per day (default 30)
 ```
 
 #### Step 5h — Customer Success context

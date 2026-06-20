@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.14.0"
+    "version": "v2.16.0"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.14.0"
+    "version": "v2.16.0"
   },
   {
     "name": "background-generator",
@@ -372,6 +372,34 @@
       ]
     },
     "version": "v2.4.0"
+  },
+  {
+    "name": "gig-prospector",
+    "area": "Sales",
+    "use_for": "Daily inbound freelance-job discovery across chosen markets/platforms, scored for service fit, deduplicated, dropped into a Notion opportunities DB",
+    "description": "Daily inbound freelance-job discovery across the markets and platforms the brand chose — scrapes job posts via Claude in Chrome (Freelancer.com API where available), scores each for service fit, deduplicates, and drops matches into a Notion opportunities DB. Runs daily on cron schedule.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack",
+        "Claude in Chrome (opt — primary job-scrape source; degrades to Freelancer.com API + web research when absent)"
+      ],
+      "gateway": [
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "sales.md",
+        "product.md",
+        "brand.md",
+        "audience.md",
+        "competitors.md"
+      ],
+      "env": [
+        "`${BRAND}_GIGS_DB` (auto-bootstraps on first run)",
+        "`FREELANCER_OAUTH_TOKEN` (opt — enables the Freelancer.com API source)"
+      ]
+    },
+    "version": "v2.16.0"
   },
   {
     "name": "outreach-sequencer",

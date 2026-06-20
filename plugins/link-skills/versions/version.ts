@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.15.0';
-const DEFAULT_DATE = 'June 09, 2026';
+const DEFAULT_VERSION = 'v2.16.0';
+const DEFAULT_DATE = 'June 20, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,16 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.16.0',
+    date: 'June 20, 2026',
+    changes: [
+      'gig-prospector v2.16.0 (NEW, Sales): the inbound counterpart to apollo-lead-prospector — instead of sourcing people to email, it scans freelance marketplaces (Upwork, Freelancer.com, Projects.co.id, Sribu, Fastwork, Freelancing.my, PeoplePerHour, Jobbers.io, Airtasker) across the brand\'s chosen markets (Singapore/Indonesia/Malaysia/Thailand/Australia/Global-Remote) via Claude in Chrome, with the Freelancer.com API as a deterministic source when FREELANCER_OAUTH_TOKEN is set. Search terms are derived from product.md (what the brand sells) — never hardcoded. Scores each job for service fit (45/20/20/15), dedupes against ${BRAND}_GIGS_DB by Job UID/URL, and drops matches as Status="New" for proposal-generator. Degrades to API + web research when Chrome MCP is absent.',
+      'brand-setup v2.16.0: new Step 5g Step H — Inbound Job Filters. Captures Markets, Platforms (each tagged have-account / no-account), Search Keywords (drafted from product.md, never hardcoded), and Budget Floor / Exclusions / Daily Cap; writes a ## Inbound Job Filters section to the sales.md template. Pre-fill mapping gains product.md → Step H (keywords) and brand.md → Step H (markets) rows. Skippable for brands that don\'t pursue marketplace work.',
+      'plugin-update v2.16.0: migration support for gig-prospector — ${BRAND}_GIGS_DB added to the Step 1d auto-bootstrap inventory (9 → 10), Step 1a sales.md ## Inbound Job Filters schema check + Step 3a optional backfill (runs brand-setup Step 5g Step H), and a Step 3k changelog → brand-action row. The skill itself is auto-detected from the shipped skills-manifest.json.',
+      'link.md v2.16.0: registered gig-prospector (Sales); added the Inbound gigs skill chain (gig-prospector → proposal-generator) and relabelled the outbound chain; gig-prospector added as a Claude in Chrome consumer in the MCP Connectors list; domain map regenerated (28 skills, Sales now 4).',
+    ],
+  },
   {
     version: 'v2.15.0',
     date: 'June 09, 2026',
@@ -140,17 +150,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator v2.10.0: Step 1c row parsing now reads [10] SlideId, [11] Status; Step 4c-template §6 render made template-type-specific with position-against-manifest slide_ids resolution; Step 6 status-update string match + cell index updated to 12 columns; checklist bullet added.',
       'creative-designer v2.10.0: Step 4a render mirrors the same per-type + position-based slide_ids rule (canonical impl in content-generator Step 4c-template §6); checklist updated.',
       'brand-setup v2.8.1 + plugin-update v2.8.1: explicit fb.ai paid-product context shown before any fivebucks.ai link, and the Cowork directory-access flow (mcp__cowork__request_cowork_directory on the user-provided design-system path; skipped in local Claude Code; in-project fallback if declined).',
-    ],
-  },
-  {
-    version: 'v2.9.0',
-    date: 'May 20, 2026',
-    changes: [
-      'Design system stays LOCAL (brands/{brand}/design-system/) as the crucial free baseline, with an OPTIONAL fb.ai brand-kit upload for paid users. brand-setup Step 4b keeps the local copy flow and adds optional Step D (upload ZIP to fb.ai /dashboard/social-posts/brand-kit); plugin-update Step 3b restores the local copy flow + optional fb.ai upload.',
-      'New optional Media Library step — brand-setup Step 4d + plugin-update Step 3d: upload brand photos to the fb.ai media library (/dashboard/social-posts/media), discovered via fivebucks_list_media_folders / fivebucks_list_media_files.',
-      '3-tier brand color/font lookup wired across agents/link.md + 8 visual skills: fb.ai brand kit (fivebucks_get_brand_kit) → local design-system/ → brand.md. New Brand kit field map in link.md documents only the non-obvious JSON mappings (secondary→tokens.colors.accent, text→tokens.colors.dark, no font weight scale). Gamma payloads (financial-reporter, investor-update-writer, proposal-generator) no longer request an unfillable secondary {HEX}.',
-      'fb.ai template upload moved to the new dashboard URLs (/dashboard/social-posts/api-keys → /templates); credential setup points to the api-keys page.',
-      'Skills bumped: brand-setup v2.8.0, plugin-update v2.8.0, background-generator v2.8.0, content-creation v2.8.0, content-generator v2.8.0, creative-designer v2.8.0, campaign-presenter v2.3.0, financial-reporter v2.5.0, proposal-generator v2.5.0, investor-update-writer v2.6.0, agents/link.md v2.11.0.',
     ],
   },
 ];

@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.15.0 | June 09, 2026 |
+| Link | v2.16.0 | June 20, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.16.0** — June 20, 2026
+- **New Sales skill `gig-prospector` registered.** The **inbound** counterpart to `apollo-lead-prospector` (outbound): scans freelance marketplaces — Upwork, Freelancer.com, Projects.co.id, Sribu, Fastwork, Freelancing.my, and others — across the brand's chosen markets (Singapore / Indonesia / Malaysia / Thailand / Australia / Global-Remote) via **Claude in Chrome** (with the Freelancer.com API as a deterministic source when `FREELANCER_OAUTH_TOKEN` is set), scores each job for service fit, dedupes against `${BRAND}_GIGS_DB`, and drops matches as `Status="New"`. **Search terms are derived from `product.md` — never hardcoded.** Added the **Inbound gigs** skill chain (`gig-prospector → proposal-generator`); `gig-prospector` added as a Claude in Chrome consumer in the MCP Connectors list; domain map regenerated (28 skills). `brand-setup` Step 5g Step H writes the `## Inbound Job Filters` config block; `plugin-update` migrates existing brands.
 
 **v2.15.0** — June 09, 2026
 - **Competitor video structure analysis wired across the Content Engine.** `trend-radar` Step 2c uses Claude in Chrome to visit competitor-remix YouTube source URLs, open the transcript, and extract a 6-part `video_structure` anatomy (credibility hook, pattern interruptor, framework, build-with-escalation, reflection beat, close/CTA) stored on the `${BRAND}_TREND_DB` entry. `social-calendar` Step 2a Part 1b reads that structure and maps each element to the brand's own credibility angle, writing a Video Structure table to the calendar with clips traced to video sections. `content-creation` Step 2b turns the Video Structure table into a YouTube script skeleton (added "YouTube video script" to its format taxonomy). Updated the **Content Engine — 5 Phases** table (Phase 2 / Phase 3 / Phase 4 notes); `trend-radar` deps add Claude in Chrome (opt — degrades to text-only when absent). Added **Claude in Chrome MCP** to the MCP Connectors list — it was already the primary engagement-metrics source for `content-performance-analyst` but had never been documented as a connector.
@@ -25,9 +28,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 **v2.14.0** — May 29, 2026
 - **YouTube-First content pipeline.** `social-calendar` now plans in one of two modes driven by the new `## Content Strategy` section in `brand.md` (written by `brand-setup` Step 4a): YouTube-First (one weekly video + a per-platform Clip Release Schedule for connected platforms) or Static (the existing 14-post week). New Marketing skill **`video-repurposer`** executes Phase 4–5 (download YouTube → extract clips → publish via Zernio). Added the **Content Engine — 5 Phases** table to the Skills section, and `content strategy` to the `brand.md` context-file descriptor.
 - **`trend-radar` synthesis-before-write rule.** `trend-radar` now synthesizes three inputs before scoring/writing — own post performance + competitor benchmarking (both from the Phase 1 Performance Brief) + web research — with new competitor-differentiation and own-performance-alignment scoring criteria, and must not write to `${BRAND}_TREND_DB` until synthesis is complete. Updated the **Timely content** skill chain to `content-performance-analyst → trend-radar → social-calendar` to reflect the new dependency on the Performance Brief.
-
-**v2.13.1** — May 28, 2026
-- **`video-downloader` reworked to run inline (Cowork-correct).** Removed the bundled `scripts/download_video.py` and the `$CLAUDE_PLUGIN_ROOT` path — Cowork (the runtime) doesn't expose that variable and link-skills has no bundled-runtime-script convention. yt-dlp now runs inline (`python3 -m pip install yt-dlp` → `python3 -m yt_dlp`) in the skill's Bash block, matching content-generator's local-glue pattern. No other skill affected.
 
 # Link — Business Operations Agent
 
@@ -109,10 +109,10 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 
 <!-- BEGIN skills-table (generated) -->
 <!-- prettier-ignore -->
-**27 skills across 7 areas.**
+**28 skills across 7 areas.**
 - **Setup** (2): `brand-setup` · `plugin-update`
 - **Marketing** (13): `background-generator` · `campaign-presenter` · `content-creation` · `content-generator` · `content-performance-analyst` · `creative-designer` · `data-analysis` · `digital-marketing-analyst` · `research-strategy` · `social-calendar` · `social-publisher` · `trend-radar` · `video-repurposer`
-- **Sales** (3): `apollo-lead-prospector` · `outreach-sequencer` · `proposal-generator`
+- **Sales** (4): `apollo-lead-prospector` · `gig-prospector` · `outreach-sequencer` · `proposal-generator`
 - **Customer Success** (2): `churn-predictor` · `customer-onboarder`
 - **Finance** (2): `financial-reporter` · `invoice-collector`
 - **Strategy** (3): `competitor-monitor` · `decision-advisor` · `investor-update-writer`
@@ -130,7 +130,8 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 | YouTube repurposing | social-calendar (YouTube-First) → video-repurposer (clips + publish) → content-performance-analyst (PublishLog) |
 | Timely content | content-performance-analyst → trend-radar → social-calendar |
 | Analytics deck | data-analysis → campaign-presenter |
-| Sales pipeline | research-strategy → apollo-lead-prospector → outreach-sequencer → proposal-generator |
+| Sales pipeline (outbound) | research-strategy → apollo-lead-prospector → outreach-sequencer → proposal-generator |
+| Inbound gigs | gig-prospector → proposal-generator |
 | Customer retention | customer-onboarder → churn-predictor |
 | Monthly close | invoice-collector → financial-reporter → investor-update-writer |
 | Strategic intelligence | competitor-monitor → investor-update-writer |
@@ -157,7 +158,7 @@ The organic-content loop — **measure → learn → create** — runs across fi
 ### MCP Connectors (OAuth — client connects in Claude settings)
 - **Notion MCP** — content calendar, page management
 - **Slack MCP** — messaging and notifications
-- **Claude in Chrome MCP** *(optional)* — drives the user's own authenticated Chrome (computer use) to read content that sits behind login walls or has no API. Used by `content-performance-analyst` as the **primary** engagement-metrics source (own posts + competitors, via each platform's analytics/insights UI) and by `trend-radar` Step 2c to open competitor YouTube videos and extract the `video_structure` anatomy from the transcript. Every consumer degrades gracefully when it's absent (Zernio/web-research fallback for analytics; text-only metadata for trend-radar).
+- **Claude in Chrome MCP** *(optional)* — drives the user's own authenticated Chrome (computer use) to read content that sits behind login walls or has no API. Used by `content-performance-analyst` as the **primary** engagement-metrics source (own posts + competitors, via each platform's analytics/insights UI), by `trend-radar` Step 2c to open competitor YouTube videos and extract the `video_structure` anatomy from the transcript, and by `gig-prospector` to scrape freelance job posts across marketplaces (the real browser beats Cloudflare and reads login-walled listings; Freelancer.com API fallback). Every consumer degrades gracefully when it's absent (Zernio/web-research fallback for analytics; text-only metadata for trend-radar; API + web-research for gig-prospector).
 - **Gmail MCP** — search, read, create drafts
 - **Google Calendar MCP** — calendar access
 - **Windsor.ai MCP** *(required for every brand)* — Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data. Universal source; brand-setup mandates all three connectors. Meta data is pulled with `source: "facebook"`.
