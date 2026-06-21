@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.16.0 | June 20, 2026 |
+| Link | v2.17.0 | June 21, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.17.0** — June 21, 2026
+- **Inbound Gig Engine connectors registered.** Added **n8n Cloud** as an optional business-ops MCP (Step 2 overview row 15 + Step 7c walkthrough) — used by `n8n-workflow-builder` to build the proof-of-concept workflow that backs an inbound gig bid; skip → that one skill is unconfigurable for the brand, the rest of the pipeline (`gig-prospector → gig-proposal-writer`) still runs. Added the optional `${BRAND}_N8N_PROJECT` env var (Step 7b optional table) to target a specific n8n project/folder; absent → workflows land in the default project. Backfilled the missing `${BRAND}_GIGS_DB` row (bootstrapped by `gig-prospector`, v2.16.0) into the auto-bootstrapped Notion DB table — no user action, created on first run like the others.
 
 **v2.16.0** — June 20, 2026
 - **New Step 5g Step H — Inbound Job Filters** (powers the new `gig-prospector` Sales skill). Captures the **Markets** to monitor (Singapore / Indonesia / Malaysia / Thailand / Australia / Global-Remote), the **Platforms** to scan — each tagged *have account* / *no account* — the **Search Keywords** (drafted from `product.md`, i.e. what the brand actually sells — never hardcoded), and Budget Floor / Exclusions / Daily Cap. Written to a new `## Inbound Job Filters` section in the `sales.md` template. Pre-fill mapping gains `product.md` → Step H (keywords) and `brand.md` → Step H (markets) rows. Skippable for brands that don't pursue marketplace work.
@@ -32,9 +35,6 @@ deps:
 **v2.9.0** — May 23, 2026
 - **Step 4b Claude Design setup rewritten for the new claude.ai/design UI.** Flow is now Design System → **Create** → the **"Set up your design system"** attach form (company name + blurb; optional GitHub repo / local code / `.fig` file / fonts+logos+assets; brand colors, fonts and voice pasted into **Any other notes**) → **Continue to generation**. Added a placeholder-substitution table and a ready-to-paste, website-aware generation prompt that points Claude at the brand's live site to validate and fill in the visual identity automatically.
 - **Step 4d media library now defines per-template-type folder names.** Users create one folder per template type, named **exactly** `LinkedIn Post` / `Meta Story` / `Meta Carousel` / `Meta Post`, so `content-generator`'s media pool can match photos to the right template at runtime; only create folders for template types that exist on fb.ai.
-
-**v2.8.3** — May 22, 2026
-- **Argil and avatars.md fully removed.** Removed `avatars.md` from Step 5 overview, Step 3 directory tree, Step 5 opening paragraph, CLAUDE.md workspace template (Step 9b), and Step 10 email `files[]`. Removed Argil from Step 7a connector description, Step 8 validation table, Step 8d translation table, and Step 10 `connections[]`. Calendly corrected to `outreach-sequencer / customer-onboarder` in Step 7b MCP table, Step 8c-bis probe 19, and Step 8 summary table.
 
 # Brand Setup — New Client Onboarding
 
@@ -179,6 +179,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | 12 | **Xero** *(business-ops)* | Invoice sync + P&L pull — used by `invoice-collector`, `financial-reporter` | Settings → Connected Apps → Xero → Authorize |
 | 13 | **PostHog** *(business-ops, optional)* | Product-usage signals for churn scoring — used by `churn-predictor`. Skip → falls back to support-ticket + login-frequency only | Settings → Connected Apps → PostHog → Authorize |
 | 14 | **Gamma** *(business-ops, optional)* | Investor decks — used by `investor-update-writer`. Skip → updates render as plain markdown / email | Settings → Connected Apps → Gamma → Authorize |
+| 15 | **n8n Cloud** *(business-ops, optional)* | Builds the proof-of-concept automation that backs an inbound gig bid — used by `n8n-workflow-builder`. Skip → that skill is unconfigurable for this brand; the rest of the gig pipeline still runs | Settings → Connected Apps → n8n Cloud → Authorize |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
@@ -1741,6 +1742,7 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 | 6 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
 | 7 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
 | 8 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c; see Step 4b for what fb.ai is) | https://www.fivebucks.ai/dashboard/social-posts/api-keys — sign in, generate API Key, save it somewhere safe. Skip if not using Claude Design social templates. |
+| 9 | `{BRAND}_N8N_PROJECT` | Targets a specific n8n project/folder for `n8n-workflow-builder`'s demo workflows | n8n Cloud → open the target project → copy its project ID/name. Skip → workflows land in the n8n account's default project. Only relevant if you connected n8n Cloud. |
 
 **Save ALL keys to `.claude/settings.local.json`:**
 
@@ -1770,6 +1772,7 @@ Several skills each maintain their own Notion database for state — CRM, custom
 | `${BRAND}_ACTIONS_DB` | `meeting-analyzer` |
 | `${BRAND}_PERFORMANCE_DB` | `content-performance-analyst` |
 | `${BRAND}_TREND_DB` | `trend-radar` |
+| `${BRAND}_GIGS_DB` | `gig-prospector` (the Inbound Gig Engine's shared opportunities DB; `gig-proposal-writer` / `n8n-workflow-builder` / `vsl-demo-producer` extend it in place) |
 
 If the user later wants to point a skill at a pre-existing Notion DB instead of letting it auto-create one, they can paste the DB page ID into `.claude/settings.local.json` under the matching env var name before the skill's first run — the skill will detect the existing var and skip the bootstrap step.
 
@@ -1858,6 +1861,7 @@ These MCPs are the connection layer for the v2.4.0 business-operations skills. *
 | 10 | **Xero** | `invoice-collector` (invoice sync), `financial-reporter` (P&L) | `financial-reporter` falls back to Stripe-only data |
 | 11 | **PostHog** *(optional)* | `churn-predictor` (product-usage signals) | `churn-predictor` falls back to support-ticket + login-frequency signals only |
 | 12 | **Gamma** *(optional)* | `investor-update-writer` (monthly investor decks) | `investor-update-writer` becomes unconfigurable for this brand |
+| 13 | **n8n Cloud** *(optional)* | `n8n-workflow-builder` (proof-of-concept workflow for inbound gig bids) | `n8n-workflow-builder` becomes unconfigurable; the rest of the gig pipeline (`gig-prospector → gig-proposal-writer`) still runs |
 
 Walk the user through each one in order. Post the prompt verbatim, wait for "done" or "skip", then move on.
 
@@ -1879,7 +1883,10 @@ Walk the user through each one in order. Post the prompt verbatim, wait for "don
 - **Gamma** *(optional)*:
   > Gamma generates investor decks for `investor-update-writer`'s monthly cron run. Connect: **Settings → Connected Apps → Gamma → Authorize**, then tell me when done. (Skip if you don't deliver investor updates — `investor-update-writer` will be unconfigurable for this brand.)
 
-**Do not proceed to Step 8 until the user has responded to every integration in Step 7 — either configured or explicitly skipped.** This includes the 6 business-ops MCPs above; if you skip them silently, Step 8c-bis will mark them ❌ and the user will hit "MCP not connected" errors on the first run of each dependent skill.
+- **n8n Cloud** *(optional)*:
+  > n8n Cloud builds the proof-of-concept automation that backs an inbound gig bid — used by `n8n-workflow-builder` (the Prove phase of the Inbound Gig Engine). Connect: **Settings → Connected Apps → n8n Cloud → Authorize**, then tell me when done. (Skip if you don't pursue freelance/marketplace work, or don't demo automations — `n8n-workflow-builder` will be unconfigurable, but `gig-prospector` and `gig-proposal-writer` still run.)
+
+**Do not proceed to Step 8 until the user has responded to every integration in Step 7 — either configured or explicitly skipped.** This includes the 7 business-ops MCPs above; if you skip them silently, Step 8c-bis will mark them ❌ and the user will hit "MCP not connected" errors on the first run of each dependent skill.
 
 ### Step 8 — Validate Connections
 
@@ -2006,9 +2013,9 @@ Show the user the events found:
 
 After the user confirms, **update `brands/{brand}/funnel.md`** — replace any `TBD` event names with the confirmed GA4 event names.
 
-**8c-bis. Business-operations MCPs (only if connected in Step 7 — used by the v2.4.0 skills):**
+**8c-bis. Business-operations MCPs (only if connected in Step 7):**
 
-These probes validate the MCPs the 10 new business-operations skills depend on. Run each only if the user added the connector in Step 7. Mark `⏭ skipped` if the user explicitly declined a given MCP (e.g. no Apollo account, no Stripe).
+These probes validate the MCPs the business-operations skills depend on. Run each only if the user added the connector in Step 7. Mark `⏭ skipped` if the user explicitly declined a given MCP (e.g. no Apollo account, no Stripe).
 
 18. **Apollo.io** (used by `apollo-lead-prospector`, `outreach-sequencer`) — Try `apollo_users_api_profile` (cheapest call, just verifies OAuth is alive). If it returns the authenticated user, Apollo.io is connected. If it 401s, ask the user to re-authorize the Apollo connector in Settings → Connected Apps.
 
@@ -2022,11 +2029,13 @@ These probes validate the MCPs the 10 new business-operations skills depend on. 
 
 23. **Gamma** (used by `investor-update-writer` for investor decks; campaign-presenter already validates Gamma if connected — reuse that result) — If not already validated, try `get_themes`. If it returns the user's themes, Gamma is connected.
 
+24. **n8n Cloud** (used by `n8n-workflow-builder` for the inbound-gig proof workflow; optional) — If connected, try `get_workflow_best_practices` (technique="list") or `get_sdk_reference`. If it returns SDK/technique data, n8n Cloud is connected. Mark `⏭ skipped` if the brand doesn't pursue marketplace work — `n8n-workflow-builder` will be unconfigurable, but `gig-prospector` and `gig-proposal-writer` still run.
+
 **8d. Workspace env vars (mandatory — required by automated skills):**
 
-24. **`DEFAULT_BRAND`** — Confirm `.claude/settings.local.json` `env` block contains `DEFAULT_BRAND` set to the brand slug (e.g. `"five-agents"`, `"npc-office"`). If missing, ask the user for the brand slug and save it now. Required by every skill to determine the active brand without user input on scheduled runs.
+25. **`DEFAULT_BRAND`** — Confirm `.claude/settings.local.json` `env` block contains `DEFAULT_BRAND` set to the brand slug (e.g. `"five-agents"`, `"npc-office"`). If missing, ask the user for the brand slug and save it now. Required by every skill to determine the active brand without user input on scheduled runs.
 
-25. **`{BRAND}_NOTION_DB`** — Confirm `.claude/settings.local.json` `env` block contains `{BRAND}_NOTION_DB` (e.g. `FIVEAGENTS_NOTION_DB`, `NPCOFFICE_NOTION_DB` — `{BRAND}` is the slug uppercased, hyphens removed) set to the 32-character hex page ID of the brand's Notion Social Calendar database. If missing, walk the user through it: Notion → open the Social Calendar database → click Share → Copy link → extract the 32-hex-char ID from the URL → save it now. Required by social-calendar and content-generator.
+26. **`{BRAND}_NOTION_DB`** — Confirm `.claude/settings.local.json` `env` block contains `{BRAND}_NOTION_DB` (e.g. `FIVEAGENTS_NOTION_DB`, `NPCOFFICE_NOTION_DB` — `{BRAND}` is the slug uppercased, hyphens removed) set to the 32-character hex page ID of the brand's Notion Social Calendar database. If missing, walk the user through it: Notion → open the Social Calendar database → click Share → Copy link → extract the 32-hex-char ID from the URL → save it now. Required by social-calendar and content-generator.
 
 Both env var checks are mandatory — they are NOT skippable. If either is missing, do not show ⏭ in the summary table; show ❌ and stop until the user provides the value.
 
@@ -2055,6 +2064,7 @@ Both env var checks are mandatory — they are NOT skippable. If either is missi
 | Xero (invoice-collector / financial-reporter) | ✅ / ❌ / ⏭ skipped |
 | PostHog (churn-predictor) | ✅ / ❌ / ⏭ skipped |
 | Gamma (investor-update-writer) | ✅ / ❌ / ⏭ skipped |
+| n8n Cloud (n8n-workflow-builder) | ✅ / ❌ / ⏭ skipped |
 | `DEFAULT_BRAND` env var | ✅ / ❌ |
 | `{BRAND}_NOTION_DB` env var | ✅ / ❌ |
 
@@ -2577,6 +2587,7 @@ brand_name = m.group(1).strip() if m else brand  # fall back to slug only if hea
     { "integration": "Xero", "status": "pass | fail | skipped", "notes": "Used by invoice-collector / financial-reporter. Skip → those skills can't run." },
     { "integration": "PostHog", "status": "pass | fail | skipped", "notes": "Used by churn-predictor for product-usage signals. Skip → churn scoring falls back to support-ticket + login-frequency only." },
     { "integration": "Gamma", "status": "pass | fail | skipped", "notes": "Used by investor-update-writer for investor decks. Skip → updates render as plain markdown / email only." },
+    { "integration": "n8n Cloud", "status": "pass | fail | skipped", "notes": "Used by n8n-workflow-builder to build the proof-of-concept automation backing an inbound gig bid. Skip → that skill is unconfigurable; gig-prospector and gig-proposal-writer still run." },
     { "integration": "DEFAULT_BRAND env var", "status": "pass | fail", "notes": "Active brand slug — required by every skill (mandatory, not skippable)" },
     { "integration": "{BRAND}_NOTION_DB env var", "status": "pass | fail", "notes": "Notion Social Calendar DB page ID — required by social-calendar and content-generator (mandatory, not skippable)" }
   ],

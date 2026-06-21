@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.16.0 | June 20, 2026 |
+| Link | v2.17.0 | June 21, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.17.0** — June 21, 2026
+- **Migration support for the Inbound Gig Engine completion (v2.17.0 Sales skills `gig-proposal-writer` / `n8n-workflow-builder` / `vsl-demo-producer`).** Step 1e adds an **n8n Cloud MCP** probe (`get_workflow_best_practices`) — optional, only needed by `n8n-workflow-builder`. Step 3g adds the n8n Cloud connect-walkthrough prompt. Step 3k maps the new `Inbound Gig Engine completed` changelog entry to its optional brand action (connect n8n Cloud + optional `${BRAND}_N8N_PROJECT`). The three skills are auto-detected from the shipped `skills-manifest.json` (Step 1 registry read); no per-brand context file is required beyond what `gig-prospector` already needs.
 
 **v2.16.0** — June 20, 2026
 - **Migration support for `gig-prospector` (new v2.16.0 Sales skill).** Step 1d adds `${BRAND}_GIGS_DB` to the auto-bootstrap inventory (count 9 → 10, informational only). Step 1a adds an inline schema check for `sales.md` `## Inbound Job Filters`; Step 3a adds a targeted backfill (runs `brand-setup` Step 5g Step H — markets, platforms + account status, product.md-derived keywords) for brands that pursue freelance work. Step 3k maps the `gig-prospector introduced` changelog entry to that optional brand action. The skill itself is auto-detected from the shipped `skills-manifest.json` (Step 1 registry read).
@@ -31,9 +34,6 @@ deps:
 **v2.11.0** — May 23, 2026
 - **Step 3b design-system install updated to the new claude.ai/design flow** — Design System → **Create** → the **"Set up your design system"** attach form (company name + blurb; optional GitHub repo / local code / `.fig` / fonts+logos+assets; brand colors, fonts and voice in **Any other notes**) → **Continue to generation** → paste a website-aware generation prompt so Claude validates against the live site. Steps renumbered 1–6.
 - **Step 3d media library now specifies per-template-type folder names** — `LinkedIn Post` / `Meta Story` / `Meta Carousel` / `Meta Post`, matching the `content-generator` media-pool convention; only create folders for template types that exist on fb.ai.
-
-**v2.10.2** — May 22, 2026
-- **Step cross-references and checklist corrected.** Step 3k: CLAUDE.md embed row fixed from "→ Step 3g" to "→ Step 3h"; Windsor.ai fallback row fixed from "→ Step 3e" to "→ Step 3f". Quality checklist: added Step 3f (env vars) item. Step 1k version audit example table annotated as "example only — read actual versions from disk".
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 
@@ -245,6 +245,7 @@ You cannot directly probe what the user has connected in Claude settings. Instea
 | Xero | `whoami` | v2.4.0 |
 | PostHog | `user-get` | v2.4.0 (used by `churn-predictor`; `data-analysis` may already validate it — reuse if so) |
 | Gamma | `get_themes` | v2.4.0 (used by `investor-update-writer`; `campaign-presenter` may already validate it — reuse if so) |
+| n8n Cloud | `get_workflow_best_practices` (technique="list") | v2.17.0 (optional — used by `n8n-workflow-builder` for inbound-gig proof workflows; never flag as a required gap — only relevant if the brand pursues marketplace work) |
 | Meta Ads MCP *(optional enhancement — limited rollout)* | attempt any `ads_*` tool call (e.g. `ads_get_ad_accounts`); 401 / not-found → not connected | v2.2.13 (Windsor.ai already covers Meta data fully when this isn't connected — never flag as a required gap) |
 
 ### 1f. Workspace CLAUDE.md
@@ -594,7 +595,7 @@ Iterate through the missing MCPs in this order. For each one, post the prompt ve
 **Connected Apps (OAuth via Settings → Connected Apps):**
 
 - **Notion not connected** (required — content calendar, briefs, auto-bootstrapped DBs):
-  > Notion isn't connected — used for the content calendar, strategy briefs, and the auto-bootstrapped CRM / customer / invoice / report / competitor / meeting / actions DBs. Go to **Settings → Connected Apps → Notion → Authorize**, then tell me when done.
+  > Notion isn't connected — used for the content calendar, strategy briefs, and the auto-bootstrapped CRM / customer / invoice / report / competitor / meeting / actions / performance / trend / gigs DBs. Go to **Settings → Connected Apps → Notion → Authorize**, then tell me when done.
 
 - **Slack not connected** (required — skill-run notifications):
   > Slack isn't connected — used for "skill done" DMs after each run. Go to **Settings → Connected Apps → Slack → Authorize**, then tell me when done.
@@ -636,6 +637,9 @@ Iterate through the missing MCPs in this order. For each one, post the prompt ve
 
 - **Gamma not connected** (used by `investor-update-writer` for investor decks):
   > Gamma isn't connected — used by `investor-update-writer` for monthly investor decks. Go to **Settings → Connected Apps → Gamma → Authorize**, then tell me when done. (Skip if you don't deliver investor updates — `investor-update-writer` will be unconfigurable for this brand.)
+
+- **n8n Cloud not connected** *(optional — used by `n8n-workflow-builder` for inbound-gig proof workflows):*
+  > n8n Cloud isn't connected — used by `n8n-workflow-builder` (the Prove phase of the Inbound Gig Engine) to build the proof-of-concept automation that backs a freelance bid. Go to **Settings → Connected Apps → n8n Cloud → Authorize**, then tell me when done. (Skip if you don't pursue marketplace work or don't demo automations — `n8n-workflow-builder` will be unconfigurable, but `gig-prospector` and `gig-proposal-writer` still run.) Optionally, to send these workflows to a specific n8n project, give me the project ID and I'll save it as `${BRAND}_N8N_PROJECT`; otherwise they go to your default project.
 
 **Custom connectors (Settings → Connectors → Add custom connector):**
 
@@ -807,6 +811,7 @@ For each skill/agent flagged as changed in Step 1k, read its `### Change Log` bu
 | `social-calendar YouTube-First Mode added (v2.14.0)` | ✅ Check `brands/{brand}/brand.md` has `## Content Strategy` section. If missing → run brand-setup Step 4a to define primary channel. Without it, social-calendar defaults to static mode regardless of the brand's actual publishing workflow. |
 | `trend-radar synthesis requirement added (v2.14.0)` | ✅ No brand file action required — the skill now synthesizes competitor research + web research before writing to Trend DB. Existing `competitors.md` already serves as the competitor input. |
 | `gig-prospector introduced (link-skills v2.16.0)` | ⏭ Optional — ask if the brand pursues freelance/marketplace work. If yes → check `brands/{brand}/sales.md` has a `## Inbound Job Filters` section; if missing → run `brand-setup` Step 5g Step H (markets, platforms + account status, product.md-derived keywords, budget/exclusions/cap). `${BRAND}_GIGS_DB` auto-bootstraps on first run; `FREELANCER_OAUTH_TOKEN` is an optional env var that enables the Freelancer.com API source. No existing skill breaks if skipped. |
+| `Inbound Gig Engine completed (link-skills v2.17.0)` | ⏭ Optional — only for brands pursuing marketplace work (those with `## Inbound Job Filters`). `gig-proposal-writer` and `vsl-demo-producer` need no new connector (Notion + Slack + Claude in Chrome, already covered). `n8n-workflow-builder` needs the **n8n Cloud** MCP — if the brand wants to demo automations, run the Step 3g n8n Cloud walkthrough; optionally set `${BRAND}_N8N_PROJECT`. No env var auto-bootstraps beyond `${BRAND}_GIGS_DB` (already created by `gig-prospector`). No existing skill breaks if skipped. |
 
 For changelog entries not in this table, apply judgment: if the change touches a per-brand configuration file (`brand.md`, `funnel.md`, `.claude/settings.local.json`, `CLAUDE.md`) → flag for review. If it is a skill-internal logic change → no brand action needed.
 
@@ -937,7 +942,7 @@ Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; 
 - [ ] Step 1a checked all 5 new brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with optional annotations applied to investors.md and operations.md
 - [ ] Step 1d checked the 10 auto-bootstrapped DB env vars (incl. v2.13.0 `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB` and v2.16.0 `${BRAND}_GIGS_DB`) without flagging missing ones as required gaps
 - [ ] Step 1a inline schema check for sales.md `## Inbound Job Filters` ran; missing section offered as an optional Step 3a backfill (gig-prospector) — not flagged as a required gap
-- [ ] Step 1e probed all 7 v2.4.0 / v2.2.13 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional Meta Ads MCP)
+- [ ] Step 1e probed all v2.4.0 / v2.2.13 / v2.17.0 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional n8n Cloud, optional Meta Ads MCP)
 - [ ] Step 3f walked the user through any ❌ or missing env vars and ran auto-discover for `{BRAND}_LATE_*` vars where applicable
 - [ ] Step 3g walked the user through every ❌/⏭ MCP with the explicit per-MCP prompt — never silently skipped a missing connector
 - [ ] Step 1i probed `fivebucks_list_media_folders` (when `FIVEBUCKS_API_KEY` set) and recorded media library state
@@ -946,7 +951,7 @@ Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; 
 - [ ] Step 3 only walked through items marked ❌ or offered ⏭ — never re-asked for known-good state
 - [ ] Step 3a fill handlers ran the matching brand-setup Step 5g–5l sub-step for any missing brand context file
 - [ ] Step 3k mapped changelog entries to brand actions and only surfaced rows requiring action
-- [ ] Step 3k changelog → brand-action mapping covered all 10 new skills
+- [ ] Step 3k changelog → brand-action mapping covered all changelog→action rows
 - [ ] All file writes were patches (preserve existing content), not full rewrites
 - [ ] Step 3h refreshed the `<!-- link.md version: ... -->` stamp in CLAUDE.md unconditionally
 - [ ] Step 3h refreshed the `## Visual System` block in CLAUDE.md (brand-setup Step 9c equivalent) — probed design-system/, fivebucks_get_brand_kit, fivebucks_list_templates, fivebucks_list_media_folders and injected/replaced the markers

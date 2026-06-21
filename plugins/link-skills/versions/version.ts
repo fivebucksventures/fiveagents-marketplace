@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.16.0';
-const DEFAULT_DATE = 'June 20, 2026';
+const DEFAULT_VERSION = 'v2.17.0';
+const DEFAULT_DATE = 'June 21, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,20 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.17.0',
+    date: 'June 21, 2026',
+    changes: [
+      'Inbound Gig Engine completed — three new Sales skills turn an open freelance job into a submission-ready bid, all sharing one ${BRAND}_GIGS_DB row threaded by Status (New → Reviewing → Drafted → Workflow Built → Demo Ready → Ready to Submit).',
+      'gig-proposal-writer v2.17.0 (NEW, Sales): the Write phase. Takes one reviewed gig, maps it to a service the brand actually sells (from product.md), detects any client-required secret word and makes it the literal first line, and drafts a tailored cover letter + 60-second VSL script in brand voice. Writes both back onto the gig row as page-body blocks, advances Status to Drafted, and ends the letter with a tool-agnostic [DEMO VIDEO LINK] placeholder. Distinct from proposal-generator (CRM deals — Gamma deck + Stripe link).',
+      'n8n-workflow-builder v2.17.0 (NEW, Sales): the Prove phase. Builds a real, validated, published n8n workflow that demonstrates the gig solution via the n8n Cloud MCP SDK flow (get_sdk_reference → get_workflow_best_practices → search_nodes → get_node_types → validate_node_config → validate_workflow → create_workflow_from_code → publish_workflow) — never guessed JSON or the legacy REST script. Brand design rules: start with a trigger, 3–6 node linear chain, client-language labels, visible outcome. Writes the live workflow URL + ID onto the gig row; Status="Workflow Built". Supersedes the legacy create_n8n_workflow.py REST path.',
+      'vsl-demo-producer v2.17.0 (NEW, Sales): the Demo phase. Screenshots the published workflow via Claude in Chrome and turns the 60s VSL into a shot-by-shot recording script pairing each narration beat with the on-screen action. The founder records the video themselves in any recorder (Loom/Tella/Vidyard/ScreenStudio/QuickTime — never hardcoded); capture mode then writes Demo Video URL, fills the [DEMO VIDEO LINK] placeholder, and sets Status="Ready to Submit". No avatar/auto-render — recording stays manual by design.',
+      'gig-prospector v2.17.0: now the Discover phase of the full engine — forward-references corrected to gig-proposal-writer (not proposal-generator), and the ${BRAND}_GIGS_DB bootstrap now seeds the full pipeline Status set. Discovery logic unchanged.',
+      'brand-setup v2.17.0: registered n8n Cloud as an optional business-ops MCP (Step 2 row 15 + Step 7c) used by n8n-workflow-builder; added the optional ${BRAND}_N8N_PROJECT env var (Step 7b); backfilled the ${BRAND}_GIGS_DB row into the auto-bootstrapped Notion DB table.',
+      'plugin-update v2.17.0: migration support for the three new Sales skills — Step 1e n8n Cloud MCP probe (optional), Step 3g connect-walkthrough, Step 3k changelog → brand-action row (connect n8n Cloud + optional ${BRAND}_N8N_PROJECT). Skills auto-detected from skills-manifest.json.',
+      'link.md v2.17.0: added the Inbound Gig Engine — 4 Phases table; replaced the thin inbound-gigs chain with the full four-skill chain; n8n Cloud MCP added to the MCP Connectors list. Domain map regenerated (31 skills, Sales now 7).',
+    ],
+  },
   {
     version: 'v2.16.0',
     date: 'June 20, 2026',
@@ -139,17 +153,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
     changes: [
       'plugin-update Step 1: new Step 1i probes fivebucks_list_media_folders during the inspection sweep; media library state reported in Step 2 gap report. Steps 1i→1j (Notion DB) and 1j→1k (version audit) renumbered; cross-references updated.',
       'plugin-update Step 3h: Visual System block refresh added (brand-setup Step 9c equivalent) — probes design-system/, fivebucks_get_brand_kit, fivebucks_list_templates, fivebucks_list_media_folders and idempotently replaces BEGIN/END visual-system markers in CLAUDE.md on every run. Fixes stale blocks for brands set up before Step 9c or before media library row was added in v2.8.0.',
-    ],
-  },
-  {
-    version: 'v2.10.0',
-    date: 'May 20, 2026',
-    changes: [
-      'fivebucks_render_post slide selection is now template-type-specific (verified against the live fb.ai gateway + renderer). Single-image types (linkedin-post, meta-post) render all three direction artboards into the DOM and fb.ai applies no direction filter for them, so content-generator + creative-designer now PASS slide_ids — resolved by the Direction position (A=1st, B=2nd, C=3rd) against manifest.slides[], with the calendar SlideId cell as a fast path. Multi-slide types omit slide_ids: meta-story uses _direction (A/B/C, never all); meta-carousel renders all 6 and rotates coverVariant/bodyVariant. Omitting slide_ids for single-image renders all 3 (or errors).',
-      'social-calendar v2.10.0: NEW SlideId column (calendar table 11 → 12 columns) for the two single-image template types, with PER-TYPE labels — linkedin-post: 01 Hook Headline / 02 Stat Hero / 03 Pull Quote (verified against the live manifest); meta-post: 01 Hero Visual / 02 Quote Card / 03 Listicle Teaser (per brand-setup). Blank for Carousel, Story/Reel, Reel(Argil), and non-template formats. Field table, SlideId section, Step 3c column count/example, local-backup table, and quality checklist updated.',
-      'content-generator v2.10.0: Step 1c row parsing now reads [10] SlideId, [11] Status; Step 4c-template §6 render made template-type-specific with position-against-manifest slide_ids resolution; Step 6 status-update string match + cell index updated to 12 columns; checklist bullet added.',
-      'creative-designer v2.10.0: Step 4a render mirrors the same per-type + position-based slide_ids rule (canonical impl in content-generator Step 4c-template §6); checklist updated.',
-      'brand-setup v2.8.1 + plugin-update v2.8.1: explicit fb.ai paid-product context shown before any fivebucks.ai link, and the Cowork directory-access flow (mcp__cowork__request_cowork_directory on the user-provided design-system path; skipped in local Claude Code; in-project fallback if declined).',
     ],
   },
 ];

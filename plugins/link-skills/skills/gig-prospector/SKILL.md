@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.16.0 | June 20, 2026 |
+| Link | v2.17.0 | June 21, 2026 |
 
 **Description:** Daily inbound freelance-job discovery across the brand's chosen markets/platforms, scored for service fit, deduplicated, dropped into a Notion opportunities DB
 
 ### Change Log
+
+**v2.17.0** — June 21, 2026
+- Now the **Discover** phase of the full **Inbound Gig Engine**. Forward-references corrected: the bid is written by the new **`gig-proposal-writer`** (cover letter + 60s VSL), then `n8n-workflow-builder` (proof workflow) and `vsl-demo-producer` (demo) complete the chain — `proposal-generator` remains CRM-deal-only (Gamma deck + Stripe link). **The `${BRAND}_GIGS_DB` bootstrap now seeds the full pipeline `Status` set** — `New → Reviewing → Drafted → Workflow Built → Demo Ready → Ready to Submit → Proposed → Won → Lost → Skipped → Disqualified` — so the whole engine's states exist in the Notion dropdown from day one (downstream skills still add-if-missing for DBs created before this change). Discovery logic itself is unchanged.
 
 **v2.16.0** — June 20, 2026
 - New skill (Sales). The **inbound** counterpart to `apollo-lead-prospector` (which is outbound): instead of sourcing people to email, it sources *open freelance jobs the brand can bid on* across the markets and platforms the user selected in `sales.md → Inbound Job Filters` (written by `brand-setup` Step 5g Step H). Search terms are derived from `product.md` / `brand.md` (what the brand actually sells) — never hardcoded. Scrapes via **Claude in Chrome** (the user's own authenticated, non-automated browser — beats Cloudflare and reads jobs behind login walls), uses the **Freelancer.com API** as a deterministic source where a token is set, and degrades to web research when Chrome MCP is absent. Dedupes against `${BRAND}_GIGS_DB` by job UID/URL, scores each job for service fit, and drops matches as `Status="New"` for review.
@@ -50,7 +53,7 @@ Use this skill when the task involves:
 
 Do NOT use this skill for:
 - Sourcing people to cold-email → use `apollo-lead-prospector`
-- Sending the actual proposal/cover letter → use `proposal-generator` (this skill feeds it)
+- Writing the actual bid/cover letter → use `gig-proposal-writer` (this skill feeds it). (`proposal-generator` is for CRM **deals** — Gamma deck + Stripe link — not inbound gigs)
 - Writing marketing copy → use `content-creation`
 - Outbound email sequencing → use `outreach-sequencer`
 
@@ -65,7 +68,7 @@ Before starting, confirm or default these inputs:
 | Active brand | Yes | From `$DEFAULT_BRAND`; ask if unset |
 | Markets | From config | `sales.md` → Inbound Job Filters → Markets; abort if the section is missing |
 | Platforms + accounts | From config | `sales.md` → Inbound Job Filters → Platforms (each tagged "have account" / "no account") |
-| Freshness window | Optional | Default 24h for daily cron; widen to 48–72h for a backfill |
+| Freshness window | Optional | Default 48h; jobs posted older than this are disqualified (hard cutoff). Widen to 72h for a backfill |
 | Daily cap | Optional | `sales.md` → Inbound Job Filters → Daily Cap; falls back to 30 |
 
 ---
@@ -127,8 +130,9 @@ Use mcp__claude_ai_Notion__notion-create-database:
     "Service Match": { "select": { "options": [ {"name":"Strong"}, {"name":"Partial"}, {"name":"Weak"} ] } },
     "Source Date":   { "date": {} },
     "Status":        { "select": { "options": [
-                        {"name":"New"}, {"name":"Reviewing"}, {"name":"Proposed"},
-                        {"name":"Won"}, {"name":"Lost"}, {"name":"Skipped"}, {"name":"Disqualified"}
+                        {"name":"New"}, {"name":"Reviewing"},
+                        {"name":"Drafted"}, {"name":"Workflow Built"}, {"name":"Demo Ready"}, {"name":"Ready to Submit"},
+                        {"name":"Proposed"}, {"name":"Won"}, {"name":"Lost"}, {"name":"Skipped"}, {"name":"Disqualified"}
                       ] } }
   }
 ```
@@ -194,6 +198,7 @@ Use mcp__claude_ai_Notion__notion-search:
 If either search returns a match, mark `duplicate` and drop it. Track the duplicate count.
 
 **Disqualify** using `sales.md → Inbound Job Filters → Exclusions`, dropping at the first match and logging the reason. Standard rules to enforce regardless:
+- **Stale** — posted older than the freshness window (default 48h, measured from the run time); drop and log the age
 - **Below budget floor** — budget/rate under the `Budget Floor`
 - **Excluded keyword/geo** — title/description matches an exclusion term, or market not in the chosen list
 - **Service mismatch** — the job doesn't actually ask for any service the brand sells (the next score makes this precise)
@@ -205,7 +210,7 @@ If either search returns a match, mark `duplicate` and drop it. Track the duplic
 | Service match | 45 | Job names a service the brand sells (Step 1 terms): exact = 45; adjacent/related service = 25; weak/tangential = 10 |
 | Budget fit | 20 | At/above floor & preferred type = 20; above floor = 15; unstated = 10; below floor = 0 (already disqualified) |
 | Client quality | 20 | Payment-verified + spend/hire history + good rating = 20; partial signals = 10; brand-new/unverified = 5; unknown = 10 (neutral) |
-| Freshness | 15 | ≤6h = 15; ≤24h = 12; ≤48h = 8; older = 4 |
+| Freshness | 15 | ≤6h = 15; ≤24h = 12; ≤48h = 8 (older already disqualified) |
 
 Set `Service Match` = Strong (service ≥ 35) / Partial (20–34) / Weak (< 20). Round the score, sort survivors descending, take the top `Daily Cap`.
 
@@ -358,12 +363,14 @@ Use gateway MCP tool `fiveagents_log_run`:
 
 ## Part of the pipeline
 
-The **inbound** sales-acquisition entry point. Feeds reviewed opportunities into the proposal flow:
+The **Discover** phase of the **Inbound Gig Engine** — the inbound sales-acquisition entry point. Feeds reviewed opportunities into the bid flow:
 
 ```
 gig-prospector (this skill → ${BRAND}_GIGS_DB, Status="New")
   → founder review (set Status="Reviewing")
-  → proposal-generator (draft the bid/cover letter for a chosen opportunity)
+  → gig-proposal-writer (cover letter + 60s VSL, Status="Drafted")
+  → n8n-workflow-builder (real demo workflow + URL, Status="Workflow Built")
+  → vsl-demo-producer (screenshot + recording script, Status="Demo Ready" → "Ready to Submit")
 ```
 
 Run daily on cron.

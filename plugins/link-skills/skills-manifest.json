@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.16.0"
+    "version": "v2.17.0"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.16.0"
+    "version": "v2.17.0"
   },
   {
     "name": "background-generator",
@@ -374,6 +374,33 @@
     "version": "v2.4.0"
   },
   {
+    "name": "gig-proposal-writer",
+    "area": "Sales",
+    "use_for": "Draft a freelance bid (cover letter + 60s VSL script) for a chosen gig from the opportunities DB, with secret-word detection, written back onto the gig's Notion row",
+    "description": "Write a freelance-marketplace bid for a chosen gig — detects the client's required \"secret word\", maps the job to a service the brand sells, and drafts a tailored cover letter plus a 60-second VSL (video sales letter) script, written back onto the gig's Notion row. On-demand per gig. The Write phase of the Inbound Gig Engine.",
+    "deps": {
+      "mcp": [
+        "Notion",
+        "Slack",
+        "Claude in Chrome (opt — re-reads the live job post when the gig row's description is truncated)"
+      ],
+      "gateway": [
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "sales.md",
+        "product.md",
+        "brand.md",
+        "audience.md",
+        "competitors.md"
+      ],
+      "env": [
+        "`${BRAND}_GIGS_DB` (created by `gig-prospector`)"
+      ]
+    },
+    "version": "v2.17.0"
+  },
+  {
     "name": "gig-prospector",
     "area": "Sales",
     "use_for": "Daily inbound freelance-job discovery across chosen markets/platforms, scored for service fit, deduplicated, dropped into a Notion opportunities DB",
@@ -399,7 +426,33 @@
         "`FREELANCER_OAUTH_TOKEN` (opt — enables the Freelancer.com API source)"
       ]
     },
-    "version": "v2.16.0"
+    "version": "v2.17.0"
+  },
+  {
+    "name": "n8n-workflow-builder",
+    "area": "Sales",
+    "use_for": "Build + publish a real n8n workflow that demonstrates the solution for a drafted gig, via the n8n Cloud MCP SDK flow, with the live URL written back onto the gig row",
+    "description": "Build the proof-of-concept automation that backs a freelance bid — turns a drafted gig's solution shape into a real, validated n8n workflow via the n8n Cloud MCP (SDK flow), publishes it, and writes the live workflow URL back onto the gig's Notion row. The Prove phase of the Inbound Gig Engine.",
+    "deps": {
+      "mcp": [
+        "n8n Cloud",
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "product.md",
+        "brand.md",
+        "sales.md"
+      ],
+      "env": [
+        "`${BRAND}_GIGS_DB` (created by `gig-prospector`)",
+        "`${BRAND}_N8N_PROJECT` (opt — target n8n project/folder)"
+      ]
+    },
+    "version": "v2.17.0"
   },
   {
     "name": "outreach-sequencer",
@@ -455,6 +508,30 @@
       ]
     },
     "version": "v2.5.0"
+  },
+  {
+    "name": "vsl-demo-producer",
+    "area": "Sales",
+    "use_for": "Capture the n8n workflow screenshot + build a shot-by-shot recording script and tool-agnostic instructions so the founder can record the 60s demo video for a gig bid",
+    "description": "Prepare the demo video for a freelance bid — captures a clean screenshot of the gig's published n8n workflow via Claude in Chrome, builds a shot-by-shot recording script pairing the VSL narration with on-screen actions, and hands the founder tool-agnostic recording instructions (Loom/Tella/any recorder). The Demo phase of the Inbound Gig Engine. The founder records the video themselves.",
+    "deps": {
+      "mcp": [
+        "Claude in Chrome (screenshots the published workflow; degrades to a manual-capture checklist when absent)",
+        "Notion",
+        "Slack"
+      ],
+      "gateway": [
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md",
+        "sales.md"
+      ],
+      "env": [
+        "`${BRAND}_GIGS_DB` (created by `gig-prospector`)"
+      ]
+    },
+    "version": "v2.17.0"
   },
   {
     "name": "churn-predictor",

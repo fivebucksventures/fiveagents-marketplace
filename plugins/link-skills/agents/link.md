@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.16.0 | June 20, 2026 |
+| Link | v2.17.0 | June 21, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.17.0** — June 21, 2026
+- **Inbound Gig Engine completed — three new Sales skills.** `gig-prospector` (Discover) now feeds a full pipeline that produces a submission-ready freelance bid: **`gig-proposal-writer`** (Write — cover letter + 60-second VSL script, with secret-word detection, onto the gig row), **`n8n-workflow-builder`** (Prove — builds a real, validated, published n8n workflow via the **n8n Cloud MCP** SDK flow as the demo asset), and **`vsl-demo-producer`** (Demo — screenshots the published workflow via Claude in Chrome and writes a shot-by-shot recording script; **the founder records the video themselves in any recorder — recorder is never hardcoded, no avatar/auto-render**). All four share one `${BRAND}_GIGS_DB` record, threaded by `Status` (New → Reviewing → Drafted → Workflow Built → Demo Ready → Ready to Submit). Added the **Inbound Gig Engine — 4 Phases** table; replaced the thin `Inbound gigs` chain with the full four-skill chain; **n8n Cloud MCP** added to the MCP Connectors list. The legacy ai-agency `create_n8n_workflow.py` (REST) and `screenshot_workflow.py` are superseded by `n8n-workflow-builder` and `vsl-demo-producer`. `gig-prospector` forward-references corrected to point at `gig-proposal-writer` (the inbound bid writer) rather than `proposal-generator` (which builds CRM-deal decks). Domain map regenerated (31 skills).
 
 **v2.16.0** — June 20, 2026
 - **New Sales skill `gig-prospector` registered.** The **inbound** counterpart to `apollo-lead-prospector` (outbound): scans freelance marketplaces — Upwork, Freelancer.com, Projects.co.id, Sribu, Fastwork, Freelancing.my, and others — across the brand's chosen markets (Singapore / Indonesia / Malaysia / Thailand / Australia / Global-Remote) via **Claude in Chrome** (with the Freelancer.com API as a deterministic source when `FREELANCER_OAUTH_TOKEN` is set), scores each job for service fit, dedupes against `${BRAND}_GIGS_DB`, and drops matches as `Status="New"`. **Search terms are derived from `product.md` — never hardcoded.** Added the **Inbound gigs** skill chain (`gig-prospector → proposal-generator`); `gig-prospector` added as a Claude in Chrome consumer in the MCP Connectors list; domain map regenerated (28 skills). `brand-setup` Step 5g Step H writes the `## Inbound Job Filters` config block; `plugin-update` migrates existing brands.
@@ -24,10 +27,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 **v2.14.1** — May 30, 2026
 - **fb.ai media library context entry clarified.** The Context Files entry now documents the media-pool behavior used by `content-generator` and `creative-designer`: folders matched to template type by exact name (case-insensitive), with the explicit fallback that **photos from ALL folders are pooled when no folder name matches** — so library photos are used regardless of folder naming; only a total absence of folders leaves image slots empty. Names both `fivebucks_list_media_folders` and `fivebucks_list_media_files` as the discovery path.
-
-**v2.14.0** — May 29, 2026
-- **YouTube-First content pipeline.** `social-calendar` now plans in one of two modes driven by the new `## Content Strategy` section in `brand.md` (written by `brand-setup` Step 4a): YouTube-First (one weekly video + a per-platform Clip Release Schedule for connected platforms) or Static (the existing 14-post week). New Marketing skill **`video-repurposer`** executes Phase 4–5 (download YouTube → extract clips → publish via Zernio). Added the **Content Engine — 5 Phases** table to the Skills section, and `content strategy` to the `brand.md` context-file descriptor.
-- **`trend-radar` synthesis-before-write rule.** `trend-radar` now synthesizes three inputs before scoring/writing — own post performance + competitor benchmarking (both from the Phase 1 Performance Brief) + web research — with new competitor-differentiation and own-performance-alignment scoring criteria, and must not write to `${BRAND}_TREND_DB` until synthesis is complete. Updated the **Timely content** skill chain to `content-performance-analyst → trend-radar → social-calendar` to reflect the new dependency on the Performance Brief.
 
 # Link — Business Operations Agent
 
@@ -109,10 +108,10 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 
 <!-- BEGIN skills-table (generated) -->
 <!-- prettier-ignore -->
-**28 skills across 7 areas.**
+**31 skills across 7 areas.**
 - **Setup** (2): `brand-setup` · `plugin-update`
 - **Marketing** (13): `background-generator` · `campaign-presenter` · `content-creation` · `content-generator` · `content-performance-analyst` · `creative-designer` · `data-analysis` · `digital-marketing-analyst` · `research-strategy` · `social-calendar` · `social-publisher` · `trend-radar` · `video-repurposer`
-- **Sales** (4): `apollo-lead-prospector` · `gig-prospector` · `outreach-sequencer` · `proposal-generator`
+- **Sales** (7): `apollo-lead-prospector` · `gig-proposal-writer` · `gig-prospector` · `n8n-workflow-builder` · `outreach-sequencer` · `proposal-generator` · `vsl-demo-producer`
 - **Customer Success** (2): `churn-predictor` · `customer-onboarder`
 - **Finance** (2): `financial-reporter` · `invoice-collector`
 - **Strategy** (3): `competitor-monitor` · `decision-advisor` · `investor-update-writer`
@@ -131,7 +130,7 @@ Below is a compact **domain map** (areas + skill names). The full per-skill deta
 | Timely content | content-performance-analyst → trend-radar → social-calendar |
 | Analytics deck | data-analysis → campaign-presenter |
 | Sales pipeline (outbound) | research-strategy → apollo-lead-prospector → outreach-sequencer → proposal-generator |
-| Inbound gigs | gig-prospector → proposal-generator |
+| Inbound gigs (full bid) | gig-prospector → gig-proposal-writer → n8n-workflow-builder → vsl-demo-producer |
 | Customer retention | customer-onboarder → churn-predictor |
 | Monthly close | invoice-collector → financial-reporter → investor-update-writer |
 | Strategic intelligence | competitor-monitor → investor-update-writer |
@@ -153,12 +152,25 @@ The organic-content loop — **measure → learn → create** — runs across fi
 
 > *Phases 4–5 above describe the **YouTube-First** flow. **Static Mode** keeps the original path: `content-creation` → `creative-designer` → `content-generator` / `social-publisher`.*
 
+### Inbound Gig Engine — 4 Phases
+
+The inbound sales loop — **discover → write → prove → demo** — turns an open freelance job into a submission-ready bid. All four phases operate on **one shared `${BRAND}_GIGS_DB` row**, threaded by its `Status` field; the founder gates between Discover and Write (picks which gigs to pursue) and owns the final submission. Mirrors the Content Engine's shared-store, phase-threaded design.
+
+| # | Phase | Skill | Output (on the gig row) |
+|---|---|---|---|
+| 1 | **Discover** | `gig-prospector` | Scored, deduped gigs written to `${BRAND}_GIGS_DB`, `Status="New"`. Founder reviews → `Status="Reviewing"` |
+| 2 | **Write** | `gig-proposal-writer` | Cover letter + 60-second VSL script (secret-word detected, service mapped, `Category` set) as page-body blocks; `Status="Drafted"`. Cover letter ends with a tool-agnostic `[DEMO VIDEO LINK]` placeholder |
+| 3 | **Prove** | `n8n-workflow-builder` | A real, validated, **published** n8n workflow built via the n8n Cloud MCP SDK flow (trigger → 3–6 client-language nodes → visible outcome); `Workflow URL` + `Status="Workflow Built"` |
+| 4 | **Demo** | `vsl-demo-producer` | Screenshot of the published workflow + a shot-by-shot recording script; `Status="Demo Ready"`. **Founder records the video themselves** in any recorder, then capture mode writes `Demo Video URL`, fills the `[DEMO VIDEO LINK]` placeholder, and sets `Status="Ready to Submit"` |
+
+> **Status thread:** `New → Reviewing → Drafted → Workflow Built → Demo Ready → Ready to Submit` (then the founder's `Proposed → Won / Lost`). Each downstream skill confirms the gig is in `${BRAND}_GIGS_DB`, extends the DB with the properties it needs (idempotent — add-if-missing), and stores long-form copy as page-body blocks. Recording is always manual — no avatar/auto-render.
+
 ## Tools & Integrations
 
 ### MCP Connectors (OAuth — client connects in Claude settings)
 - **Notion MCP** — content calendar, page management
 - **Slack MCP** — messaging and notifications
-- **Claude in Chrome MCP** *(optional)* — drives the user's own authenticated Chrome (computer use) to read content that sits behind login walls or has no API. Used by `content-performance-analyst` as the **primary** engagement-metrics source (own posts + competitors, via each platform's analytics/insights UI), by `trend-radar` Step 2c to open competitor YouTube videos and extract the `video_structure` anatomy from the transcript, and by `gig-prospector` to scrape freelance job posts across marketplaces (the real browser beats Cloudflare and reads login-walled listings; Freelancer.com API fallback). Every consumer degrades gracefully when it's absent (Zernio/web-research fallback for analytics; text-only metadata for trend-radar; API + web-research for gig-prospector).
+- **Claude in Chrome MCP** *(optional)* — drives the user's own authenticated Chrome (computer use) to read content that sits behind login walls or has no API. Used by `content-performance-analyst` as the **primary** engagement-metrics source (own posts + competitors, via each platform's analytics/insights UI), by `trend-radar` Step 2c to open competitor YouTube videos and extract the `video_structure` anatomy from the transcript, by `gig-prospector` to scrape freelance job posts across marketplaces (the real browser beats Cloudflare and reads login-walled listings; Freelancer.com API fallback), by `vsl-demo-producer` to screenshot the published n8n workflow for a gig demo, and by `gig-proposal-writer` to re-read a live job post when the stored excerpt is truncated. Every consumer degrades gracefully when it's absent (Zernio/web-research fallback for analytics; text-only metadata for trend-radar; API + web-research for gig-prospector; a manual-capture checklist for vsl-demo-producer; the stored excerpt for gig-proposal-writer).
 - **Gmail MCP** — search, read, create drafts
 - **Google Calendar MCP** — calendar access
 - **Windsor.ai MCP** *(required for every brand)* — Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data. Universal source; brand-setup mandates all three connectors. Meta data is pulled with `source: "facebook"`.
@@ -170,6 +182,7 @@ The organic-content loop — **measure → learn → create** — runs across fi
 - **PostHog MCP** — product analytics. Required by `churn-predictor`, `investor-update-writer`.
 - **Stripe MCP** — payment links + subscription state. Required by `proposal-generator`, `churn-predictor`, `invoice-collector` (fallback payment links), `financial-reporter`, `investor-update-writer`.
 - **Xero MCP** — accounting (invoices, P&L, cash position). Required by `invoice-collector`, `financial-reporter`, `investor-update-writer`.
+- **n8n Cloud MCP** — programmatic workflow building via the n8n Workflow SDK (`get_sdk_reference` → `get_workflow_best_practices` → `search_nodes` → `get_node_types` → `validate_node_config` → `validate_workflow` → `create_workflow_from_code` → `publish_workflow`). Required by `n8n-workflow-builder` to build the proof-of-concept automation that backs an inbound gig bid. Always use the SDK flow — never hand-write workflow JSON.
 
 ### External APIs (via gateway MCP tools)
 
