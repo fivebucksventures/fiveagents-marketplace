@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.8.0 | May 20, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Gemini image model ID updated (gateway v1.7.4).** `gemini_generate_image` model changed from the retired `gemini-3.1-flash-image-preview` (Google 404'd all `-preview` image IDs on 2026-06-25) to the GA default `gemini-3.1-flash-image` ("Nano Banana 2").
 
 **v2.8.0** — May 20, 2026
 - Brand palette resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
@@ -35,9 +38,6 @@ deps:
 **v2.4.0** — May 07, 2026
 - Step 1 — replaced obsolete `mcp__notion__API-query-data-source` and `mcp__notion__API-get-block-children` calls (not exposed by current Notion connector) with the canonical `notion-fetch` + `notion-search` (with `data_source_url` filter) pattern used by social-calendar
 - Notion MCP tool prefix normalized — `mcp__notion__*` → `mcp__claude_ai_Notion__*`
-
-**v2.2.15** — May 05, 2026
-- Role section clarified — produces backgrounds library at brands/{brand}/backgrounds/ for Reel production, distinct from social-{carousel,story}-template/ apps
 
 # SKILL.md — Background Generator
 
@@ -128,7 +128,7 @@ Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - prompt: "{ImageBrief}"
 - aspect_ratio: "1:1" (default for background library; content-generator crops to target canvas at overlay time)
-- model: "gemini-3.1-flash-image-preview"
+- model: "gemini-3.1-flash-image"
 
 Result is auto-saved to a temp file. Use Python to locate, decode, and save to disk:
 ```python

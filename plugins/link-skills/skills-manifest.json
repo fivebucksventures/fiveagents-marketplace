@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.17.0"
+    "version": "v2.18.0"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.17.0"
+    "version": "v2.18.0"
   },
   {
     "name": "background-generator",
@@ -49,7 +49,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.8.0"
+    "version": "v2.18.0"
   },
   {
     "name": "campaign-presenter",
@@ -91,7 +91,7 @@
       ],
       "env": []
     },
-    "version": "v2.10.0"
+    "version": "v2.18.0"
   },
   {
     "name": "content-generator",
@@ -101,11 +101,11 @@
     "deps": {
       "mcp": [
         "Notion",
-        "Slack"
+        "Slack",
+        "Zernio"
       ],
       "gateway": [
         "Gemini",
-        "Zernio",
         "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"
       ],
       "files": [
@@ -116,10 +116,10 @@
       ],
       "env": [
         "`${BRAND}_NOTION_DB`",
-        "`${BRAND}_LATE_FB/IG/LI`"
+        "`${BRAND}_ZERNIO_FB/IG/LI`"
       ]
     },
-    "version": "v2.12.2"
+    "version": "v2.18.0"
   },
   {
     "name": "content-performance-analyst",
@@ -130,11 +130,11 @@
       "mcp": [
         "Notion",
         "Slack",
-        "Claude in Chrome (opt — primary engagement-metrics source; degrades to Zernio/web-research when absent)"
+        "Claude in Chrome (opt — primary engagement-metrics source; degrades to Zernio/web-research when absent)",
+        "Zernio",
+        "Zernio Analytics add-on"
       ],
       "gateway": [
-        "Zernio",
-        "Zernio Analytics add-on",
         "FiveAgents (logging)"
       ],
       "files": [
@@ -148,7 +148,7 @@
         "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v1.0.4"
+    "version": "v2.18.0"
   },
   {
     "name": "creative-designer",
@@ -156,10 +156,11 @@
     "use_for": "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding",
     "description": "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand",
     "deps": {
-      "mcp": [],
+      "mcp": [
+        "Zernio"
+      ],
       "gateway": [
         "Gemini",
-        "Zernio",
         "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)",
         "fivebucks (media library — fivebucks_list_media_folders / fivebucks_list_media_files)"
       ],
@@ -170,7 +171,7 @@
       ],
       "env": []
     },
-    "version": "v2.12.2"
+    "version": "v2.18.0"
   },
   {
     "name": "data-analysis",
@@ -179,22 +180,21 @@
     "description": "Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand",
     "deps": {
       "mcp": [
-        "Windsor.ai"
-      ],
-      "gateway": [
+        "Windsor.ai",
         "Zernio (ads) (opt — fallback data pull + act-on-findings)"
       ],
+      "gateway": [],
       "files": [
         "brand.md",
         "funnel.md"
       ],
       "env": [
-        "`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)",
-        "`${BRAND}_LATE_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)",
-        "`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair)"
+        "`${BRAND}_ZERNIO_GOOGLE_ADS` + `${BRAND}_ZERNIO_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)",
+        "`${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)",
+        "`${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair)"
       ]
     },
-    "version": "v2.3.3"
+    "version": "v2.18.0"
   },
   {
     "name": "digital-marketing-analyst",
@@ -206,23 +206,23 @@
         "Windsor.ai",
         "Slack",
         "Gmail (opt — fallback when fiveagents_send_email returns 403)",
-        "Meta Ads MCP (opt — Windsor covers Meta when absent)"
+        "Meta Ads MCP (opt — Windsor covers Meta when absent)",
+        "Zernio (ads) (opt — Windsor fallback data pull; Phase 4 ads actions)"
       ],
       "gateway": [
-        "email",
-        "Zernio (ads) (opt — Windsor fallback data pull; Phase 4 ads actions)"
+        "email"
       ],
       "files": [
         "brand.md",
         "funnel.md"
       ],
       "env": [
-        "`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)",
-        "`${BRAND}_LATE_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)",
-        "`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair; gates Phase 2.5 and weekly Step 1d)"
+        "`${BRAND}_ZERNIO_GOOGLE_ADS` + `${BRAND}_ZERNIO_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)",
+        "`${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)",
+        "`${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair; gates Phase 2.5 and weekly Step 1d)"
       ]
     },
-    "version": "v2.3.3"
+    "version": "v2.18.0"
   },
   {
     "name": "research-strategy",
@@ -230,10 +230,10 @@
     "use_for": "Market research, ICP definition, positioning, competitive analysis, campaign briefs",
     "description": "Market research, ICP definition, positioning, competitive analysis, campaign briefs for any active brand",
     "deps": {
-      "mcp": [],
-      "gateway": [
+      "mcp": [
         "DataforSEO (opt)"
       ],
+      "gateway": [],
       "files": [
         "brand.md",
         "audience.md",
@@ -242,7 +242,7 @@
       ],
       "env": []
     },
-    "version": "v2.2.5"
+    "version": "v2.18.0"
   },
   {
     "name": "social-calendar",
@@ -276,21 +276,20 @@
     "description": "Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand",
     "deps": {
       "mcp": [
-        "Slack"
-      ],
-      "gateway": [
+        "Slack",
         "Zernio"
       ],
+      "gateway": [],
       "files": [
         "brand.md"
       ],
       "env": [
-        "`${BRAND}_LATE_FB`",
-        "`${BRAND}_LATE_IG`",
-        "`${BRAND}_LATE_LI` (per-platform; only required for platforms the brand publishes to)"
+        "`${BRAND}_ZERNIO_FB`",
+        "`${BRAND}_ZERNIO_IG`",
+        "`${BRAND}_ZERNIO_LI` (per-platform; only required for platforms the brand publishes to)"
       ]
     },
-    "version": "v2.3.0"
+    "version": "v2.18.0"
   },
   {
     "name": "trend-radar",
@@ -301,10 +300,10 @@
       "mcp": [
         "Notion",
         "Slack",
-        "Claude in Chrome (opt — competitor video structure analysis; degrades to text-only when absent)"
+        "Claude in Chrome (opt — competitor video structure analysis; degrades to text-only when absent)",
+        "DataforSEO (opt — trending keywords)"
       ],
       "gateway": [
-        "DataforSEO (opt — trending keywords)",
         "FiveAgents (logging)"
       ],
       "files": [
@@ -318,7 +317,7 @@
         "`${BRAND}_PERFORMANCE_DB` (read-only — populated by content-performance-analyst)"
       ]
     },
-    "version": "v2.15.0"
+    "version": "v2.18.0"
   },
   {
     "name": "video-repurposer",
@@ -328,10 +327,10 @@
     "deps": {
       "mcp": [
         "Notion",
-        "Slack"
+        "Slack",
+        "Zernio (publishing)"
       ],
       "gateway": [
-        "Zernio (publishing)",
         "FiveAgents (logging)"
       ],
       "files": [
@@ -339,15 +338,15 @@
         "audience.md"
       ],
       "env": [
-        "`${BRAND}_LATE_LI`",
-        "`${BRAND}_LATE_IG`",
-        "`${BRAND}_LATE_TT`",
-        "`${BRAND}_LATE_TW`",
-        "`${BRAND}_LATE_FB`",
+        "`${BRAND}_ZERNIO_LI`",
+        "`${BRAND}_ZERNIO_IG`",
+        "`${BRAND}_ZERNIO_TT`",
+        "`${BRAND}_ZERNIO_TW`",
+        "`${BRAND}_ZERNIO_FB`",
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.14.0"
+    "version": "v2.18.0"
   },
   {
     "name": "apollo-lead-prospector",

@@ -1,6 +1,6 @@
 {
   "name": "fiveagents-link",
-  "version": "2.17.0",
+  "version": "2.18.0",
   "description": "Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand",
   "author": {
     "name": "fiveagents.io",
@@ -35,7 +35,7 @@
       "sensitive": false
     },
     "late_api_key": {
-      "description": "Zernio API key for social media publishing — also store in dashboard for Cowork use",
+      "description": "Legacy — no longer used by link-skills (Zernio moved to its own OAuth MCP connector in v2.18.0; there is no API key to paste). Retained only for backward-compatibility with the fiveagents.io dashboard schema; safe to leave blank.",
       "sensitive": true
     },
     "gemini_api_key": {

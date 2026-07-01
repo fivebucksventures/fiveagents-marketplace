@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.17.0 | June 21, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Migration support for the Zernio + DataforSEO gateway split-off (gateway v1.7.4/v1.7.5) and Argil retirement.** Step 1e adds Zernio (`profiles_list` — success = authorized) and DataforSEO (`keywords_data_google_ads_search_volume`, optional) connector probes. Step 3f renames every `${BRAND}_LATE_*` env var → `${BRAND}_ZERNIO_*`, removes the now-defunct `LATE_API_KEY` (Zernio is OAuth — no key), and updates the auto-discover tool names (`profiles_list` / `accounts_list` / `list_ad_accounts`, no longer gateway-routed). Step 3g adds a **Zernio (required, OAuth)** connector walkthrough and a **DataforSEO (optional, Basic Auth)** connector walkthrough. Step 3k adds a brand-action row mapping this release — reconnect Zernio + DataforSEO as their own custom connectors and re-run account discovery, since Zernio's own API may return different SocialAccount `_id`s than the old gateway-proxied Late API.
 
 **v2.17.0** — June 21, 2026
 - **Migration support for the Inbound Gig Engine completion (v2.17.0 Sales skills `gig-proposal-writer` / `n8n-workflow-builder` / `vsl-demo-producer`).** Step 1e adds an **n8n Cloud MCP** probe (`get_workflow_best_practices`) — optional, only needed by `n8n-workflow-builder`. Step 3g adds the n8n Cloud connect-walkthrough prompt. Step 3k maps the new `Inbound Gig Engine completed` changelog entry to its optional brand action (connect n8n Cloud + optional `${BRAND}_N8N_PROJECT`). The three skills are auto-detected from the shipped `skills-manifest.json` (Step 1 registry read); no per-brand context file is required beyond what `gig-prospector` already needs.
@@ -30,10 +33,6 @@ deps:
 
 **v2.11.1** — May 28, 2026
 - **Registered the two new v2.13.0 auto-bootstrapped DBs** — `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the Step 1d auto-bootstrap inventory and the Step 3f defer-or-bootstrap list; Step 1d checklist count corrected 7 → 9. New skills are otherwise auto-detected from the shipped `skills-manifest.json` (Step 1's registry read).
-
-**v2.11.0** — May 23, 2026
-- **Step 3b design-system install updated to the new claude.ai/design flow** — Design System → **Create** → the **"Set up your design system"** attach form (company name + blurb; optional GitHub repo / local code / `.fig` / fonts+logos+assets; brand colors, fonts and voice in **Any other notes**) → **Continue to generation** → paste a website-aware generation prompt so Claude validates against the live site. Steps renumbered 1–6.
-- **Step 3d media library now specifies per-template-type folder names** — `LinkedIn Post` / `Meta Story` / `Meta Carousel` / `Meta Post`, matching the `content-generator` media-pool convention; only create folders for template types that exist on fb.ai.
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 
@@ -193,19 +192,20 @@ Read `.claude/settings.local.json` (search up from cwd). Check the `env` block:
 | `GEMINI_API_KEY` | v2.0 |
 | `SLACK_NOTIFY_USER` | v2.0 |
 | `REPORT_EMAIL` | v2.0 |
-| `LATE_API_KEY` | v2.1.0 |
-| `{BRAND}_LATE_FB` / `_IG` / `_LI` | v2.2.1 |
-| `{BRAND}_LATE_TT` / `_TW` (TikTok / Twitter-X organic — `video-repurposer`, YouTube-First) | v2.14.0 |
+| `{BRAND}_ZERNIO_FB` / `_IG` / `_LI` | v2.2.1 |
+| `{BRAND}_ZERNIO_TT` / `_TW` (TikTok / Twitter-X organic — `video-repurposer`, YouTube-First) | v2.14.0 |
 | `{BRAND}_NOTION_DB` | v2.2.10 (social-calendar bootstraps if missing) |
+
+> **Note:** Zernio (formerly Late) moved to its own OAuth MCP in gateway v1.7.4 — there is no longer a `LATE_API_KEY` env var. Authorization is handled by connecting the Zernio custom connector (Step 3g), not by saving a key.
 
 **Optional:**
 | Env var | Notes |
 |---|---|
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Keyword research |
 | `DEFAULT_BRAND` | Workspace default brand |
-| `{BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) + `{BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID, 10-digit) | Both required for the Windsor.ai fallback in digital-marketing-analyst / data-analysis. Zernio's Google Ads tools take `account_id` AND `ad_account_id` — passing only the SocialAccount ID returns empty results. |
-| `{BRAND}_LATE_META_ADS_ACCOUNT_ID` | Meta Ads account ID for Windsor.ai fallback in digital-marketing-analyst / data-analysis (v2.5.0) |
-| `{BRAND}_LATE_LINKEDIN_ADS` (Zernio SocialAccount `_id`) + `{BRAND}_LATE_LINKEDIN_ADS_CID` (LinkedIn sponsored account ID, numeric) | Both required for the LinkedIn Ads Windsor.ai fallback in digital-marketing-analyst / data-analysis. Same two-ID pattern as Google Ads — passing only the SocialAccount ID returns empty results. Optional: skip if the brand does not run LinkedIn Ads. |
+| `{BRAND}_ZERNIO_GOOGLE_ADS` (Zernio SocialAccount `_id`) + `{BRAND}_ZERNIO_GOOGLE_ADS_CID` (Google Ads customer ID, 10-digit) | Both required for the Windsor.ai fallback in digital-marketing-analyst / data-analysis. Zernio's Google Ads tools take `account_id` AND `ad_account_id` — passing only the SocialAccount ID returns empty results. |
+| `{BRAND}_ZERNIO_META_ADS_ACCOUNT_ID` | Meta Ads account ID for Windsor.ai fallback in digital-marketing-analyst / data-analysis (v2.5.0) |
+| `{BRAND}_ZERNIO_LINKEDIN_ADS` (Zernio SocialAccount `_id`) + `{BRAND}_ZERNIO_LINKEDIN_ADS_CID` (LinkedIn sponsored account ID, numeric) | Both required for the LinkedIn Ads Windsor.ai fallback in digital-marketing-analyst / data-analysis. Same two-ID pattern as Google Ads — passing only the SocialAccount ID returns empty results. Optional: skip if the brand does not run LinkedIn Ads. |
 
 **Auto-bootstrapped (no user action required at setup; created on first run of the relevant skill):**
 | Env var | Bootstrapped by | Required since |
@@ -232,6 +232,8 @@ You cannot directly probe what the user has connected in Claude settings. Instea
 | MCP | Probe | Required since |
 |---|---|---|
 | Five Agents (gateway) | `fiveagents_log_run` (test entry) | v2.0 |
+| Zernio (own MCP, OAuth) | `profiles_list` (success = authorized) | v2.18.0 (formerly Late, gateway-routed; split to its own custom connector in gateway v1.7.4 — `https://mcp.zernio.com/mcp`) |
+| DataforSEO (own MCP, Basic Auth) | `keywords_data_google_ads_search_volume` with a trivial keyword (optional) | v2.18.0 (formerly gateway-routed; split to its own custom connector in gateway v1.7.5 — `https://mcp.dataforseo.com/mcp`; only needed for keyword research — never flag as a required gap) |
 | Notion | `notion-search` query="ping" | v2.0 |
 | Slack | `slack_search_users` query="me" | v2.0 |
 | Gmail | `list_labels` | v2.0 |
@@ -387,11 +389,12 @@ brand.md sections
 
 Env vars (.claude/settings.local.json)
   ✅ FIVEAGENTS_API_KEY, GEMINI_API_KEY, SLACK_NOTIFY_USER, REPORT_EMAIL
-  ❌ LATE_API_KEY, {BRAND}_LATE_FB, {BRAND}_LATE_IG, {BRAND}_LATE_LI
+  ❌ {BRAND}_ZERNIO_FB, {BRAND}_ZERNIO_IG, {BRAND}_ZERNIO_LI
   ❌ {BRAND}_NOTION_DB                    ← will be created by social-calendar on first run, or bootstrap now
 
 MCP connectors
   ✅ Five Agents, Notion, Slack, Gmail, Google Calendar
+  ❌ Zernio (required for social-publisher — reconnect as its own OAuth connector; formerly gateway-routed)
   ❌ Windsor.ai (required for digital-marketing-analyst)
   ❌ Canva (required for campaign-presenter)
   ❌ Playwright (required for website analysis in brand-setup Step 4)
@@ -399,6 +402,7 @@ MCP connectors
   ❌ Calendly (required for customer-onboarder, meeting-analyzer)
   ❌ Stripe (required for invoice-collector, financial-reporter)
   ❌ Xero (required for invoice-collector, financial-reporter)
+  ⏭ DataforSEO (optional — keyword research; reconnect as its own Basic Auth connector)
   ⏭ PostHog (optional — churn-predictor falls back to support-ticket + login signals)
   ⏭ Gamma (optional — investor-update-writer needs it; skip if you don't deliver investor decks)
   ⏭ Meta Ads MCP (optional enhancement — Windsor.ai already covers Meta Ads fully)
@@ -423,7 +427,7 @@ If the user says no / not now, exit cleanly and offer to re-run later. Log the g
 
 ## Step 3 — Fill the gaps interactively
 
-The agent walks through each missing item in order, **only prompting for items that came back ❌ or ⏭ in Step 2** — never re-asking for known-good state. For most fills, the agent delegates to the matching brand-setup sub-step (e.g. missing `sales.md` triggers `brand-setup` Step 5g, missing `LATE_API_KEY` triggers Step 7b's Late onboarding flow). You can say "skip" to any optional gap.
+The agent walks through each missing item in order, **only prompting for items that came back ❌ or ⏭ in Step 2** — never re-asking for known-good state. For most fills, the agent delegates to the matching brand-setup sub-step (e.g. missing `sales.md` triggers `brand-setup` Step 5g, a Zernio connector not authorized triggers brand-setup Step 7a-ii Zernio OAuth authorize flow). You can say "skip" to any optional gap.
 
 **Expect 2–60 minutes** depending on how many gaps you have. A brand with 3 missing context files + 2 missing env vars + a CLAUDE.md path fix takes ~10 min. A brand with 10+ gaps and lots of optional templates can stretch to an hour. The skill saves progress as it goes, so you can interrupt and resume.
 
@@ -523,61 +527,62 @@ If the user skips, mark as ⏭ — skills fall back to Gemini image generation. 
 For each missing section header in `brand.md`, append it without rewriting existing content:
 
 - **Locale missing** — extract Currency / Timezone / Meta USD exchange rate from the website (re-use Step 4 logic). Append a `## Locale` section to `brand.md`.
-- **Social Publishing missing** — re-run `brand-setup` Step 7b Step D (auto-discover Zernio profile + connected accounts via `late_list_profiles` + `late_list_accounts`). Append a `## Social Publishing` section.
+- **Social Publishing missing** — re-run `brand-setup` Step 7b Step D (auto-discover Zernio profile + connected accounts via the Zernio MCP tools `profiles_list` + `accounts_list`). Append a `## Social Publishing` section.
 - **Content Strategy missing** — run `brand-setup` Step 4a. Ask the user: (1) Primary channel: `youtube` or `static`? (2) If `youtube`: which platforms for distribution, which are currently connected, clips per video. Write the `## Content Strategy` section to `brand.md`. This section is read by `social-calendar` at runtime to select planning mode — without it, `social-calendar` defaults to static mode.
 
 ### 3f. Env vars (only the missing ones)
 
 For each missing required env var, ask the user for the value and append/update `.claude/settings.local.json` under `env`. Preserve all existing keys — never overwrite the file wholesale.
 
-For missing `{BRAND}_LATE_FB/IG/LI/TT/TW`: re-run `late_list_profiles` + `late_list_accounts` to auto-discover. (`_TT` = TikTok, `_TW` = Twitter/X — organic publishing IDs needed by `video-repurposer` for YouTube-First clip publishing; skip any platform not connected to Zernio.)
+For missing `{BRAND}_ZERNIO_FB/IG/LI/TT/TW`: re-run the Zernio MCP tools `profiles_list` + `accounts_list` to auto-discover. (`_TT` = TikTok, `_TW` = Twitter/X — organic publishing IDs needed by `video-repurposer` for YouTube-First clip publishing; skip any platform not connected to Zernio.)
+
+**Legacy `${BRAND}_LATE_*` → `${BRAND}_ZERNIO_*` rename.** Brands set up before gateway v1.7.4 have their Zernio account IDs stored under the old `${BRAND}_LATE_*` prefix (and a now-defunct `LATE_API_KEY`). For every `${BRAND}_LATE_*` key in the `env` block (`_FB` / `_IG` / `_LI` / `_TT` / `_TW` / `_GOOGLE_ADS` / `_GOOGLE_ADS_CID` / `_META_ADS_ACCOUNT_ID` / `_LINKEDIN_ADS` / `_LINKEDIN_ADS_CID`), copy the value to the matching `${BRAND}_ZERNIO_*` key and delete the old key. Also delete `LATE_API_KEY` if present — Zernio is now an OAuth connector with no API key.
 
 For missing `{BRAND}_NOTION_DB`: ask the user if they want to bootstrap now (calls `notion-create-database` per `social-calendar` Step 3a) or defer to first social-calendar run.
 
-For missing `{BRAND}_LATE_GOOGLE_ADS`, `{BRAND}_LATE_GOOGLE_ADS_CID`, `{BRAND}_LATE_META_ADS_ACCOUNT_ID`, `{BRAND}_LATE_LINKEDIN_ADS`, or `{BRAND}_LATE_LINKEDIN_ADS_CID`: auto-discover via the gateway. SocialAccount IDs need no user input; customer / sponsored-account IDs fall back to a prompt only when Zernio rate-limits or returns nothing.
+For missing `{BRAND}_ZERNIO_GOOGLE_ADS`, `{BRAND}_ZERNIO_GOOGLE_ADS_CID`, `{BRAND}_ZERNIO_META_ADS_ACCOUNT_ID`, `{BRAND}_ZERNIO_LINKEDIN_ADS`, or `{BRAND}_ZERNIO_LINKEDIN_ADS_CID`: auto-discover via the Zernio MCP. SocialAccount IDs need no user input; customer / sponsored-account IDs fall back to a prompt only when Zernio rate-limits or returns nothing.
 
 ```
 Step 1 — Zernio SocialAccount IDs (no user input):
-Use gateway MCP tool `late_list_accounts`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-→ Find entry where platform is "googleads" or "google" → save _id as ${BRAND}_LATE_GOOGLE_ADS
-→ Find entry where platform is "metaads" or "facebook" → save _id as ${BRAND}_LATE_META_ADS_ACCOUNT_ID
+Use Zernio MCP tool `accounts_list`:
+→ Find entry where platform is "googleads" or "google" → save _id as ${BRAND}_ZERNIO_GOOGLE_ADS
+→ Find entry where platform is "metaads" or "facebook" → save _id as ${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID
 → Find entry where platform is "linkedinads" or "linkedin_ads" (NOT plain "linkedin", which is the
-   organic LinkedIn page saved as ${BRAND}_LATE_LI) → save _id as ${BRAND}_LATE_LINKEDIN_ADS
+   organic LinkedIn page saved as ${BRAND}_ZERNIO_LI) → save _id as ${BRAND}_ZERNIO_LINKEDIN_ADS
 
-Step 2 — Google Ads customer ID (only if ${BRAND}_LATE_GOOGLE_ADS_CID is missing):
-Use gateway MCP tool `late_list_ad_accounts`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- account_id: ${BRAND}_LATE_GOOGLE_ADS
+Step 2 — Google Ads customer ID (only if ${BRAND}_ZERNIO_GOOGLE_ADS_CID is missing):
+Use Zernio MCP tool `list_ad_accounts`:
+- account_id: ${BRAND}_ZERNIO_GOOGLE_ADS
 
 2a. Accounts returned → take the customer ID (numeric) from the first entry and save as
-    ${BRAND}_LATE_GOOGLE_ADS_CID.
+    ${BRAND}_ZERNIO_GOOGLE_ADS_CID.
 2b. Empty response OR 429 rate-limit → ask the user:
     > "What is your Google Ads customer ID? You can find it in the top-right corner
     > of your Google Ads account (format: XXX-XXX-XXXX)."
     Strip dashes before saving.
 
-Step 3 — LinkedIn sponsored account ID (only if ${BRAND}_LATE_LINKEDIN_ADS is set
-        and ${BRAND}_LATE_LINKEDIN_ADS_CID is missing):
-Use gateway MCP tool `late_list_ad_accounts`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
-- account_id: ${BRAND}_LATE_LINKEDIN_ADS
+Step 3 — LinkedIn sponsored account ID (only if ${BRAND}_ZERNIO_LINKEDIN_ADS is set
+        and ${BRAND}_ZERNIO_LINKEDIN_ADS_CID is missing):
+Use Zernio MCP tool `list_ad_accounts`:
+- account_id: ${BRAND}_ZERNIO_LINKEDIN_ADS
 
 3a. Accounts returned → take the numeric sponsored account ID from the first entry and save as
-    ${BRAND}_LATE_LINKEDIN_ADS_CID.
+    ${BRAND}_ZERNIO_LINKEDIN_ADS_CID.
 3b. Empty response OR 429 rate-limit → ask the user:
     > "What is your LinkedIn sponsored account ID? Open Campaign Manager → look at the URL or
     > top-left account picker — it's a numeric ID (e.g. 517258773)."
     Save the digits only.
 
 Step 4 — Legacy rename (handle before Step 1):
-If ${BRAND}_LATE_GOOGLE_ADS_ACCOUNT_ID exists but ${BRAND}_LATE_GOOGLE_ADS does not,
-copy the value across, delete the old key, then run Step 2 to populate _CID.
+If ${BRAND}_ZERNIO_GOOGLE_ADS_ACCOUNT_ID or legacy ${BRAND}_LATE_GOOGLE_ADS exists but
+${BRAND}_ZERNIO_GOOGLE_ADS does not, copy the value across, delete the old key, then run
+Step 2 to populate _CID. (See also the blanket `${BRAND}_LATE_*` → `${BRAND}_ZERNIO_*`
+rename above — apply that first.)
 ```
 
-`${BRAND}_LATE_GOOGLE_ADS`, `${BRAND}_LATE_META_ADS_ACCOUNT_ID`, and `${BRAND}_LATE_LINKEDIN_ADS` are SocialAccount IDs (Zernio-side `_id`s); `${BRAND}_LATE_GOOGLE_ADS_CID` and `${BRAND}_LATE_LINKEDIN_ADS_CID` are the actual platform-side account IDs (Google Ads customer ID, LinkedIn sponsored account ID). Zernio's Google Ads and LinkedIn Ads tools require **both** the SocialAccount ID AND the platform-side ID — passing only the SocialAccount ID returns empty results. Only save the vars for platforms that are returned. If `LATE_API_KEY` is not set (Zernio not configured), skip silently and note: "Windsor.ai fallback ads account IDs not set — configure Zernio first." If LinkedIn Ads is not in `late_list_accounts`, skip Step 3 — most brands do not run LinkedIn Ads and the analyst skills tolerate the gap.
+`${BRAND}_ZERNIO_GOOGLE_ADS`, `${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID`, and `${BRAND}_ZERNIO_LINKEDIN_ADS` are SocialAccount IDs (Zernio-side `_id`s); `${BRAND}_ZERNIO_GOOGLE_ADS_CID` and `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` are the actual platform-side account IDs (Google Ads customer ID, LinkedIn sponsored account ID). Zernio's Google Ads and LinkedIn Ads tools require **both** the SocialAccount ID AND the platform-side ID — passing only the SocialAccount ID returns empty results. Only save the vars for platforms that are returned. If the Zernio connector is not authorized, skip silently and note: "Windsor.ai fallback ads account IDs not set — connect Zernio first." If LinkedIn Ads is not in `accounts_list`, skip Step 3 — most brands do not run LinkedIn Ads and the analyst skills tolerate the gap.
 
-After updating `.claude/settings.local.json`, also store any external API keys in the gateway vault via `fiveagents_store_credential` (mapping per `brand-setup` Step 7b vault table).
+After updating `.claude/settings.local.json`, also store the remaining vaultable API keys (`GEMINI_API_KEY`, `FIVEBUCKS_API_KEY`) in the gateway vault via `fiveagents_store_credential` (mapping per `brand-setup` Step 7b vault table). Zernio (OAuth) and DataforSEO (own Basic-Auth connector) are **not** gateway-vaulted — no `fiveagents_store_credential` for them.
 
 For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB`, `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB`):
 
@@ -642,6 +647,14 @@ Iterate through the missing MCPs in this order. For each one, post the prompt ve
   > n8n Cloud isn't connected — used by `n8n-workflow-builder` (the Prove phase of the Inbound Gig Engine) to build the proof-of-concept automation that backs a freelance bid. Go to **Settings → Connected Apps → n8n Cloud → Authorize**, then tell me when done. (Skip if you don't pursue marketplace work or don't demo automations — `n8n-workflow-builder` will be unconfigurable, but `gig-prospector` and `gig-proposal-writer` still run.) Optionally, to send these workflows to a specific n8n project, give me the project ID and I'll save it as `${BRAND}_N8N_PROJECT`; otherwise they go to your default project.
 
 **Custom connectors (Settings → Connectors → Add custom connector):**
+
+- **Zernio not connected / not authorized** (required — social publishing + ads account discovery; formerly gateway-routed as "Late", split to its own MCP in gateway v1.7.4):
+  > Zernio (formerly Late) is now its own connector — it's used to publish social posts and to discover your ad-account IDs. Go to **Settings → Connectors → Add custom connector**, name `Zernio`, URL `https://mcp.zernio.com/mcp`, then sign in with your Zernio account (OAuth). Tell me when done. (If you set this brand up before this change, you can also delete the old `LATE_API_KEY` from `.claude/settings.local.json` after authorizing — Zernio no longer uses an API key.)
+
+  After the user confirms, re-run the Step 1e probe (`profiles_list`); mark complete only when it succeeds. If a `LATE_API_KEY` still exists in the `env` block, delete it (Zernio is OAuth-only now).
+
+- **DataforSEO not connected** *(optional — keyword research only; formerly gateway-routed, split to its own MCP in gateway v1.7.5):*
+  > (Optional) DataforSEO is now its own connector — used only for keyword research (search volume, suggestions). If you do keyword research: **Settings → Connectors → Add custom connector**, name `DataforSEO`, URL `https://mcp.dataforseo.com/mcp`, then authenticate with **Basic Auth** using your `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` credentials. Skip if you don't do keyword research — nothing else depends on it. Tell me whether you added it or skipped. (No env rename needed — the login/password env vars are unchanged.)
 
 - **Meta Ads MCP not connected** (optional enhancement — limited rollout):
   > (Optional) Meta has an official MCP server that gives skills slightly more direct Marketing API access than Windsor.ai. If you want to try it: **Settings → Connectors → Add custom connector**, name `Meta Ads`, URL `https://mcp.facebook.com/ads`, sign in with the Facebook/Meta Business account that owns the brand's ad accounts. If "Add custom connector" isn't visible or sign-in fails — no problem, your Windsor.ai connection already covers Meta Ads fully. Tell me whether you added it or skipped.
@@ -807,11 +820,12 @@ For each skill/agent flagged as changed in Step 1k, read its `### Change Log` bu
 | `investor-update-writer introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/investors.md` exists. If not → ask if brand has raised external capital; if yes → run brand-setup Step 5j |
 | `competitor-monitor introduced (link-skills v2.4.0)` | ✅ Check `brands/{brand}/competitors.md` has the new `monitor_urls`/`track_pages`/`exec_team` fields per competitor. If not → run brand-setup Step 5l (extension) |
 | `meeting-analyzer introduced (link-skills v2.4.0)` | ⏭ Optional — ask user if they want operations.md set up. If yes → brand-setup Step 5k |
-| `digital-marketing-analyst v2.3.0 / data-analysis v2.3.0 — Windsor.ai fallback via Zernio (v2.5.0–v2.5.1)` | ✅ Check `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) + `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID) + `${BRAND}_LATE_META_ADS_ACCOUNT_ID` + `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` in env. Both Google vars and both LinkedIn vars are required pairs for Zernio ads calls. LinkedIn vars are optional — skip if the brand doesn't run LinkedIn Ads. If missing → run Step 3f auto-discover (also handles legacy `_LATE_GOOGLE_ADS_ACCOUNT_ID` → `_LATE_GOOGLE_ADS` rename) |
+| `digital-marketing-analyst v2.3.0 / data-analysis v2.3.0 — Windsor.ai fallback via Zernio (v2.5.0–v2.5.1)` | ✅ Check `${BRAND}_ZERNIO_GOOGLE_ADS` (Zernio SocialAccount `_id`) + `${BRAND}_ZERNIO_GOOGLE_ADS_CID` (Google Ads customer ID) + `${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID` + `${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` in env. Both Google vars and both LinkedIn vars are required pairs for Zernio ads calls. LinkedIn vars are optional — skip if the brand doesn't run LinkedIn Ads. If missing → run Step 3f auto-discover (also handles the legacy `${BRAND}_LATE_*` → `${BRAND}_ZERNIO_*` rename, including `${BRAND}_ZERNIO_GOOGLE_ADS_ACCOUNT_ID`/legacy `${BRAND}_LATE_GOOGLE_ADS` → `${BRAND}_ZERNIO_GOOGLE_ADS`) |
 | `social-calendar YouTube-First Mode added (v2.14.0)` | ✅ Check `brands/{brand}/brand.md` has `## Content Strategy` section. If missing → run brand-setup Step 4a to define primary channel. Without it, social-calendar defaults to static mode regardless of the brand's actual publishing workflow. |
 | `trend-radar synthesis requirement added (v2.14.0)` | ✅ No brand file action required — the skill now synthesizes competitor research + web research before writing to Trend DB. Existing `competitors.md` already serves as the competitor input. |
 | `gig-prospector introduced (link-skills v2.16.0)` | ⏭ Optional — ask if the brand pursues freelance/marketplace work. If yes → check `brands/{brand}/sales.md` has a `## Inbound Job Filters` section; if missing → run `brand-setup` Step 5g Step H (markets, platforms + account status, product.md-derived keywords, budget/exclusions/cap). `${BRAND}_GIGS_DB` auto-bootstraps on first run; `FREELANCER_OAUTH_TOKEN` is an optional env var that enables the Freelancer.com API source. No existing skill breaks if skipped. |
 | `Inbound Gig Engine completed (link-skills v2.17.0)` | ⏭ Optional — only for brands pursuing marketplace work (those with `## Inbound Job Filters`). `gig-proposal-writer` and `vsl-demo-producer` need no new connector (Notion + Slack + Claude in Chrome, already covered). `n8n-workflow-builder` needs the **n8n Cloud** MCP — if the brand wants to demo automations, run the Step 3g n8n Cloud walkthrough; optionally set `${BRAND}_N8N_PROJECT`. No env var auto-bootstraps beyond `${BRAND}_GIGS_DB` (already created by `gig-prospector`). No existing skill breaks if skipped. |
+| Zernio + DataforSEO split off the gateway; Argil retired (link-skills v2.18.0) | ✅ **Zernio (required):** reconnect as its own MCP — Settings → Connectors → Add custom connector → `https://mcp.zernio.com/mcp` → sign in with your Zernio account (OAuth). Then rename existing `${BRAND}_LATE_*` env vars → `${BRAND}_ZERNIO_*` (Step 3f) and delete the now-unused `LATE_API_KEY`. Re-run account discovery (`profiles_list` / `accounts_list`) — Zernio's own API may return different SocialAccount `_id`s than the old gateway-proxied Late API, so don't assume they carry over. **DataforSEO (optional):** if the brand uses keyword research, reconnect as its own MCP — Add custom connector → `https://mcp.dataforseo.com/mcp` → Basic Auth with `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` (no env rename needed). **Gemini image model:** no brand action — runtime default changed to `gemini-3.1-flash-image`, no env/file impact. Argil (avatar video) retired with no replacement — no action. |
 
 For changelog entries not in this table, apply judgment: if the change touches a per-brand configuration file (`brand.md`, `funnel.md`, `.claude/settings.local.json`, `CLAUDE.md`) → flag for review. If it is a skill-internal logic change → no brand action needed.
 
@@ -840,7 +854,7 @@ After all selected gaps are filled, run a focused validation pass — only test 
 |---|---|---|
 | design-system/ missing | Installed via Claude Design | ✅ |
 | Locale section in brand.md | Extracted from site, appended | ✅ |
-| LATE_API_KEY missing | Saved to settings.local.json + vault | ✅ |
+| Zernio connector not authorized | User authorized OAuth connector (no key saved/vaulted) | ✅ |
 | Windsor.ai not connected | User authorized, probe passed | ✅ |
 | CLAUDE.md link.md path relative | Replaced with absolute path | ✅ |
 | meta-carousel template (fb.ai) | User chose to skip | ⏭ |
@@ -942,8 +956,8 @@ Cap the "top fixes" list at 3. If `N_not_ready == 0`, omit the Top fixes block; 
 - [ ] Step 1a checked all 5 new brand-context files (sales.md, customer-success.md, finance.md, investors.md, operations.md) with optional annotations applied to investors.md and operations.md
 - [ ] Step 1d checked the 10 auto-bootstrapped DB env vars (incl. v2.13.0 `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB` and v2.16.0 `${BRAND}_GIGS_DB`) without flagging missing ones as required gaps
 - [ ] Step 1a inline schema check for sales.md `## Inbound Job Filters` ran; missing section offered as an optional Step 3a backfill (gig-prospector) — not flagged as a required gap
-- [ ] Step 1e probed all v2.4.0 / v2.2.13 / v2.17.0 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional n8n Cloud, optional Meta Ads MCP)
-- [ ] Step 3f walked the user through any ❌ or missing env vars and ran auto-discover for `{BRAND}_LATE_*` vars where applicable
+- [ ] Step 1e probed all v2.4.0 / v2.2.13 / v2.17.0 / v2.18.0 MCP rows (Apollo.io, Calendly, Stripe, Xero, PostHog, Gamma, optional n8n Cloud, optional Meta Ads MCP, Zernio, optional DataforSEO)
+- [ ] Step 3f walked the user through any ❌ or missing env vars, renamed any legacy `{BRAND}_LATE_*` → `{BRAND}_ZERNIO_*` (and deleted `LATE_API_KEY`), and ran auto-discover for `{BRAND}_ZERNIO_*` vars where applicable
 - [ ] Step 3g walked the user through every ❌/⏭ MCP with the explicit per-MCP prompt — never silently skipped a missing connector
 - [ ] Step 1i probed `fivebucks_list_media_folders` (when `FIVEBUCKS_API_KEY` set) and recorded media library state
 - [ ] Step 1k produced a version table showing which skills/agents changed since `last_applied`
@@ -985,7 +999,7 @@ Use gateway MCP tool `fiveagents_log_run`:
     "gaps_skipped": 0,
     "fixes": [
       { "category": "files", "item": "design-system/", "action": "installed", "status": "ok" },
-      { "category": "env", "item": "LATE_API_KEY", "action": "saved", "status": "ok" },
+      { "category": "mcp", "item": "Zernio", "action": "authorized", "status": "ok" },
       { "category": "mcp", "item": "Windsor.ai", "action": "user_connected", "status": "ok" },
       { "category": "claude_md", "item": "link.md path", "action": "replaced_with_absolute", "status": "ok" }
     ]

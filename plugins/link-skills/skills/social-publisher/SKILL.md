@@ -5,24 +5,27 @@ allowed-tools: Read, Grep, Glob, Bash
 area: Marketing
 use_for: "Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio"
 deps:
-  mcp: ["Slack"]
-  gateway: ["Zernio"]
+  mcp: ["Slack", "Zernio"]
+  gateway: []
   files: ["brand.md"]
-  env: ["`${BRAND}_LATE_FB`", "`${BRAND}_LATE_IG`", "`${BRAND}_LATE_LI` (per-platform; only required for platforms the brand publishes to)"]
+  env: ["`${BRAND}_ZERNIO_FB`", "`${BRAND}_ZERNIO_IG`", "`${BRAND}_ZERNIO_LI` (per-platform; only required for platforms the brand publishes to)"]
 ---
 
 ## Maintenance
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 28, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand
 
 ### Change Log
 
+**v2.18.0** — July 01, 2026
+- **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_list_posts` → `posts_list`, `late_create_post` → `posts_create`, `late_update_post` → `posts_update`, and `late_presign_upload` → `media_generate_upload_link` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*` and internal `late_*` PublishLog fields to `zernio_*`.
+
 **v2.3.0** — May 28, 2026
-- **PublishLog is now the performance join key.** Step 4 captures the platform post URL (`platformPostUrl`) alongside the Late ID, and records `Date` + `Topic` + `Platform` so `content-performance-analyst` can join each published post back to its social-calendar planning row (Persona / Format / Content Angle / Direction / hook archetype) and fetch per-post engagement. Closes the create→publish→measure loop.
+- **PublishLog is now the performance join key.** Step 4 captures the platform post URL (`platformPostUrl`) alongside the Zernio ID, and records `Date` + `Topic` + `Platform` so `content-performance-analyst` can join each published post back to its social-calendar planning row (Persona / Format / Content Angle / Direction / hook archetype) and fetch per-post engagement. Closes the create→publish→measure loop.
 
 **v2.2.5** — April 26, 2026
 - Added "Before Executing" section — reads agents/link.md before starting
@@ -62,27 +65,25 @@ Do NOT use this skill for:
 
 ---
 
-## Late API reference
+## Zernio publishing reference
 
-All Late API calls go through the gateway MCP tools. Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`. Credentials are fetched automatically by the gateway.
+Zernio ships its own MCP server — its tools are OAuth/session-scoped and take no `fiveagents_api_key` param.
 
 ### Account / Profile IDs
 
 Read from env vars using brand prefix — all stored in `.claude/settings.local.json`:
 
 ```
-{BRAND}_LATE_FB   → Facebook account ID
-{BRAND}_LATE_IG   → Instagram account ID
-{BRAND}_LATE_LI   → LinkedIn account ID
+{BRAND}_ZERNIO_FB   → Facebook account ID
+{BRAND}_ZERNIO_IG   → Instagram account ID
+{BRAND}_ZERNIO_LI   → LinkedIn account ID
 ```
 
-Example: `${BRAND}_LATE_FB`, `${BRAND}_LATE_IG`, `${BRAND}_LATE_LI`
+Example: `${BRAND}_ZERNIO_FB`, `${BRAND}_ZERNIO_IG`, `${BRAND}_ZERNIO_LI`
 
-All Late API calls go through the gateway MCP tools. Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`.
+Available Zernio MCP tools: `posts_list`, `posts_create`, `posts_update`, `posts_delete`, `media_generate_upload_link`.
 
-Available Late tools: `late_list_posts`, `late_create_post`, `late_update_post`, `late_delete_post`, `late_presign_upload`.
-
-For media uploads, use Python `requests.put` with the presigned URL from `late_presign_upload` — do NOT use `late_upload_media`.
+For media uploads, use Python `requests.put` with the presigned URL from `media_generate_upload_link`.
 
 ---
 
@@ -104,11 +105,10 @@ For media uploads, use Python `requests.put` with the presigned URL from `late_p
 
 ### Step 1 — List pending drafts
 
-Fetch all drafts from Late and show them to the user for review:
+Fetch all drafts from Zernio and show them to the user for review:
 
 ```
-Use gateway MCP tool `late_list_posts`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use Zernio MCP tool `posts_list`:
 - status: "draft"
 - limit: 20
 ```
@@ -128,8 +128,7 @@ Present the list to the user and ask: "Which drafts should I publish? Publish no
 
 **Option A — Publish now:**
 ```
-Use gateway MCP tool `late_update_post`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use Zernio MCP tool `posts_update`:
 - post_id: "<draft_id>"
 - is_draft: false
 - publish_now: true
@@ -137,8 +136,7 @@ Use gateway MCP tool `late_update_post`:
 
 **Option B — Schedule for a specific time:**
 ```
-Use gateway MCP tool `late_update_post`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use Zernio MCP tool `posts_update`:
 - post_id: "<draft_id>"
 - is_draft: false
 - scheduled_for: "<ISO 8601 UTC datetime>"
@@ -149,7 +147,7 @@ Use gateway MCP tool `late_update_post`:
 - If a draft was created without `platformSpecificData.contentType`, it must be deleted and re-created with the correct `platformSpecificData`. You cannot change contentType via PUT.
 - **Reels require video.** If a Reel draft has a static image (PNG/JPG), it will fail on publish. Delete it and re-create as a Story instead (`contentType: "story"`).
 - Stories accept both images and video. When in doubt, use Story over Reel for static images.
-- Use PUT (not PATCH) for all Late API updates.
+- Use PUT (not PATCH) for all Zernio post updates.
 
 Default publish times (convert from brand timezone to UTC using `brands/{brand}/brand.md` Locale):
 | Platform | Local Time | Notes |
@@ -160,20 +158,20 @@ Default publish times (convert from brand timezone to UTC using `brands/{brand}/
 
 ### Step 4 — Log result (this is the performance join key)
 
-Append to `outputs/{brand}/published/PublishLog_[DDMonYYYY].md`. **Capture the platform post URL (`platformPostUrl` from the Late publish response) alongside the Late ID** — this log is the join key `content-performance-analyst` uses later to match per-post engagement back to the planned post.
+Append to `outputs/{brand}/published/PublishLog_[DDMonYYYY].md`. **Capture the platform post URL (`platformPostUrl` from the Zernio publish response) alongside the Zernio ID** — this log is the join key `content-performance-analyst` uses later to match per-post engagement back to the planned post.
 
 ```markdown
 ## [DDMonYYYY] Publish Log
 
-| Date | Platform | Topic | Late ID | Post URL | Status | Published At |
+| Date | Platform | Topic | Zernio ID | Post URL | Status | Published At |
 |---|---|---|---|---|---|---|
 | 13 Mar 2026 | LinkedIn | AI Search SEO | 69b... | https://www.linkedin.com/feed/update/... | published | 2026-03-13T01:00Z |
 | 13 Mar 2026 | Facebook | Replace 5 Tools | 69b... | https://www.facebook.com/.../posts/... | scheduled | 2026-03-13T04:00Z |
 ```
 
 - **`Date` + `Topic` + `Platform`** let `content-performance-analyst` join each published post back to its planning row in the brand's social-calendar (`${BRAND}_NOTION_DB`) — recovering Persona / Format / Content Angle / Direction / hook archetype.
-- **`Late ID` + `Post URL`** are the keys for fetching engagement from Zernio `late_list_posts` (matched by Late post ID); the URL is the human-readable fallback for matching.
-- If the publish response omits `platformPostUrl` (some platforms return it asynchronously), record the Late ID and leave the URL blank — re-fetch via `late_list_posts` on the next analyst run.
+- **`Zernio ID` + `Post URL`** are the keys for fetching engagement from Zernio `posts_list` (matched by Zernio post ID); the URL is the human-readable fallback for matching.
+- If the publish response omits `platformPostUrl` (some platforms return it asynchronously), record the Zernio ID and leave the URL blank — re-fetch via `posts_list` on the next analyst run.
 
 ### Step 5 — Notify via Slack
 
@@ -219,7 +217,7 @@ Use gateway MCP tool `fiveagents_log_run`:
     "posts_published": 0,
     "posts_failed": 0,
     "posts": [
-      { "platform": "Facebook", "topic": "...", "late_post_id": "...", "status": "published", "published_at": "ISO timestamp", "url": "https://...", "notes": null }
+      { "platform": "Facebook", "topic": "...", "zernio_post_id": "...", "status": "published", "published_at": "ISO timestamp", "url": "https://...", "notes": null }
     ]
   }
 ```

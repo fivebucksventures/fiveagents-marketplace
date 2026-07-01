@@ -5,21 +5,25 @@ allowed-tools: Read, Grep, Glob, Bash
 area: Marketing
 use_for: "Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack"
 deps:
-  mcp: ["Notion", "Slack"]
-  gateway: ["Gemini", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
+  mcp: ["Notion", "Slack", "Zernio"]
+  gateway: ["Gemini", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
   files: ["brand.md", "audience.md", "product.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
-  env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_LATE_FB/IG/LI`"]
+  env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_ZERNIO_FB/IG/LI`"]
 ---
 
 ## Maintenance
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.12.2 | June 08, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_presign_upload` → `media_generate_upload_link` and `late_create_post` → `posts_create` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*` and internal `late_*` PublishLog/output fields to `zernio_*`.
+- **Gemini image model ID updated (gateway v1.7.4).** `gemini_generate_image` model changed from the retired `gemini-3.1-flash-image-preview` to the GA default `gemini-3.1-flash-image` ("Nano Banana 2").
 
 **v2.12.2** — June 08, 2026
 - **Stale `_raw.png` reference removed.** Step 4g cleanup and Quality Checklist both referenced `_raw.png` as an intermediate file to delete — that filename is never created (Gemini backgrounds save to `brands/{brand}/backgrounds/`). Only `_with_text.png` is a real intermediate. Agents following the old instruction silently no-op'd on a non-existent file.
@@ -39,11 +43,6 @@ deps:
 
 **v2.11.1** — May 22, 2026
 - **Reel and Argil fully removed.** Removed "For Reels" copy instruction, Reel rows from Step 4c routing table and decision logic, Story/Reel guard → Story-only (`post.format.lower() == "story"`), `LATE_CONTENT_TYPE` reel key and `LATE_CONTENT_TYPE_FALLBACK` dict, Reel video publishing and fallback rules, Argil from frontmatter gateway dep. Log metric `format` placeholder corrected from hardcoded `"static"` to `"<Post|Story|Carousel>"`.
-
-**v2.11.0** — May 21, 2026
-- **Story publish split**: `meta-story` renders re-host each slide on Zernio first (`late_presign_upload` + PUT → permanent `publicUrl`) before calling `late_create_post` — Supabase signed URLs expire after ~1 hour and must never be passed directly to Zernio. 1-second sleep between slides; 5-second sleep + retry after ~5 consecutive FB posts (FB rate-limit). Step 4c-template §7 rewritten.
-- **`slide_ids` removed for all template types** — fb.ai now filters single-image templates (`linkedin-post`, `meta-post`) by the `direction` override server-side. `fivebucks_render_post` always omits `slide_ids`; Step 4c-template §6 rewritten. Calendar table 12 → 11 columns (SlideId column removed; Status moves to `[10]`).
-
 
 # SKILL.md — Content Generator
 
@@ -390,26 +389,24 @@ Publishing from the template-path splits on template type: both `meta-story` and
 
 **`meta-story` (6 slides → 6 separate Story posts per platform):**
 
-**Always re-host on Zernio before posting.** Supabase signed URLs from `fivebucks_render_post` expire after ~1 hour. Zernio stores URLs by reference (not bytes), so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `late_presign_upload` + PUT to upload each slide to Zernio's CDN first, then pass the permanent `publicUrl` to `late_create_post`. Post one slide at a time with a 1-second sleep between calls. After every ~5 consecutive FB story posts, sleep 5 seconds before the next call (Facebook rate-limits rapid sequential story submissions) and retry once on rejection.
+**Always re-host on Zernio before posting.** Supabase signed URLs from `fivebucks_render_post` expire after ~1 hour. Zernio stores URLs by reference (not bytes), so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `media_generate_upload_link` + PUT to upload each slide to Zernio's CDN first, then pass the permanent `publicUrl` to `posts_create`. Post one slide at a time with a 1-second sleep between calls. After every ~5 consecutive FB story posts, sleep 5 seconds before the next call (Facebook rate-limits rapid sequential story submissions) and retry once on rejection.
 
 ```python
 import time, requests
 
 for i, signed_url in enumerate(render_urls, start=1):  # slide-1 through slide-6
     img_bytes = requests.get(signed_url).content
-    presign = late_presign_upload(
-        fiveagents_api_key=API_KEY,
+    presign = media_generate_upload_link(
         filename=f"{slug}_story-slide-{i}_{date}.png",
         content_type="image/png",
     )
     requests.put(presign["uploadUrl"], data=img_bytes, headers={"Content-Type": "image/png"})
     permanent_url = presign["publicUrl"]  # media.zernio.com/media/... — never expires
 
-    for platform, account_id in [("facebook", LATE_ACCOUNTS["facebook"]),
-                                  ("instagram", LATE_ACCOUNTS["instagram"])]:
+    for platform, account_id in [("facebook", ZERNIO_ACCOUNTS["facebook"]),
+                                  ("instagram", ZERNIO_ACCOUNTS["instagram"])]:
         for attempt in range(2):
-            result = late_create_post(
-                fiveagents_api_key=API_KEY,
+            result = posts_create(
                 media_items=[{"type": "image", "url": permanent_url}],
                 platforms=[{"platform": platform, "accountId": account_id,
                              "platformSpecificData": {"contentType": "story"}}],
@@ -433,8 +430,7 @@ import requests
 media_urls = []
 for i, signed_url in enumerate(render_urls, start=1):
     img = requests.get(signed_url).content
-    presign = late_presign_upload(
-        fiveagents_api_key=API_KEY,
+    presign = media_generate_upload_link(
         filename=f"{slug}_slide-{i}_{date}.png",
         content_type="image/png",
     )
@@ -442,7 +438,7 @@ for i, signed_url in enumerate(render_urls, start=1):
     media_urls.append(presign["publicUrl"])
 ```
 
-Pass `media_urls` (in slide order) as `media_items` in `late_create_post` here — a carousel becomes multiple `media_items`; single-image types are one. (Template-path posts do not proceed to Step 5 — that section is image-path only.)
+Pass `media_urls` (in slide order) as `media_items` in `posts_create` here — a carousel becomes multiple `media_items`; single-image types are one. (Template-path posts do not proceed to Step 5 — that section is image-path only.)
 
 **Skip Steps 4d, 4e, 4f, 4g** — no Pillow overlays, no local tmp files. Day-of-week `text_align` / `logo_position` rotations apply only to Step 4c-image.
 
@@ -486,7 +482,7 @@ Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - prompt: Build from: brand visual style (from brand.md), post topic, mood, and image_brief (the wrapped version from the guard above). Example: "Professional clean desk workspace with laptop showing analytics dashboard, soft natural lighting, warm tones, no text, no people, bokeh background"
 - aspect_ratio: match target canvas from Step 4a (e.g. "1:1" for IG square, "9:16" for Story/Reel, "191:100" for LinkedIn)
-- model: "gemini-3.1-flash-image-preview"
+- model: "gemini-3.1-flash-image"
 
 Result is auto-saved to a temp file. Use Python to locate, decode, and save to disk:
 ```python
@@ -814,28 +810,26 @@ Upload the image and copy directly to Zernio API and publish immediately.
 
 ⚠️ **Image-path only: always upload `_final.png` from `outputs/{brand}/posts/[Platform]/`. Never upload the raw Gemini background from `brands/{brand}/backgrounds/` or the intermediate `_with_text.png`. Steps 4d–4g must be complete before this step runs.**
 
-**Fix 2 — Before calling `late_create_post`:** write Notion Status → `"Processing"` for this row (same `notion-update-page update_content` call as Step 6, matching `Planned` → `Processing`). This ensures a crash after publish but before the Step 6 `Published` write leaves the row in a non-`Planned` state — the next run's `Status == Planned` filter skips it entirely.
+**Fix 2 — Before calling `posts_create`:** write Notion Status → `"Processing"` for this row (same `notion-update-page update_content` call as Step 6, matching `Planned` → `Processing`). This ensures a crash after publish but before the Step 6 `Published` write leaves the row in a non-`Planned` state — the next run's `Status == Planned` filter skips it entirely.
 
 **IMPORTANT: Always pass `platformSpecificData.contentType` for Reels and Stories.** Without this, Zernio defaults everything to a feed Post regardless of image dimensions.
 
-For each post, use gateway MCP tools:
+For each post, use the Zernio MCP tools (OAuth/session-scoped — no `fiveagents_api_key`):
 
 ```
-1. Use `late_presign_upload`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+1. Use `media_generate_upload_link`:
    - filename: "<filename>.png" (or .mp4 for video)
    - content_type: "image/png" (or "video/mp4")
    → Returns uploadUrl + publicUrl
 
-2. Use Python requests to upload the file directly to S3 (do NOT use `late_upload_media` MCP — it requires passing large base64 through context):
+2. Use Python requests to upload the file directly to S3 via the presigned URL:
 ```python
 import requests
-with open('path/to/final_image.png', 'rb') as f:
+with open('path/to/_final.png', 'rb') as f:
     requests.put(uploadUrl, data=f, headers={'Content-Type': 'image/png'})
 ```
 
-3. Use `late_create_post`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+3. Use `posts_create`:
    - content: <copy text with hashtags>
    - platforms: [{ platform: "<platform>", accountId: "<id>", platformSpecificData: { contentType: "<type>" } }]
    - media_items: [{ url: "<publicUrl from step 1>", type: "image" or "video" }]
@@ -844,19 +838,19 @@ with open('path/to/final_image.png', 'rb') as f:
 
 Follow the platformSpecificData.contentType mapping and Reel fallback logic below.
 
-**Account IDs** — read from env vars using brand prefix (e.g. `FIVEBUCKS_LATE_FB`):
+**Account IDs** — read from env vars using brand prefix (e.g. `FIVEBUCKS_ZERNIO_FB`):
 ```python
 B = BRAND.upper()
-LATE_ACCOUNTS = {
-    "facebook":  os.environ[f"{B}_LATE_FB"],
-    "instagram": os.environ[f"{B}_LATE_IG"],
-    "linkedin":  os.environ[f"{B}_LATE_LI"],
+ZERNIO_ACCOUNTS = {
+    "facebook":  os.environ[f"{B}_ZERNIO_FB"],
+    "instagram": os.environ[f"{B}_ZERNIO_IG"],
+    "linkedin":  os.environ[f"{B}_ZERNIO_LI"],
 }
 ```
 
 **platformSpecificData.contentType mapping:**
 ```python
-LATE_CONTENT_TYPE = {
+ZERNIO_CONTENT_TYPE = {
     "story":    {"instagram": "story", "facebook": "story"},
     "reel":     {"instagram": "reel",  "facebook": "reel"},
     "carousel": {},   # Zernio handles carousels via multiple mediaItems — no contentType needed
@@ -867,10 +861,10 @@ LATE_CONTENT_TYPE = {
 **For each post**, determine the platform object:
 - `platform_key` = post platform lowercase ("facebook" | "instagram" | "linkedin")
 - `post_format` = post format lowercase ("post" | "story" | "carousel")
-- `account_id` = from env var `{BRAND}_LATE_{PLATFORM}` (e.g. `FIVEBUCKS_LATE_FB`)
+- `account_id` = from env var `{BRAND}_ZERNIO_{PLATFORM}` (e.g. `FIVEBUCKS_ZERNIO_FB`)
 - Add `platformSpecificData.contentType` using the mapping above (required for Stories)
 
-Then call `late_create_post` with the assembled platform object, media URL from step 2, and copy text.
+Then call `posts_create` with the assembled platform object, media URL from step 2, and copy text.
 
 **Do NOT store copy in Notion** — Zernio is the single source of truth.
 
@@ -920,8 +914,8 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
 [Platform] — [Format] — [Topic]
   Copy: outputs/{brand}/posts/[Platform]/[Slug]_copy.md
   Image: outputs/{brand}/posts/[Platform]/[Slug]_final.png
-  Published: [late_post_id]
-  (or Saved as draft: [late_post_id])
+  Published: [zernio_post_id]
+  (or Saved as draft: [zernio_post_id])
 
 Notion Social Calendar updated.
 ```
@@ -957,7 +951,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)
 - [ ] **Template-path:** media pool built — `fivebucks_list_media_folders` called once; exact-name match first (case-insensitive); if no match → ALL folders pooled for that type; if no folders → pool empty (not a failure)
 - [ ] **Template-path:** `overrides` map copy → manifest field keys (skip `bound:false`, `select` values from `options`); direction set (`_direction` A/B/C for meta-story — never `all`; `direction` for single-image types)
-- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: each slide re-hosted on Zernio (`late_presign_upload` + PUT → permanent `publicUrl`) then posted one-per-slide via `late_create_post` with `is_draft=False` + `publish_now=True`; 1-second sleep between slides; 5-second sleep + one retry after ~5 consecutive FB posts (FB rate-limit); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`late_presign_upload` + PUT) then passed as `media_items` to a single `late_create_post`; Pillow overlays skipped (Steps 4d–4g)
+- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: each slide re-hosted on Zernio (`media_generate_upload_link` + PUT → permanent `publicUrl`) then posted one-per-slide via `posts_create` with `is_draft=False` + `publish_now=True`; 1-second sleep between slides; 5-second sleep + one retry after ~5 consecutive FB posts (FB rate-limit); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`media_generate_upload_link` + PUT) then passed as `media_items` to a single `posts_create`; Pillow overlays skipped (Steps 4d–4g)
 - [ ] **Template-path:** `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
 - [ ] **Template-path (failure):** quota/5xx falls back to Step 4c-image; Notion status set to `"Draft Ready"`; Slack warning logged
 - [ ] **Image-path (Gemini-only):** Story/Reel full-frame guard applied — `image_brief` passed to Gemini contains `"fills the ENTIRE frame"` (either from `social-calendar` or wrapped by the guard)
@@ -992,7 +986,7 @@ Use gateway MCP tool `fiveagents_log_run`:
     "images_generated": 0,
     "videos_generated": 0,
     "posts": [
-      { "platform": "Facebook", "topic": "...", "persona": "...", "format": "<Post|Story|Carousel>", "asset_type": "image", "status": "Published", "late_post_id": "..." }
+      { "platform": "Facebook", "topic": "...", "persona": "...", "format": "<Post|Story|Carousel>", "asset_type": "image", "status": "Published", "zernio_post_id": "..." }
     ]
   }
 ```

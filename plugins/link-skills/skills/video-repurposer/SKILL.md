@@ -5,19 +5,22 @@ allowed-tools: Read, Grep, Glob, Bash
 area: Marketing
 use_for: "Repurpose a YouTube video into platform-specific clips with captions for all connected platforms. Run after the weekly YouTube video is uploaded."
 deps:
-  mcp: ["Notion", "Slack"]
-  gateway: ["Zernio (publishing)", "FiveAgents (logging)"]
+  mcp: ["Notion", "Slack", "Zernio (publishing)"]
+  gateway: ["FiveAgents (logging)"]
   files: ["brand.md", "audience.md"]
-  env: ["`${BRAND}_LATE_LI`", "`${BRAND}_LATE_IG`", "`${BRAND}_LATE_TT`", "`${BRAND}_LATE_TW`", "`${BRAND}_LATE_FB`", "`${BRAND}_NOTION_DB`"]
+  env: ["`${BRAND}_ZERNIO_LI`", "`${BRAND}_ZERNIO_IG`", "`${BRAND}_ZERNIO_TT`", "`${BRAND}_ZERNIO_TW`", "`${BRAND}_ZERNIO_FB`", "`${BRAND}_NOTION_DB`"]
 ---
 
 ## Maintenance
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.14.0 | May 29, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_presign_upload` → `media_generate_upload_link` and `late_create_post` → `posts_create` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*` and internal `late_*` PublishLog fields to `zernio_*`.
 
 **v2.14.0** — May 29, 2026
 - New skill. Phase 4–5 of the YouTube-First content pipeline. Downloads the week's YouTube video via yt-dlp, reads the Clip Release Schedule from the Notion social calendar, extracts clips via ffmpeg, writes platform-native captions, and publishes to connected platforms via Zernio at the times specified in the schedule.
@@ -67,7 +70,7 @@ Fetch this week's social calendar page from `${BRAND}_NOTION_DB` (search for `So
 
 - Clip #, Platform, Publish Day, Publish Time, Duration, Moment to Clip, Caption Angle, Hook Archetype, CTA
 
-Only process clips for platforms where the matching env var is set (`${BRAND}_LATE_LI`, `${BRAND}_LATE_IG`, `${BRAND}_LATE_TT`, `${BRAND}_LATE_TW`, `${BRAND}_LATE_FB`). Skip platforms with missing env vars and log the gap.
+Only process clips for platforms where the matching env var is set (`${BRAND}_ZERNIO_LI`, `${BRAND}_ZERNIO_IG`, `${BRAND}_ZERNIO_TT`, `${BRAND}_ZERNIO_TW`, `${BRAND}_ZERNIO_FB`). Skip platforms with missing env vars and log the gap.
 
 ---
 
@@ -113,18 +116,18 @@ For each clip, the caption is already written in the Notion calendar Captions se
 ## Step 5 — Publish via Zernio
 
 For each clip:
-1. `late_presign_upload` → get presigned S3 URL
+1. `media_generate_upload_link` → get presigned S3 URL
 2. Upload clip via `requests.put` to the presigned URL
-3. `late_create_post` with video asset + caption + platform account ID + scheduled time
+3. `posts_create` with video asset + caption + platform account ID + scheduled time
 
 ```python
 # Platform account ID mapping
 platform_ids = {
-    "LinkedIn": os.environ.get(f"{brand_upper}_LATE_LI"),
-    "Instagram": os.environ.get(f"{brand_upper}_LATE_IG"),
-    "TikTok": os.environ.get(f"{brand_upper}_LATE_TT"),
-    "Twitter/X": os.environ.get(f"{brand_upper}_LATE_TW"),
-    "Facebook": os.environ.get(f"{brand_upper}_LATE_FB"),
+    "LinkedIn": os.environ.get(f"{brand_upper}_ZERNIO_LI"),
+    "Instagram": os.environ.get(f"{brand_upper}_ZERNIO_IG"),
+    "TikTok": os.environ.get(f"{brand_upper}_ZERNIO_TT"),
+    "Twitter/X": os.environ.get(f"{brand_upper}_ZERNIO_TW"),
+    "Facebook": os.environ.get(f"{brand_upper}_ZERNIO_FB"),
 }
 ```
 
@@ -135,12 +138,12 @@ Schedule each clip at the `Publish Time` from the Clip Release Schedule (convert
 ## Step 6 — Update Notion + PublishLog
 
 - Update each clip row in the Notion calendar page: `Status = Published`, add post URL
-- Append to `outputs/{brand}/published/PublishLog_[DDMonYYYY].md` — **use the exact same columns as `social-publisher`** so `content-performance-analyst` can join on `Late ID`:
+- Append to `outputs/{brand}/published/PublishLog_[DDMonYYYY].md` — **use the exact same columns as `social-publisher`** so `content-performance-analyst` can join on `Zernio ID`:
 
 ```markdown
-| Date | Platform | Topic | Late ID | Post URL | Status | Published At |
+| Date | Platform | Topic | Zernio ID | Post URL | Status | Published At |
 |---|---|---|---|---|---|---|
-| {date} | {platform} | {clip moment} | {late_id} | {url} | Published | {publish_time} |
+| {date} | {platform} | {clip moment} | {zernio_id} | {url} | Published | {publish_time} |
 ```
 
 ---
@@ -171,7 +174,7 @@ fiveagents_log_run:
     "clips_published": N,
     "platforms": ["LinkedIn", "Instagram", ...],
     "publish_times": { "LinkedIn": "...", ... },
-    "skipped_platforms": [] // any planned platform whose _LATE_ env var is unset
+    "skipped_platforms": [] // any planned platform whose _ZERNIO_ env var is unset
   }
 ```
 

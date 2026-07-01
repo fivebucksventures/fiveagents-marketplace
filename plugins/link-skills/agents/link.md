@@ -7,11 +7,14 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.17.0 | June 21, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Zernio + DataforSEO split off the gateway; Argil retired; Gemini image model IDs updated (gateway v1.7.4 / v1.7.5).** **Zernio** (formerly the gateway `late_*` tools) and **DataforSEO** (formerly `dataforseo_*`) now ship their own hosted MCP servers and moved from "External APIs (via gateway)" to the **MCP Connectors** section — Zernio at `https://mcp.zernio.com/mcp` (OAuth, required for publishing), DataforSEO at `https://mcp.dataforseo.com/mcp` (Basic Auth, optional). All tool names repointed to their native forms (`posts_create`, `accounts_list`, `list_ad_campaigns`, `get_analytics`, …, and `keywords_data_google_ads_search_volume` / `..._keywords_for_keywords`); the `fiveagents_api_key` param no longer applies to them. Every `${BRAND}_LATE_*` env var renamed to `${BRAND}_ZERNIO_*` and `LATE_API_KEY` removed (Zernio is OAuth). **Argil** (AI avatar video) retired with no replacement. `gemini_generate_image` default model → `gemini-3.1-flash-image` ("Nano Banana 2"; the `-preview` IDs 404'd on 2026-06-25). `brand-setup` registers both new connectors; `plugin-update` migrates existing brands.
 
 **v2.17.0** — June 21, 2026
 - **Inbound Gig Engine completed — three new Sales skills.** `gig-prospector` (Discover) now feeds a full pipeline that produces a submission-ready freelance bid: **`gig-proposal-writer`** (Write — cover letter + 60-second VSL script, with secret-word detection, onto the gig row), **`n8n-workflow-builder`** (Prove — builds a real, validated, published n8n workflow via the **n8n Cloud MCP** SDK flow as the demo asset), and **`vsl-demo-producer`** (Demo — screenshots the published workflow via Claude in Chrome and writes a shot-by-shot recording script; **the founder records the video themselves in any recorder — recorder is never hardcoded, no avatar/auto-render**). All four share one `${BRAND}_GIGS_DB` record, threaded by `Status` (New → Reviewing → Drafted → Workflow Built → Demo Ready → Ready to Submit). Added the **Inbound Gig Engine — 4 Phases** table; replaced the thin `Inbound gigs` chain with the full four-skill chain; **n8n Cloud MCP** added to the MCP Connectors list. The legacy ai-agency `create_n8n_workflow.py` (REST) and `screenshot_workflow.py` are superseded by `n8n-workflow-builder` and `vsl-demo-producer`. `gig-prospector` forward-references corrected to point at `gig-proposal-writer` (the inbound bid writer) rather than `proposal-generator` (which builds CRM-deal decks). Domain map regenerated (31 skills).
@@ -24,9 +27,6 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 **v2.14.3** — June 08, 2026
 - **Zernio Analytics add-on documented.** Added `late_get_post_analytics` / `late_get_follower_stats` as an *Analytics add-on (requires upgrade)* sub-bullet under the Zernio API section — these tools are now used by `content-performance-analyst` for per-post engagement metrics. Updated SKILL.md frontmatter deps to name "Zernio Analytics add-on" as a distinct gateway dep.
-
-**v2.14.1** — May 30, 2026
-- **fb.ai media library context entry clarified.** The Context Files entry now documents the media-pool behavior used by `content-generator` and `creative-designer`: folders matched to template type by exact name (case-insensitive), with the explicit fallback that **photos from ALL folders are pooled when no folder name matches** — so library photos are used regardless of folder naming; only a total absence of folders leaves image slots empty. Names both `fivebucks_list_media_folders` and `fivebucks_list_media_files` as the discovery path.
 
 # Link — Business Operations Agent
 
@@ -102,7 +102,7 @@ Invoke with `/fiveagents-link:<skill-name>`. Read the skill's SKILL.md before ex
 
 Below is a compact **domain map** (areas + skill names). The full per-skill detail — **Use For** + **Deps** — lives in the plugin's [`SKILLS.md`](../SKILLS.md) (human-readable) and `skills-manifest.json` (machine-readable), both generated from each skill's `SKILL.md` frontmatter (`area` / `use_for` / `deps`) by `scripts/gen_skills_index.py`. `brand-setup` Step 8d + `plugin-update` read the manifest to compute readiness.
 
-**Deps notation** (as it reads in `SKILLS.md` / the manifest): `MCP:` connected apps the user authorizes · `Gateway:` gateway APIs (Gemini, Zernio, DataforSEO, fivebucks, email — all need `FIVEAGENTS_API_KEY`) · `Files:` brand context under `brands/{brand}/` · `Env:` vars in `.claude/settings.local.json` · `(opt)` = optional (absence degrades gracefully).
+**Deps notation** (as it reads in `SKILLS.md` / the manifest): `MCP:` connected apps the user authorizes (Notion, Slack, Zernio, DataforSEO, Windsor.ai, …) · `Gateway:` gateway APIs (Gemini, fivebucks, email — all need `FIVEAGENTS_API_KEY`) · `Files:` brand context under `brands/{brand}/` · `Env:` vars in `.claude/settings.local.json` · `(opt)` = optional (absence degrades gracefully).
 
 > ⚙️ The map below is generated by `scripts/gen_skills_index.py` — **do not hand-edit it**. Change the skill's `SKILL.md` frontmatter and re-run the generator; the CI drift gate + `plugin-update` flag staleness.
 
@@ -183,23 +183,23 @@ The inbound sales loop — **discover → write → prove → demo** — turns a
 - **Stripe MCP** — payment links + subscription state. Required by `proposal-generator`, `churn-predictor`, `invoice-collector` (fallback payment links), `financial-reporter`, `investor-update-writer`.
 - **Xero MCP** — accounting (invoices, P&L, cash position). Required by `invoice-collector`, `financial-reporter`, `investor-update-writer`.
 - **n8n Cloud MCP** — programmatic workflow building via the n8n Workflow SDK (`get_sdk_reference` → `get_workflow_best_practices` → `search_nodes` → `get_node_types` → `validate_node_config` → `validate_workflow` → `create_workflow_from_code` → `publish_workflow`). Required by `n8n-workflow-builder` to build the proof-of-concept automation that backs an inbound gig bid. Always use the SDK flow — never hand-write workflow JSON.
+- **Zernio MCP** *(required for publishing)* — social publishing + ads management via Zernio's own hosted MCP (`https://mcp.zernio.com/mcp`, OAuth — formerly the gateway `late_*` tools, split off in gateway v1.7.4). Used by `social-publisher`, `content-generator`, `creative-designer`, `video-repurposer` (publishing) and `digital-marketing-analyst` / `data-analysis` (ads-data fallback). Tools (snake_case, no `fiveagents_api_key`):
+  - *Publishing:* `media_generate_upload_link` / `posts_create` / `posts_list` / `posts_update` / `posts_delete` / `profiles_list` / `accounts_list`
+  - *Analytics:* `get_analytics` (per-post; pass `postId`) / `get_follower_stats`
+  - *Ads — accounts & campaigns:* `list_ad_accounts` / `list_ad_campaigns` / `update_ad_campaign` / `update_ad_campaign_status` / `bulk_update_ad_campaign_status` / `duplicate_ad_campaign` / `update_ad_set` / `update_ad_set_status`
+  - *Ads — individual ads:* `create_standalone_ad` / `get_ad` / `list_ads` / `update_ad` / `delete_ad`
+  - *Ads — analytics:* `get_ad_analytics` / `get_ads_timeline` / `get_ad_tree` / `get_ad_comments` / `list_ads_business_centers`
+  - *Ads — audiences:* `create_ad_audience` / `list_ad_audiences` / `get_ad_audience` / `delete_ad_audience` / `add_users_to_ad_audience`
+  - *Ads — conversions:* `create_conversion_destination` / `list_conversion_destinations` / `get_conversion_destination` / `update_conversion_destination` / `delete_conversion_destination` / `send_conversions` / `get_conversion_metrics` / `list_conversion_associations` / `add_conversion_associations` / `remove_conversion_associations`
+  - *Ads — tracking tags:* `create_tracking_tag` / `list_tracking_tags` / `get_tracking_tag` / `update_tracking_tag` / `get_tracking_tag_stats` / `list_tracking_tag_shared_accounts` / `add_tracking_tag_shared_account` / `remove_tracking_tag_shared_account`
+  - *Ads — targeting & other:* `search_ad_interests` / `search_ad_targeting` / `boost_post` / `create_ctwa_ad`
+- **DataforSEO MCP** *(optional)* — keyword research via DataforSEO's own hosted MCP (`https://mcp.dataforseo.com/mcp`, Basic Auth — formerly the gateway `dataforseo_*` tools, split off in gateway v1.7.5). Used by `research-strategy`, `trend-radar`. Tools (module `KEYWORDS_DATA`): `keywords_data_google_ads_search_volume` / `keywords_data_google_ads_keywords_for_keywords`
 
 ### External APIs (via gateway MCP tools)
 
-All external API calls go through the fiveagents-gateway remote MCP server (`https://gateway.fiveagents.io/api/mcp`). Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`.
+These calls go through the fiveagents-gateway remote MCP server (`https://gateway.fiveagents.io/api/mcp`). Every tool requires `fiveagents_api_key: ${FIVEAGENTS_API_KEY}`. (Zernio and DataforSEO **no longer** route through the gateway — they are their own MCP connectors, listed above.)
 
 - **Gemini API** — image generation → `gemini_generate_image` / `gemini_generate_text`
-- **Zernio API** — social publishing + ads management
-  - *Publishing:* `late_presign_upload` / `late_create_post` / `late_list_posts` / `late_update_post` / `late_delete_post` / `late_list_profiles` / `late_list_accounts`
-  - *Analytics add-on (requires upgrade):* `late_get_post_analytics` / `late_get_follower_stats`
-  - *Ads — accounts & campaigns:* `late_list_ad_accounts` / `late_list_ad_campaigns` / `late_update_ad_campaign` / `late_update_ad_campaign_status` / `late_bulk_update_ad_campaign_status` / `late_duplicate_ad_campaign` / `late_update_ad_set` / `late_update_ad_set_status`
-  - *Ads — individual ads:* `late_create_ad` / `late_get_ad` / `late_list_ads` / `late_update_ad` / `late_delete_ad`
-  - *Ads — analytics:* `late_get_ad_analytics` / `late_get_ads_timeline` / `late_get_ad_tree` / `late_get_ad_comments` / `late_list_tiktok_business_centers`
-  - *Ads — audiences:* `late_create_ad_audience` / `late_list_ad_audiences` / `late_get_ad_audience` / `late_delete_ad_audience` / `late_add_users_to_ad_audience`
-  - *Ads — conversions:* `late_create_conversion_destination` / `late_list_conversion_destinations` / `late_get_conversion_destination` / `late_update_conversion_destination` / `late_delete_conversion_destination` / `late_send_conversions` / `late_get_conversion_metrics` / `late_list_conversion_associations` / `late_add_conversion_associations` / `late_remove_conversion_associations`
-  - *Ads — tracking tags:* `late_create_tracking_tag` / `late_list_tracking_tags` / `late_get_tracking_tag` / `late_update_tracking_tag` / `late_delete_tracking_tag` / `late_get_tracking_tag_stats` / `late_list_tracking_tag_shared_accounts` / `late_add_tracking_tag_shared_account` / `late_remove_tracking_tag_shared_account`
-  - *Ads — targeting & other:* `late_search_ad_interests` / `late_search_ad_targeting_locations` / `late_boost_post` / `late_create_ctwa_ad`
-- **DataforSEO API** — keywords → `dataforseo_search_volume` / `dataforseo_keyword_suggestions`
 - **FiveAgents** — `fiveagents_log_run` / `fiveagents_store_credential` / `fiveagents_send_email`
 - **Image processing** — Python Pillow (local) for text overlay and logo compositing; media uploaded via `requests.put` to presigned S3 URL
 - **Social templates (fb.ai)** — list/get/create/render via `fivebucks_list_templates` / `fivebucks_get_template` / `fivebucks_create_post` / `fivebucks_update_post` / `fivebucks_render_post`; media library via `fivebucks_list_media_folders` / `fivebucks_list_media_files` / `fivebucks_presign_media_upload` / `fivebucks_confirm_media_upload`

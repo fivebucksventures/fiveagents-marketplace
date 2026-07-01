@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.10.0 | June 09, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Argil video-ad-script guidance removed (gateway v1.7.4).** Argil (AI avatar video) was retired from the gateway with no replacement, so the "Video Ad Scripts (for Argil)" subsection, its output-table row, and the "When to use" bullet are gone. **Capability gap flagged:** avatar-video ad scripts are no longer supported — reinstating them would require a new AI-avatar vendor + integration. (Also cleared the dangling `brands/{brand}/avatars.md` reference, a file no longer created since brand-setup v2.11.1.)
 
 **v2.10.0** — June 09, 2026
 - **Video structure script support added (Step 2b).** When writing YouTube video scripts, content-creation now reads the Video Structure table from the social calendar (populated by `social-calendar` Step 2a Part 1b, sourced from `trend-radar` Step 2c competitor analysis). Each structural section — credibility hook, pattern interruptor, framework, build-with-escalation, reflection beat, close/CTA — becomes a script segment with technique-specific writing guidance. The competitor's proven structure is preserved while the brand's own credibility anchor and content replaces the competitor's. Falls back to generic storytelling frameworks when no video structure is available.
@@ -32,11 +35,6 @@ deps:
 
 **v2.7.0** — May 20, 2026
 - `_copy.json` contracts now key off **fb.ai templates** (detected via `fivebucks_list_templates`), not local `social-meta-*-template/` folders. Keys are the template's **manifest field keys** (fed to `fivebucks_create_post` overrides). Added **linkedin-post** and **meta-post** single-image contracts alongside meta-carousel and meta-story. Fallback unchanged: no matching template → `_copy.json` optional, Gemini + Pillow reads `_copy.md`.
-
-**v2.2.15** — May 05, 2026
-- Carousel/Story copy outputs now produce structured _copy.json with per-slide blocks + character budgets
-- Direction is NOT content-creation's concern (lives in social-calendar's Notion column)
-- Naming convention split: social ([Slug]_[Date]) vs non-social ([ContentType]_[Date])
 
 # Content Creation Skill
 
@@ -56,7 +54,6 @@ Use this skill when the task involves:
 - Writing landing page copy
 - Drafting email sequences or single emails
 - Creating ad copy (Google, LinkedIn, Meta)
-- Writing video ad scripts for Argil AI avatar videos
 - Writing long-form YouTube video scripts (follows the Video Structure table from `social-calendar` Step 2a Part 1b — see Step 2b below)
 - Writing blog posts or SEO articles
 - Creating social media copy (LinkedIn, Twitter/X)
@@ -327,18 +324,7 @@ outputs/{brand}/strategy/             ← blog, email, landing page, ad copy
 | Email | `outputs/{brand}/strategy/` |
 | Landing page | `outputs/{brand}/strategy/` |
 | Ad copy | `outputs/{brand}/strategy/` |
-| Video ad script (Argil) | `outputs/{brand}/strategy/` |
 | YouTube video script | `outputs/{brand}/strategy/` |
-
-### Video Ad Scripts (for Argil)
-
-When writing video ad scripts for Argil AI avatar generation:
-- Write in first person (the avatar is speaking to camera)
-- Keep scripts 30–60 seconds (75–150 words) for social ads, 15–30 seconds for Reels
-- Structure: Hook (first 3 seconds) → Problem → Solution → CTA
-- Include stage directions in brackets: [pause], [lean forward], [smile]
-- Mark which avatar to use (read from `brands/{brand}/avatars.md`) and voice
-- Output format: plain text script with metadata header specifying avatar ID and voice ID
 
 **Naming convention:**
 

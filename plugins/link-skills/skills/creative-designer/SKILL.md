@@ -5,8 +5,8 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 area: Marketing
 use_for: "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding"
 deps:
-  mcp: []
-  gateway: ["Gemini", "Zernio", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)", "fivebucks (media library — fivebucks_list_media_folders / fivebucks_list_media_files)"]
+  mcp: ["Zernio"]
+  gateway: ["Gemini", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)", "fivebucks (media library — fivebucks_list_media_folders / fivebucks_list_media_files)"]
   files: ["brand.md", "audience.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
@@ -15,11 +15,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.12.2 | June 08, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_presign_upload` → `media_generate_upload_link` and `late_create_post` → `posts_create` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed internal `late_*` output fields (`late_uploaded`, `late_uploads`) to `zernio_*`.
+- **Gemini image model ID updated (gateway v1.7.4).** `gemini_generate_image` model changed from the retired `gemini-3.1-flash-image-preview` to the GA default `gemini-3.1-flash-image` ("Nano Banana 2").
 
 **v2.12.2** — June 08, 2026
 - **`add_text_overlay` comment corrected: `ratio ≥ 1.78` → `ratio ≥ 1.7`.** Comment and code disagreed on the Story detection threshold; code (`>= 1.7`) is authoritative.
@@ -35,11 +39,6 @@ deps:
 
 **v2.11.1** — May 22, 2026
 - **Reel and Argil fully removed.** Removed Facebook/Instagram Reel rows from dimensions and format tables, Reel from decision tree and upload table. Renamed `is_story_reel` → `is_story` in both Pillow code blocks; guard titles updated to "Story full-frame guard". "Reels UI stack" / "Reels right-rail" labels replaced with "Meta bottom/side safe zone". meta-story corrected to "IG + FB Stories". Removed "Generating AI avatar video ads via Argil API" from When-to-use list.
-
-**v2.11.0** — May 21, 2026
-- **Story publish split** (Step 4a, mirrors content-generator): `meta-story` renders re-host each slide on Zernio first (`late_presign_upload` + PUT → permanent `publicUrl`) before calling `late_create_post` — Supabase signed URLs expire after ~1 hour and must never be passed directly. 1-second sleep between slides; 5-second sleep + retry after ~5 consecutive FB posts (FB rate-limit). See content-generator §7 for canonical loop.
-- **`slide_ids` removed for all types** (Step 4a bullet 4) — fb.ai selects slides from the direction override server-side; `fivebucks_render_post` always omits `slide_ids` for every template type.
-
 
 # Creative Designer Skill
 
@@ -221,8 +220,8 @@ all other cases (banners, ads, mockups, no matching template) → fall through t
 3. Inject photos from the media pool built at run start. Priority: (1) user-provided photo if supplied in the session — always preferred; (2) `media_pool[type]` — for `linkedin-post` / `meta-post` assign one photo to `bg_image`; for `meta-carousel` / `meta-story` cycle through the pool for body slots `s2_image`…`s5_image` (up to 4; reuse from start if pool has fewer than 4); add companion overrides `{slot}_image_position: "center"` and `{slot}_image_fit: "cover"` for each assigned slot; (3) if pool empty and no user photo, leave all image slots empty — the template renders its own branded placeholder. Never fail or warn for an empty pool.
 4. `fivebucks_create_post(template_id, name, overrides)` → `fivebucks_render_post(post_id)` → 1-hour signed PNG URLs. **Omit `slide_ids` for every type** — fb.ai selects the slide(s) from the direction override server-side: `meta-story` `_direction` (A/B/C) → that direction's 6 slides; `meta-carousel` → all 6; `linkedin-post` / `meta-post` `direction` (A/B/C) → the single matching slide. Never use `_direction: all` (renders 18 and burns the same 1.0 quota). See content-generator Step 4c-template §6 for the canonical rule.
 5. **Publish output — split by template type:**
-   - **`meta-story`**: `fivebucks_render_post` returns 6 signed PNG URLs (slide-1 through slide-6). **Always re-host on Zernio first** — Supabase signed URLs expire after ~1 hour; Zernio stores URLs by reference so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `late_presign_upload` + PUT for each slide → pass the permanent `publicUrl` to `late_create_post`. One call per slide = 6 separate Story posts per platform. Sleep 1 second between slides; sleep 5 seconds + retry once after ~5 consecutive FB posts (Facebook rate-limits rapid sequential story posts). See `content-generator/SKILL.md` Step 4c-template §7 for the canonical implementation.
-   - **`meta-carousel` / single-image types** (`linkedin-post`, `meta-post`): re-host each PNG on Zernio first (`late_presign_upload` + `requests.put`), then call `late_create_post` once with all re-hosted `media_items` (carousel = multiple items; single-image = one item).
+   - **`meta-story`**: `fivebucks_render_post` returns 6 signed PNG URLs (slide-1 through slide-6). **Always re-host on Zernio first** — Supabase signed URLs expire after ~1 hour; Zernio stores URLs by reference so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `media_generate_upload_link` + PUT for each slide → pass the permanent `publicUrl` to `posts_create`. One call per slide = 6 separate Story posts per platform. Sleep 1 second between slides; sleep 5 seconds + retry once after ~5 consecutive FB posts (Facebook rate-limits rapid sequential story posts). See `content-generator/SKILL.md` Step 4c-template §7 for the canonical implementation.
+   - **`meta-carousel` / single-image types** (`linkedin-post`, `meta-post`): re-host each PNG on Zernio first (`media_generate_upload_link` + `requests.put`), then call `posts_create` once with all re-hosted `media_items` (carousel = multiple items; single-image = one item).
    - Skip Steps 4d/4e (Pillow overlays — fb.ai render includes all chrome).
 6. On quota / 5xx error: fall through to Step 4b (Gemini + Pillow fallback).
 
@@ -268,7 +267,7 @@ Use gateway MCP tool `gemini_generate_image`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 - prompt: "<your image prompt>"
 - aspect_ratio: match target canvas (e.g. "1:1" for IG square, "9:16" for Story, "191:100" for LinkedIn)
-- model: "gemini-3.1-flash-image-preview"
+- model: "gemini-3.1-flash-image"
 
 Tool returns JSON text: { "image_base64": "...", "mime_type": "...", "description": "..." }
 Result is auto-saved to a temp file. Use Python to locate and decode it:
@@ -339,9 +338,9 @@ Use **Python Pillow** for all text overlay and logo compositing (see Steps 2 and
 > "Dramatic close-up of a glowing purple number '275M' floating in dark space, abstract particle field background in purple and pink tones, cinematic lighting, square format. No text other than the number. No logos. No watermarks."
 
 **Rate limit rule — ALWAYS follow this sequence when generating multiple images:**
-1. Generate image 1 → apply text overlay → apply logo → save `_final.png` to `outputs/` → upload `_final.png` to Zernio → call `late_create_post` to publish (never upload the raw Gemini background)
+1. Generate image 1 → apply text overlay → apply logo → save `_final.png` to `outputs/` → upload `_final.png` to Zernio → call `posts_create` to publish (never upload the raw Gemini background)
 2. Wait ~15 seconds before next generation (API allows 10 IPM; 15s is a safe buffer)
-3. Generate image 2 → apply text overlay → apply logo → save `_final.png` → upload `_final.png` to Zernio → call `late_create_post` to publish
+3. Generate image 2 → apply text overlay → apply logo → save `_final.png` → upload `_final.png` to Zernio → call `posts_create` to publish
 4. Repeat
 
 Never generate multiple images in parallel or back-to-back. One at a time with a short pause. If a 429 RESOURCE_EXHAUSTED error occurs, wait 60 seconds and retry once.
@@ -658,23 +657,21 @@ Re-render until all checks pass. Only then proceed to upload.
 
 ⚠️ **Always upload `_final.png`. Steps 2 (text overlay) and 3 (logo overlay) must both complete before uploading. Never upload the raw Gemini background or `_with_text.png`.**
 ```
-1. Use gateway MCP tool `late_presign_upload`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+1. Use Zernio MCP tool `media_generate_upload_link`:
    - filename: "SocialPost_11Mar2026.png"
    - content_type: "image/png"
    → Returns uploadUrl + publicUrl
 
-2. Use Python requests to upload the file directly to S3 (do NOT use `late_upload_media` MCP — it requires passing large base64 through context):
+2. Use Python requests to upload the file directly to S3 via the presigned URL:
 ```python
 import requests
 with open('path/to/_final.png', 'rb') as f:
     requests.put(uploadUrl, data=f, headers={'Content-Type': 'image/png'})
 ```
 
-3. Use gateway MCP tool `late_create_post`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+3. Use Zernio MCP tool `posts_create`:
    - content: <copy text with hashtags>
-   - platforms: [{ platform: "<instagram|facebook|linkedin>", accountId: "<LATE_ACCOUNTS[platform]>", platformSpecificData: { contentType: "<story>" } }]   # contentType required for Stories; omit for feed posts
+   - platforms: [{ platform: "<instagram|facebook|linkedin>", accountId: "<ZERNIO_ACCOUNTS[platform]>", platformSpecificData: { contentType: "<story>" } }]   # contentType required for Stories; omit for feed posts
    - media_items: [{ url: "<publicUrl from step 1>", type: "image" }]
    - publish_now: true
    - is_draft: false
@@ -753,7 +750,7 @@ Before finalizing any design output:
 - [ ] Accent color used sparingly — not dominant
 - [ ] No off-brand colors used
 - [ ] Typography follows the fb.ai brand kit / design-system font stack OR brand.md Google Fonts (whichever applied)
-- [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → **Story**: each slide re-hosted on Zernio (`late_presign_upload` + PUT → permanent `publicUrl`) then posted one-per-slide, 1-second sleep between slides, 5-second sleep + retry after ~5 consecutive FB posts; **Carousel/single-image**: re-host on Zernio first then one `late_create_post`); else Gemini-only fallback (Step 4b) documented
+- [ ] For IG/FB/LinkedIn template formats: if a matching fb.ai template `type` exists (`fivebucks_list_templates`), template-path used (`fivebucks_create_post` → `fivebucks_render_post` → **Story**: each slide re-hosted on Zernio (`media_generate_upload_link` + PUT → permanent `publicUrl`) then posted one-per-slide, 1-second sleep between slides, 5-second sleep + retry after ~5 consecutive FB posts; **Carousel/single-image**: re-host on Zernio first then one `posts_create`); else Gemini-only fallback (Step 4b) documented
 - [ ] Template-path: `fivebucks_list_templates` called once and cached; `overrides` built from manifest field keys; direction set per type (`_direction` for meta-story; `direction` for single-image; `coverVariant`/`bodyVariant` for meta-carousel)
 - [ ] Template-path: `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
 - [ ] Template-path: media pool built — `fivebucks_list_media_folders` called once; exact-name match first (case-insensitive); if no match → ALL folders pooled for that type; if no folders → pool empty (not a failure)
@@ -805,9 +802,9 @@ Use gateway MCP tool `fiveagents_log_run`:
         "tool": "gemini",
         "avatar": false,
         "file": "<filename>",
-        "late_uploaded": true
+        "zernio_uploaded": true
       }
     ],
-      "late_uploads": 0
+      "zernio_uploads": 0
   }
 ```

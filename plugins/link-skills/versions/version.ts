@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.17.0';
-const DEFAULT_DATE = 'June 21, 2026';
+const DEFAULT_VERSION = 'v2.18.0';
+const DEFAULT_DATE = 'July 01, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,19 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.18.0',
+    date: 'July 01, 2026',
+    changes: [
+      'Zernio migration (gateway v1.7.4): the gateway removed all late_* tools — Zernio (formerly Late) now ships its own hosted MCP (https://mcp.zernio.com/mcp, OAuth). Every late_* call across brand-setup, social-publisher, content-generator, creative-designer, video-repurposer, content-performance-analyst, digital-marketing-analyst, and data-analysis was repointed to Zernio native tool names (posts_create/posts_list/posts_update/posts_delete/profiles_list/accounts_list/media_generate_upload_link; ads = late_ minus prefix, with late_search_ad_targeting_locations → search_ad_targeting and late_get_post_analytics → get_analytics); the fiveagents_api_key param was dropped from those calls; all ${BRAND}_LATE_* env vars renamed to ${BRAND}_ZERNIO_* and LATE_API_KEY removed (Zernio is OAuth). Skill deps moved Zernio from gateway to mcp.',
+      'DataforSEO migration (gateway v1.7.5): the gateway removed dataforseo_* tools — DataforSEO now ships its own MCP (https://mcp.dataforseo.com/mcp, Basic Auth). research-strategy and trend-radar repointed dataforseo_search_volume → keywords_data_google_ads_search_volume and dataforseo_keyword_suggestions → keywords_data_google_ads_keywords_for_keywords; dep moved gateway → mcp; DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD kept (now feed the connector).',
+      'brand-setup: registered Zernio (required, row 2) and DataforSEO (optional, row 7) as their own custom MCP connectors (new Step 7a-ii OAuth / Step 7a-iii Basic Auth); rewrote account discovery + Step 8 validation to the native tool names; renamed the 10 ${BRAND}_ZERNIO_* env vars throughout; removed LATE_API_KEY from key tables, save-list, and gateway vault.',
+      'plugin-update: migration for existing brands — Step 1e Zernio/DataforSEO connector probes, Step 3f ${BRAND}_LATE_* → ${BRAND}_ZERNIO_* rename + LATE_API_KEY deletion + native tool names, Step 3g Zernio (required, OAuth) + DataforSEO (optional, Basic Auth) walkthroughs, Step 3k brand-action row (reconnect + re-run account discovery since Zernio-side account _ids may differ from the old gateway-proxied API).',
+      'Argil (AI avatar video) retired with no replacement (gateway v1.7.4): removed the last live references in content-creation (Video Ad Scripts subsection + avatars.md pointer) and creative-designer/style-guide.md (Reel-via-Argil → Ken Burns only). Capability gap flagged.',
+      'gemini_generate_image model IDs updated (gateway v1.7.4): Google retired all -preview image IDs on 2026-06-25; hardcoded gemini-3.1-flash-image-preview replaced with the GA default gemini-3.1-flash-image ("Nano Banana 2") in creative-designer, background-generator, and content-generator.',
+      'link.md + docs: Zernio and DataforSEO moved from "External APIs (via gateway)" to the MCP Connectors section with native tool names; plugin-mcp.md architecture + tool tables refreshed; content-engine.md annotated. Fixed pre-existing brand-setup Calendly consumer (meeting-analyzer → outreach-sequencer).',
+    ],
+  },
   {
     version: 'v2.17.0',
     date: 'June 21, 2026',
@@ -145,14 +158,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator v2.11.0 + creative-designer v2.11.0: slide_ids removed for all template types — fb.ai now filters single-image templates (linkedin-post, meta-post) by the direction override server-side; fivebucks_render_post always omits slide_ids. Calendar table 12 → 11 columns (SlideId removed; Status at [10]).',
       'social-calendar v2.11.0: SlideId column removed (12 → 11 columns) — direction is all you need; fb.ai applies server-side direction filtering for single-image types. Direction rotation guidance (spread A/B/C for variety) added.',
       'brand-setup v2.8.2: Step 4c export-marker contract rewritten — renderer captures data-export-id at manifest canvas size (no fragile off-screen mirror needed); Story/Carousel/LinkedIn/Meta Post export prompts updated accordingly.',
-    ],
-  },
-  {
-    version: 'v2.10.1',
-    date: 'May 21, 2026',
-    changes: [
-      'plugin-update Step 1: new Step 1i probes fivebucks_list_media_folders during the inspection sweep; media library state reported in Step 2 gap report. Steps 1i→1j (Notion DB) and 1j→1k (version audit) renumbered; cross-references updated.',
-      'plugin-update Step 3h: Visual System block refresh added (brand-setup Step 9c equivalent) — probes design-system/, fivebucks_get_brand_kit, fivebucks_list_templates, fivebucks_list_media_folders and idempotently replaces BEGIN/END visual-system markers in CLAUDE.md on every run. Fixes stale blocks for brands set up before Step 9c or before media library row was added in v2.8.0.',
     ],
   },
 ];

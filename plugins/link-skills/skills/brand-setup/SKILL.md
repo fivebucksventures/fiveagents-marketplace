@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.17.0 | June 21, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Zernio + DataforSEO split off the gateway (gateway v1.7.4 / v1.7.5).** Both now ship their own MCP servers — they are no longer routed through the Five Agents gateway. **Zernio** is added as a **required** custom-connector (Step 2 row 2 + new Step 7a-ii, `https://mcp.zernio.com/mcp`, OAuth) — the old `LATE_API_KEY` paste flow is gone. **DataforSEO** is added as an **optional** custom-connector (Step 2 row 7 + new Step 7a-iii, `https://mcp.dataforseo.com/mcp`, Basic Auth using `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD`). Account discovery (Step 7 Step D) and the Step 8 validation probes now call the native tools (`profiles_list`, `accounts_list`, `list_ad_accounts`, `keywords_data_google_ads_search_volume`) with no `fiveagents_api_key` param. All `${BRAND}_LATE_*` env vars renamed to `${BRAND}_ZERNIO_*` (10 vars); `LATE_API_KEY` removed from the key tables, save-list, and gateway vault. Existing brands are migrated by `plugin-update` v2.18.0.
 
 **v2.17.0** — June 21, 2026
 - **Inbound Gig Engine connectors registered.** Added **n8n Cloud** as an optional business-ops MCP (Step 2 overview row 15 + Step 7c walkthrough) — used by `n8n-workflow-builder` to build the proof-of-concept workflow that backs an inbound gig bid; skip → that one skill is unconfigurable for the brand, the rest of the pipeline (`gig-prospector → gig-proposal-writer`) still runs. Added the optional `${BRAND}_N8N_PROJECT` env var (Step 7b optional table) to target a specific n8n project/folder; absent → workflows land in the default project. Backfilled the missing `${BRAND}_GIGS_DB` row (bootstrapped by `gig-prospector`, v2.16.0) into the auto-bootstrapped Notion DB table — no user action, created on first run like the others.
@@ -31,10 +34,6 @@ deps:
 
 **v2.9.1** — May 28, 2026
 - **Registered two new auto-bootstrapped DBs (v2.13.0 content loop):** `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the auto-bootstrap acknowledgement table and the env-var listing. No user action at setup — both skills create their Notion DB on first run. De-pinned the auto-bootstrap intro from "v2.4.0 / 10 skills" to span versions.
-
-**v2.9.0** — May 23, 2026
-- **Step 4b Claude Design setup rewritten for the new claude.ai/design UI.** Flow is now Design System → **Create** → the **"Set up your design system"** attach form (company name + blurb; optional GitHub repo / local code / `.fig` file / fonts+logos+assets; brand colors, fonts and voice pasted into **Any other notes**) → **Continue to generation**. Added a placeholder-substitution table and a ready-to-paste, website-aware generation prompt that points Claude at the brand's live site to validate and fill in the visual identity automatically.
-- **Step 4d media library now defines per-template-type folder names.** Users create one folder per template type, named **exactly** `LinkedIn Post` / `Meta Story` / `Meta Carousel` / `Meta Post`, so `content-generator`'s media pool can match photos to the right template at runtime; only create folders for template types that exist on fb.ai.
 
 # Brand Setup — New Client Onboarding
 
@@ -148,38 +147,36 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | 3 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | 1. Open Slack<br>2. Click your profile photo → "Profile"<br>3. Click the three dots ⋯ → "Copy member ID" |
 | 4 | `REPORT_EMAIL` | Daily/weekly marketing report delivery | Your work email address |
 
-**Required for social publishing:**
-
-| # | Key | What it's for | How to get it |
-|---|---|---|---|
-| 5 | `LATE_API_KEY` | Social media publishing (Facebook, Instagram, LinkedIn) | 1. Sign up at https://zernio.com<br>2. Create a Profile for your brand<br>3. Connect your social accounts (Facebook, Instagram, LinkedIn) via OAuth<br>4. Go to Settings → API → copy your API key |
+**Required for social publishing:** Zernio needs **no API key** — it's an OAuth custom connector (see the MCP connections table above, row 2, and Step 7a-ii). In short: sign up at https://zernio.com, create a Profile and connect your social accounts (Facebook, Instagram, LinkedIn, …) via OAuth in the Zernio dashboard, then in Claude go to Settings → Connectors → Add custom connector → `https://mcp.zernio.com/mcp` and sign in with your Zernio account.
 
 **Optional (SEO/GEO Research & Video Generation):**
 
 | # | Key | What it's for | How to get it |
 |---|---|---|---|
-| 6 | `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research (search volume, suggestions) | 1. Sign up at https://dataforseo.com<br>2. Go to Dashboard → API Settings<br>3. Copy your login email and API password |
-| 7 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c — optional; see Step 4b for what fb.ai is) | 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in<br>2. Generate API Key and save it somewhere safe<br>3. Copy it (skip if you're not using Claude Design social templates) |
+| 5 | `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research (search volume, suggestions) — entered into the DataforSEO connector (Step 7a-iii) | 1. Sign up at https://dataforseo.com<br>2. Go to Dashboard → API Settings<br>3. Copy your login email and API password |
+| 6 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c — optional; see Step 4b for what fb.ai is) | 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in<br>2. Generate API Key and save it somewhere safe<br>3. Copy it (skip if you're not using Claude Design social templates) |
 
 **MCP connections (connect in Claude settings):**
 
 | # | MCP | What it's for | How to connect |
 |---|---|---|---|
-| 1 | **FiveAgents** | All external API calls (Gemini, Zernio, DataforSEO, email, logging) | Required — configured in Step 7a |
-| 2 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
-| 3 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
-| 4 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
-| 5 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
-| 6 | **Windsor.ai** *(required)* | Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data — the universal source for all paid-ads + analytics reporting | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect **all three**: Google Ads, GA4, and Meta Ads (Facebook Ads)<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
-| 7 | **Meta Ads** *(optional enhancement — limited rollout)* | Meta's official MCP for direct Marketing API access. When available, skills prefer it for Meta data; otherwise the Windsor.ai connection above already covers Meta Ads. | Custom Connector — URL `https://mcp.facebook.com/ads` (configured in Step 7c). Skip without prejudice if your account doesn't have access yet — Windsor.ai already covers Meta Ads. |
-| 8 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
-| 9 | **Apollo.io** *(business-ops)* | Lead enrichment, contact search, sequence injection — used by `apollo-lead-prospector`, `outreach-sequencer` | Settings → Connected Apps → Apollo.io → Authorize |
-| 10 | **Calendly** *(business-ops)* | Kickoff scheduling and meeting metadata — used by `customer-onboarder`, `meeting-analyzer` | Settings → Connected Apps → Calendly → Authorize |
-| 11 | **Stripe** *(business-ops)* | Invoice status and payment data — used by `invoice-collector`, `financial-reporter` | Settings → Connected Apps → Stripe → Authorize (requires OAuth `complete_authentication` to unlock real tools) |
-| 12 | **Xero** *(business-ops)* | Invoice sync + P&L pull — used by `invoice-collector`, `financial-reporter` | Settings → Connected Apps → Xero → Authorize |
-| 13 | **PostHog** *(business-ops, optional)* | Product-usage signals for churn scoring — used by `churn-predictor`. Skip → falls back to support-ticket + login-frequency only | Settings → Connected Apps → PostHog → Authorize |
-| 14 | **Gamma** *(business-ops, optional)* | Investor decks — used by `investor-update-writer`. Skip → updates render as plain markdown / email | Settings → Connected Apps → Gamma → Authorize |
-| 15 | **n8n Cloud** *(business-ops, optional)* | Builds the proof-of-concept automation that backs an inbound gig bid — used by `n8n-workflow-builder`. Skip → that skill is unconfigurable for this brand; the rest of the gig pipeline still runs | Settings → Connected Apps → n8n Cloud → Authorize |
+| 1 | **FiveAgents** | Gateway for Gemini, email, and logging calls (Zernio + DataforSEO are now their own connectors — rows 2 & 7) | Required — configured in Step 7a |
+| 2 | **Zernio** *(required for publishing)* | Social media publishing (Facebook, Instagram, LinkedIn, TikTok, X, …) — formerly Late, now its own MCP (no longer gateway-routed) | Custom Connector — URL `https://mcp.zernio.com/mcp` → sign in with your Zernio account (OAuth). Configured in Step 7a-ii |
+| 3 | **Notion** | Content calendar management | Settings → Connected Apps → Notion → Authorize |
+| 4 | **Slack** | Notifications | Settings → Connected Apps → Slack → Authorize |
+| 5 | **Gmail** | Reading emails | Settings → Connected Apps → Gmail → Authorize |
+| 6 | **Google Calendar** | Scheduling | Settings → Connected Apps → Google Calendar → Authorize |
+| 7 | **DataforSEO** *(optional — keyword research)* | Keyword search volume + suggestions — used by `research-strategy`, `trend-radar`. Now its own MCP (no longer gateway-routed). Skip → those skills fall back to non-keyword research | Custom Connector — URL `https://mcp.dataforseo.com/mcp` → authenticate with your DataforSEO API login + password (Basic Auth). Configured in Step 7a-iii |
+| 8 | **Windsor.ai** *(required)* | Google Ads + GA4 + Meta Ads (Facebook + Instagram) analytics data — the universal source for all paid-ads + analytics reporting | 1. Sign up for a free account at https://windsor.ai/register<br>2. In Windsor dashboard, connect **all three**: Google Ads, GA4, and Meta Ads (Facebook Ads)<br>3. In Claude, go to Settings → Connected Apps → Windsor.ai → Authorize |
+| 9 | **Meta Ads** *(optional enhancement — limited rollout)* | Meta's official MCP for direct Marketing API access. When available, skills prefer it for Meta data; otherwise the Windsor.ai connection above already covers Meta Ads. | Custom Connector — URL `https://mcp.facebook.com/ads` (configured in Step 7c). Skip without prejudice if your account doesn't have access yet — Windsor.ai already covers Meta Ads. |
+| 10 | **Canva** | Campaign presentations and pitch decks | Settings → Connected Apps → Canva → Authorize |
+| 11 | **Apollo.io** *(business-ops)* | Lead enrichment, contact search, sequence injection — used by `apollo-lead-prospector`, `outreach-sequencer` | Settings → Connected Apps → Apollo.io → Authorize |
+| 12 | **Calendly** *(business-ops)* | Kickoff scheduling and booking links — used by `customer-onboarder`, `outreach-sequencer` | Settings → Connected Apps → Calendly → Authorize |
+| 13 | **Stripe** *(business-ops)* | Invoice status and payment data — used by `invoice-collector`, `financial-reporter` | Settings → Connected Apps → Stripe → Authorize (requires OAuth `complete_authentication` to unlock real tools) |
+| 14 | **Xero** *(business-ops)* | Invoice sync + P&L pull — used by `invoice-collector`, `financial-reporter` | Settings → Connected Apps → Xero → Authorize |
+| 15 | **PostHog** *(business-ops, optional)* | Product-usage signals for churn scoring — used by `churn-predictor`. Skip → falls back to support-ticket + login-frequency only | Settings → Connected Apps → PostHog → Authorize |
+| 16 | **Gamma** *(business-ops, optional)* | Investor decks — used by `investor-update-writer`. Skip → updates render as plain markdown / email | Settings → Connected Apps → Gamma → Authorize |
+| 17 | **n8n Cloud** *(business-ops, optional)* | Builds the proof-of-concept automation that backs an inbound gig bid — used by `n8n-workflow-builder`. Skip → that skill is unconfigurable for this brand; the rest of the gig pipeline still runs | Settings → Connected Apps → n8n Cloud → Authorize |
 
 Present this overview to the user, then ask:
 > Ready to get started? We'll go through each step together.
@@ -1574,7 +1571,7 @@ Note: Google Font and brand colors were already discovered and saved to `brands/
 
 ### Step 7 — API Keys & Connections
 
-Now we connect the integrations. This is where you'll spend most of the wall-clock time of brand-setup, because each integration takes a minute or two to authorize in Claude's Connectors UI or paste an API key. Most are click-through OAuth (Notion, Slack, Gmail, Google Calendar, Apollo, Stripe, Xero, Calendly, etc.); a few require pasting an API key (FiveAgents gateway, Gemini, Late/Zernio for social publishing).
+Now we connect the integrations. This is where you'll spend most of the wall-clock time of brand-setup, because each integration takes a minute or two to authorize in Claude's Connectors UI or paste an API key. Most are click-through OAuth (Notion, Slack, Gmail, Google Calendar, Apollo, Stripe, Xero, Calendly, Zernio, etc.); a few require pasting an API key (FiveAgents gateway, Gemini) or entering credentials into a custom connector (DataforSEO — Basic Auth). Zernio is a click-through OAuth custom connector — no key to paste.
 
 **Expect 15–30 minutes** depending on how many integrations you connect. Some are required (FiveAgents gateway, Notion, Slack), most are optional. The agent will tell you which is which as we walk through them, and you can say "skip" to any optional one — it'll just mark that skill as unconfigurable for this brand. You can always re-run brand-setup later to add a missing integration.
 
@@ -1588,7 +1585,25 @@ Ask the user to add the Five Agents connector in Claude:
 3. URL: `https://gateway.fiveagents.io/api/mcp`
 4. Click Connect
 
-This connector is required for all skills — it routes Gemini, Zernio, DataforSEO, email, and logging calls through the gateway.
+This connector is required for all skills — it routes Gemini, email, and logging calls through the gateway. (Zernio and DataforSEO are **no longer** gateway-routed — as of gateway v1.7.4/v1.7.5 they each ship their own MCP server, connected separately in Steps 7a-ii and 7a-iii below.)
+
+**7a-ii. Zernio custom connector (required for social publishing):**
+
+Zernio (formerly Late) now runs its own hosted MCP server — it is no longer routed through the Five Agents gateway. Ask the user to add it in Claude:
+1. Go to Settings → Connectors → "Add custom connector"
+2. Name: `Zernio`
+3. URL: `https://mcp.zernio.com/mcp`
+4. Click Connect → sign in with your Zernio account (OAuth). No API key to paste.
+
+If the user doesn't have a Zernio account yet, have them sign up at https://zernio.com first, then authorize. This must be done before content-generator or social-publisher can post.
+
+**7a-iii. DataforSEO custom connector (optional — keyword research):**
+
+DataforSEO also ships its own MCP server (no longer gateway-routed). Connect it only if the brand does keyword/SEO research (used by research-strategy and trend-radar):
+1. Go to Settings → Connectors → "Add custom connector"
+2. Name: `DataforSEO`
+3. URL: `https://mcp.dataforseo.com/mcp`
+4. Click Connect → authenticate with your DataforSEO API login + password (Basic Auth) from the DataforSEO dashboard → API Access. These are the same `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` credentials captured in Step 7b.
 
 **7b. API Keys:**
 
@@ -1601,11 +1616,7 @@ This connector is required for all skills — it routes Gemini, Zernio, DataforS
 | 3 | `SLACK_NOTIFY_USER` | Slack DM notifications after each skill run | Open Slack → click your profile → three dots → "Copy member ID" |
 | 4 | `REPORT_EMAIL` | Email address for daily/weekly marketing reports | Your work email |
 
-**Required for social publishing:**
-
-| # | Key | What it does | How to get it |
-|---|---|---|---|
-| 5 | `LATE_API_KEY` | Publish to social platforms via Zernio | See Zernio setup below |
+**Required for social publishing:** Zernio is connected as its own MCP connector in Step 7a-ii above (OAuth — no API key to store here).
 
 **Zernio setup (social media publishing):**
 
@@ -1613,10 +1624,8 @@ Walk the user through connecting their social platforms to Zernio. This must be 
 
 > To publish content to your social media accounts, we need to set up Zernio. Here's what to do:
 >
-> **Step A — Create account & get API key:**
-> 1. Go to https://zernio.com and sign up for an account
-> 2. Go to **Settings → API** and copy your API key
-> 3. Paste it here — I'll save it as `LATE_API_KEY`
+> **Step A — Connect the Zernio MCP:**
+> Make sure you've added the Zernio connector in Step 7a-ii (Settings → Connectors → Add custom connector → `https://mcp.zernio.com/mcp` → sign in with your Zernio account). If you don't have a Zernio account yet, sign up at https://zernio.com first, then authorize. No API key to paste — it's OAuth.
 >
 > **Step B — Create a Profile:**
 > In the Zernio dashboard, create a **Profile** for your brand. A profile groups all your social accounts together.
@@ -1641,16 +1650,14 @@ Walk the user through connecting their social platforms to Zernio. This must be 
 
 **Step D — Auto-discover profile and account IDs:**
 
-After the user confirms they've connected their platforms, use the gateway to discover the profile ID and account IDs automatically:
+After the user confirms they've connected their platforms, use the Zernio MCP to discover the profile ID and account IDs automatically:
 
 ```
-1. Use gateway MCP tool `late_list_profiles`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+1. Use Zernio MCP tool `profiles_list`:
    → Returns list of profiles. Pick the profile matching the brand name.
    → Save the profile `_id`.
 
-2. Use gateway MCP tool `late_list_accounts`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+2. Use Zernio MCP tool `accounts_list`:
    - profile_id: "<profile _id from step 1>"
    → Returns list of connected accounts with `_id`, `platform`, `username`.
 
@@ -1667,65 +1674,63 @@ Show the user what was found:
 > - Meta Ads: {platform} (SocialAccount ID: {_id})
 > - LinkedIn Ads (if connected): {platform} (SocialAccount ID: {_id})
 
-The `late_list_accounts` response includes all connected SocialAccount objects. Look for entries where `platform` is `"googleads"` or `"google"` for Google Ads, and `"metaads"` or `"facebook"` for Meta Ads. The `_id` on each is the **SocialAccount ID** (the Zernio-internal object ID).
+The `accounts_list` response includes all connected SocialAccount objects. Look for entries where `platform` is `"googleads"` or `"google"` for Google Ads, and `"metaads"` or `"facebook"` for Meta Ads. The `_id` on each is the **SocialAccount ID** (the Zernio-internal object ID).
 
-**Google Ads needs two IDs.** Zernio's `late_get_ads_timeline` / `late_list_ad_campaigns` calls take both `account_id` (Zernio SocialAccount `_id`) **and** `ad_account_id` (the actual Google Ads customer ID — a 10-digit number). Passing only the SocialAccount ID returns empty results. Resolve the customer ID after saving the SocialAccount ID:
+**Google Ads needs two IDs.** Zernio's `get_ads_timeline` / `list_ad_campaigns` calls take both `account_id` (Zernio SocialAccount `_id`) **and** `ad_account_id` (the actual Google Ads customer ID — a 10-digit number). Passing only the SocialAccount ID returns empty results. Resolve the customer ID after saving the SocialAccount ID:
 
 ```
-3. Use gateway MCP tool `late_list_ad_accounts`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+3. Use Zernio MCP tool `list_ad_accounts`:
    - account_id: <Google Ads SocialAccount _id from step 2>
    → Returns ad accounts visible under that Google Ads login.
 
-3a. If accounts are returned → extract the numeric customer ID from the first entry. Save as ${BRAND}_LATE_GOOGLE_ADS_CID.
+3a. If accounts are returned → extract the numeric customer ID from the first entry. Save as ${BRAND}_ZERNIO_GOOGLE_ADS_CID.
 3b. If the response is empty OR a 429 rate-limit error is returned → ask the user:
     > "What is your Google Ads customer ID? You can find it in the top-right corner
     > of your Google Ads account (format: XXX-XXX-XXXX)."
     Strip dashes before saving — store only the digits.
 ```
 
-**LinkedIn Ads needs two IDs (same pattern as Google Ads).** Per the Zernio LinkedIn Ads docs, `late_get_ads_timeline` / `late_list_ad_campaigns` for LinkedIn require both `account_id` (Zernio SocialAccount `_id` for the LinkedIn Ads entry) **and** `ad_account_id` (LinkedIn's numeric sponsored account ID, e.g. `517258773`). The LinkedIn Ads SocialAccount is a separate `late_list_accounts` entry from organic LinkedIn — do not reuse `{BRAND}_LATE_LI` (that is the organic LinkedIn page/profile ID for publishing).
+**LinkedIn Ads needs two IDs (same pattern as Google Ads).** Per the Zernio LinkedIn Ads docs, `get_ads_timeline` / `list_ad_campaigns` for LinkedIn require both `account_id` (Zernio SocialAccount `_id` for the LinkedIn Ads entry) **and** `ad_account_id` (LinkedIn's numeric sponsored account ID, e.g. `517258773`). The LinkedIn Ads SocialAccount is a separate `accounts_list` entry from organic LinkedIn — do not reuse `{BRAND}_ZERNIO_LI` (that is the organic LinkedIn page/profile ID for publishing).
 
 ```
-4. From the same `late_list_accounts` response, find the LinkedIn Ads entry — `platform` is
+4. From the same `accounts_list` response, find the LinkedIn Ads entry — `platform` is
    "linkedinads" or "linkedin_ads" (distinct from the organic "linkedin" entry saved as
-   {BRAND}_LATE_LI). Save its _id as ${BRAND}_LATE_LINKEDIN_ADS.
+   {BRAND}_ZERNIO_LI). Save its _id as ${BRAND}_ZERNIO_LINKEDIN_ADS.
 
-5. Use gateway MCP tool `late_list_ad_accounts`:
-   - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+5. Use Zernio MCP tool `list_ad_accounts`:
    - account_id: <LinkedIn Ads SocialAccount _id from step 4>
    → Returns LinkedIn sponsored ad accounts visible under that LinkedIn login.
 
 5a. If accounts are returned → extract the numeric sponsored account ID (the `urn:li:sponsoredAccount:<id>`
-    digits) from the first entry. Save as ${BRAND}_LATE_LINKEDIN_ADS_CID.
+    digits) from the first entry. Save as ${BRAND}_ZERNIO_LINKEDIN_ADS_CID.
 5b. If the response is empty OR a 429 rate-limit error is returned → ask the user:
     > "What is your LinkedIn sponsored account ID? Open Campaign Manager → look at the URL or
     > top-left account picker — it's a numeric ID (e.g. 517258773)."
     Save the digits only.
 ```
 
-Skip Steps 4–5 entirely if no LinkedIn Ads entry is found in `late_list_accounts` — most brands do not run LinkedIn Ads, and the analyst skills will silently skip LinkedIn analysis when these vars are unset.
+Skip Steps 4–5 entirely if no LinkedIn Ads entry is found in `accounts_list` — most brands do not run LinkedIn Ads, and the analyst skills will silently skip LinkedIn analysis when these vars are unset.
 
-Meta Ads only needs the single SocialAccount ID (`{BRAND}_LATE_META_ADS_ACCOUNT_ID`) — its Zernio calls already work with just that.
+Meta Ads only needs the single SocialAccount ID (`{BRAND}_ZERNIO_META_ADS_ACCOUNT_ID`) — its Zernio calls already work with just that.
 
 Save the account IDs as env vars in `.claude/settings.local.json` (the content-generator, social-publisher, and video-repurposer skills need the social IDs; `digital-marketing-analyst` and `data-analysis` need the ads IDs for the Windsor.ai fallback):
 
 ```
-{BRAND}_LATE_FB                    → Facebook _id from late_list_accounts (platform: facebook)
-{BRAND}_LATE_IG                    → Instagram _id from late_list_accounts (platform: instagram)
-{BRAND}_LATE_LI                    → LinkedIn _id from late_list_accounts (platform: linkedin) — organic publishing only
-{BRAND}_LATE_TT                    → TikTok _id from late_list_accounts (platform: tiktok) — organic publishing (video-repurposer, YouTube-First)
-{BRAND}_LATE_TW                    → Twitter/X _id from late_list_accounts (platform: twitter or x) — organic publishing (video-repurposer, YouTube-First)
-{BRAND}_LATE_GOOGLE_ADS            → Google Ads SocialAccount _id from late_list_accounts (platform: googleads or google)
-{BRAND}_LATE_GOOGLE_ADS_CID        → Google Ads customer ID (10-digit, no dashes) from late_list_ad_accounts or user input
-{BRAND}_LATE_META_ADS_ACCOUNT_ID   → Meta Ads _id from late_list_accounts (platform: metaads or facebook)
-{BRAND}_LATE_LINKEDIN_ADS          → LinkedIn Ads SocialAccount _id from late_list_accounts (platform: linkedinads or linkedin_ads) — distinct from {BRAND}_LATE_LI
-{BRAND}_LATE_LINKEDIN_ADS_CID      → LinkedIn sponsored account ID (numeric) from late_list_ad_accounts or user input
+{BRAND}_ZERNIO_FB                    → Facebook _id from accounts_list (platform: facebook)
+{BRAND}_ZERNIO_IG                    → Instagram _id from accounts_list (platform: instagram)
+{BRAND}_ZERNIO_LI                    → LinkedIn _id from accounts_list (platform: linkedin) — organic publishing only
+{BRAND}_ZERNIO_TT                    → TikTok _id from accounts_list (platform: tiktok) — organic publishing (video-repurposer, YouTube-First)
+{BRAND}_ZERNIO_TW                    → Twitter/X _id from accounts_list (platform: twitter or x) — organic publishing (video-repurposer, YouTube-First)
+{BRAND}_ZERNIO_GOOGLE_ADS            → Google Ads SocialAccount _id from accounts_list (platform: googleads or google)
+{BRAND}_ZERNIO_GOOGLE_ADS_CID        → Google Ads customer ID (10-digit, no dashes) from list_ad_accounts or user input
+{BRAND}_ZERNIO_META_ADS_ACCOUNT_ID   → Meta Ads _id from accounts_list (platform: metaads or facebook)
+{BRAND}_ZERNIO_LINKEDIN_ADS          → LinkedIn Ads SocialAccount _id from accounts_list (platform: linkedinads or linkedin_ads) — distinct from {BRAND}_ZERNIO_LI
+{BRAND}_ZERNIO_LINKEDIN_ADS_CID      → LinkedIn sponsored account ID (numeric) from list_ad_accounts or user input
 ```
 
-Example: `NPCOFFICE_LATE_FB`, `NPCOFFICE_LATE_IG`, `NPCOFFICE_LATE_LI`, `NPCOFFICE_LATE_TT`, `NPCOFFICE_LATE_TW`, `NPCOFFICE_LATE_GOOGLE_ADS`, `NPCOFFICE_LATE_GOOGLE_ADS_CID`, `NPCOFFICE_LATE_META_ADS_ACCOUNT_ID`, `NPCOFFICE_LATE_LINKEDIN_ADS`, `NPCOFFICE_LATE_LINKEDIN_ADS_CID`
+Example: `NPCOFFICE_ZERNIO_FB`, `NPCOFFICE_ZERNIO_IG`, `NPCOFFICE_ZERNIO_LI`, `NPCOFFICE_ZERNIO_TT`, `NPCOFFICE_ZERNIO_TW`, `NPCOFFICE_ZERNIO_GOOGLE_ADS`, `NPCOFFICE_ZERNIO_GOOGLE_ADS_CID`, `NPCOFFICE_ZERNIO_META_ADS_ACCOUNT_ID`, `NPCOFFICE_ZERNIO_LINKEDIN_ADS`, `NPCOFFICE_ZERNIO_LINKEDIN_ADS_CID`
 
-Only create env vars for platforms that were found. If a platform isn't connected to Zernio, skip that env var — the skill will note the gap if Windsor.ai fallback is triggered. For Google Ads and LinkedIn Ads, **both** vars (`_LATE_GOOGLE_ADS` + `_LATE_GOOGLE_ADS_CID`, `_LATE_LINKEDIN_ADS` + `_LATE_LINKEDIN_ADS_CID`) must be set for the fallback to work — if the customer/sponsored-account ID can't be obtained, save the SocialAccount ID alone and note the gap.
+Only create env vars for platforms that were found. If a platform isn't connected to Zernio, skip that env var — the skill will note the gap if Windsor.ai fallback is triggered. For Google Ads and LinkedIn Ads, **both** vars (`_ZERNIO_GOOGLE_ADS` + `_ZERNIO_GOOGLE_ADS_CID`, `_ZERNIO_LINKEDIN_ADS` + `_ZERNIO_LINKEDIN_ADS_CID`) must be set for the fallback to work — if the customer/sponsored-account ID can't be obtained, save the SocialAccount ID alone and note the gap.
 
 Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 
@@ -1739,14 +1744,14 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 
 | # | Key | What it does | How to get it |
 |---|---|---|---|
-| 6 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
-| 7 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
-| 8 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c; see Step 4b for what fb.ai is) | https://www.fivebucks.ai/dashboard/social-posts/api-keys — sign in, generate API Key, save it somewhere safe. Skip if not using Claude Design social templates. |
-| 9 | `{BRAND}_N8N_PROJECT` | Targets a specific n8n project/folder for `n8n-workflow-builder`'s demo workflows | n8n Cloud → open the target project → copy its project ID/name. Skip → workflows land in the n8n account's default project. Only relevant if you connected n8n Cloud. |
+| 5 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
+| 6 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
+| 7 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c; see Step 4b for what fb.ai is) | https://www.fivebucks.ai/dashboard/social-posts/api-keys — sign in, generate API Key, save it somewhere safe. Skip if not using Claude Design social templates. |
+| 8 | `{BRAND}_N8N_PROJECT` | Targets a specific n8n project/folder for `n8n-workflow-builder`'s demo workflows | n8n Cloud → open the target project → copy its project ID/name. Skip → workflows land in the n8n account's default project. Only relevant if you connected n8n Cloud. |
 
 **Save ALL keys to `.claude/settings.local.json`:**
 
-For every key the user provides in Step 7b (including `FIVEAGENTS_API_KEY`, `GEMINI_API_KEY`, `SLACK_NOTIFY_USER`, `REPORT_EMAIL`, `LATE_API_KEY`, and any optional keys), save it to `.claude/settings.local.json` under the `"env"` object using the exact env var name shown in the tables above. This is required — all skills read credentials from env vars at runtime.
+For every key the user provides in Step 7b (including `FIVEAGENTS_API_KEY`, `GEMINI_API_KEY`, `SLACK_NOTIFY_USER`, `REPORT_EMAIL`, and any optional keys), save it to `.claude/settings.local.json` under the `"env"` object using the exact env var name shown in the tables above. This is required — all skills read credentials from env vars at runtime. (Zernio needs no key — it's an OAuth connector; DataforSEO's `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` are captured here and also entered into the DataforSEO connector's Basic Auth.)
 
 **Also save these two vars — required for all automated skills:**
 
@@ -1792,12 +1797,11 @@ Use these service names (must match what the gateway expects):
 | Env Var | Service Name |
 |---------|-------------|
 | `GEMINI_API_KEY` | `gemini` |
-| `LATE_API_KEY` | `late` |
 | `FIVEBUCKS_API_KEY` | `fivebucks` |
-| `DATAFORSEO_LOGIN` | `dataforseo_login` |
-| `DATAFORSEO_PASSWORD` | `dataforseo_password` |
 
 Note: `FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, and `REPORT_EMAIL` do NOT need vault storage — they are passed directly as tool parameters or used by built-in MCP connectors. They still MUST be saved to `.claude/settings.local.json` (done above).
+
+Note: Zernio and DataforSEO are **no longer** gateway-vaulted (they left the gateway in v1.7.4/v1.7.5). Zernio authenticates via its own OAuth connector; DataforSEO authenticates via its own connector's Basic Auth using `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD`. Both are still saved to `.claude/settings.local.json` (DataforSEO's creds are entered into the connector; Zernio needs nothing stored).
 
 Note: Google Ads, GA4, and Meta Ads (Facebook + Instagram) credentials are all handled by the Windsor.ai MCP connector — no gateway storage needed. The optional Meta Ads custom connector (`https://mcp.facebook.com/ads`) likewise authenticates via OAuth and stores nothing in the gateway vault. The Meta Ads MCP is in limited rollout — when available, downstream skills prefer it; when not, Windsor.ai already covers Meta data.
 
@@ -1961,22 +1965,19 @@ img.save('/tmp/test_logo.png')
 # If no error, logo compositing is working
 ```
 
-7. **Zernio** (if `LATE_API_KEY` configured):
+7. **Zernio** (if the Zernio connector is authorized):
 ```
-Use gateway MCP tool `late_list_profiles`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use Zernio MCP tool `profiles_list`:
 → Verify at least one profile exists
 
-Use gateway MCP tool `late_list_accounts`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use Zernio MCP tool `accounts_list`:
 - profile_id: "<brand's profile ID>"
 → Verify connected accounts match what's in brands/{brand}/brand.md Social Publishing section
 ```
 
-8. **DataforSEO** (if `DATAFORSEO_LOGIN` configured):
+8. **DataforSEO** (if the DataforSEO connector is authorized):
 ```
-Use gateway MCP tool `dataforseo_search_volume`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use DataforSEO MCP tool `keywords_data_google_ads_search_volume`:
 - keywords: ["test"]
 - location_code: <infer from brand timezone/country — e.g. Indonesia=2360, Singapore=2702, Malaysia=2458, US=2840>
 ```
@@ -2101,9 +2102,9 @@ Use these display names everywhere in the matrix and the email — never raw MCP
 | Google Drive MCP | Google Drive |
 | Windsor.ai MCP | Windsor (Google Ads + GA4 + Meta Ads) |
 | Meta Ads MCP | Meta Ads (direct API) |
+| Zernio MCP | Social publisher |
+| DataforSEO MCP | Keyword research |
 | gateway: Gemini | Image generator |
-| gateway: Zernio | Social publisher |
-| gateway: DataforSEO | Keyword research |
 | gateway: fivebucks | Branded social templates |
 | gateway: email | Email reports |
 | `sales.md` | Sales playbook |
@@ -2126,9 +2127,9 @@ Use these display names everywhere in the matrix and the email — never raw MCP
 | `${BRAND}_ACTIONS_DB` | Action items list |
 | `${BRAND}_PERFORMANCE_DB` | Content performance store |
 | `${BRAND}_TREND_DB` | Trend radar candidates |
-| `${BRAND}_LATE_FB` | Connected Facebook account |
-| `${BRAND}_LATE_IG` | Connected Instagram account |
-| `${BRAND}_LATE_LI` | Connected LinkedIn account |
+| `${BRAND}_ZERNIO_FB` | Connected Facebook account |
+| `${BRAND}_ZERNIO_IG` | Connected Instagram account |
+| `${BRAND}_ZERNIO_LI` | Connected LinkedIn account |
 
 #### 8d-ii. Status rules
 
@@ -2360,7 +2361,7 @@ Scheduled and automated runs do **not** automatically inject environment variabl
 
     load_credentials()
 
-Run this **before** reading any env var (`FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, `{BRAND}_LATE_FB`, etc.). If `FIVEAGENTS_API_KEY` is still missing after this step, log a `failed` run and exit — do not skip publishing silently.
+Run this **before** reading any env var (`FIVEAGENTS_API_KEY`, `SLACK_NOTIFY_USER`, `{BRAND}_ZERNIO_FB`, etc.). If `FIVEAGENTS_API_KEY` is still missing after this step, log a `failed` run and exit — do not skip publishing silently.
 
 ---
 
@@ -2393,17 +2394,17 @@ These values are hardcoded here at brand-setup time so any session reading `CLAU
     outputs/{brand}/                         — all generated content (copy .md, images .png, videos .mp4)
     tmp/                                     — scratch space for scripts, intermediate files
 
-## Account IDs (Zernio / Late API)
+## Account IDs (Zernio)
 
 Read from env vars after credential loading:
-- Facebook:  `{BRAND}_LATE_FB`
-- Instagram: `{BRAND}_LATE_IG`
-- LinkedIn (organic publishing): `{BRAND}_LATE_LI`
-- Google Ads Zernio account (Windsor.ai fallback):    `{BRAND}_LATE_GOOGLE_ADS`
-- Google Ads customer ID (Windsor.ai fallback):       `{BRAND}_LATE_GOOGLE_ADS_CID`
-- Meta Ads account (Windsor.ai fallback):             `{BRAND}_LATE_META_ADS_ACCOUNT_ID`
-- LinkedIn Ads Zernio account (Windsor.ai fallback):  `{BRAND}_LATE_LINKEDIN_ADS`
-- LinkedIn sponsored account ID (Windsor.ai fallback):`{BRAND}_LATE_LINKEDIN_ADS_CID`
+- Facebook:  `{BRAND}_ZERNIO_FB`
+- Instagram: `{BRAND}_ZERNIO_IG`
+- LinkedIn (organic publishing): `{BRAND}_ZERNIO_LI`
+- Google Ads Zernio account (Windsor.ai fallback):    `{BRAND}_ZERNIO_GOOGLE_ADS`
+- Google Ads customer ID (Windsor.ai fallback):       `{BRAND}_ZERNIO_GOOGLE_ADS_CID`
+- Meta Ads account (Windsor.ai fallback):             `{BRAND}_ZERNIO_META_ADS_ACCOUNT_ID`
+- LinkedIn Ads Zernio account (Windsor.ai fallback):  `{BRAND}_ZERNIO_LINKEDIN_ADS`
+- LinkedIn sponsored account ID (Windsor.ai fallback):`{BRAND}_ZERNIO_LINKEDIN_ADS_CID`
 
 ---
 ```
@@ -2582,7 +2583,7 @@ brand_name = m.group(1).strip() if m else brand  # fall back to slug only if hea
     { "integration": "Meta Ads MCP", "status": "pass | fail | skipped", "notes": "Optional enhancement — Marketing API direct access. When connected (META_ADS_SOURCE=meta_ads_mcp), downstream skills prefer it over Windsor for Meta data. When skipped or unavailable, Windsor.ai already covers Meta Ads fully." },
     { "integration": "Canva", "status": "pass | fail | skipped", "notes": "" },
     { "integration": "Apollo.io", "status": "pass | fail | skipped", "notes": "Used by apollo-lead-prospector / outreach-sequencer. Skip → those skills can't run." },
-    { "integration": "Calendly", "status": "pass | fail | skipped", "notes": "Used by customer-onboarder and meeting-analyzer. Skip → fall back to a static link in sales.md." },
+    { "integration": "Calendly", "status": "pass | fail | skipped", "notes": "Used by customer-onboarder and outreach-sequencer. Skip → fall back to a static link in sales.md." },
     { "integration": "Stripe", "status": "pass | fail | skipped", "notes": "Used by invoice-collector / financial-reporter. Skip → those skills can't run." },
     { "integration": "Xero", "status": "pass | fail | skipped", "notes": "Used by invoice-collector / financial-reporter. Skip → those skills can't run." },
     { "integration": "PostHog", "status": "pass | fail | skipped", "notes": "Used by churn-predictor for product-usage signals. Skip → churn scoring falls back to support-ticket + login-frequency only." },
@@ -2614,7 +2615,7 @@ brand_name = m.group(1).strip() if m else brand  # fall back to slug only if hea
 **`connections[]` status enum** — `pass | fail | skipped`. Use `"pass"` for ✅, `"fail"` for ❌, `"skipped"` for ⏭. Only include `action_items` entries for failures and skips that **actually affect skill functionality**. Specifically:
 
 - ✅ **Do** add an action item for any `fail` (these always need user action).
-- ✅ **Do** add an action item for `skipped` keys/MCPs whose absence breaks a skill (e.g. `LATE_API_KEY` skipped → social-publisher can't post; `GEMINI_API_KEY` skipped → no image generation).
+- ✅ **Do** add an action item for `skipped` keys/MCPs whose absence breaks a skill (e.g. Zernio connector not authorized → social-publisher can't post; `GEMINI_API_KEY` skipped → no image generation).
 - ✅ **Do** add an action item if `CLAUDE.md` came back `failed` from Step 9b — scheduled / automated runs depend on it.
 - ❌ **Do NOT** add an action item for skipped **Meta Ads MCP** — Windsor.ai already covers Meta data fully when the MCP isn't available, so a skip here is a no-op for downstream skills, not a gap.
 - ❌ **Do NOT** add an action item for genuinely optional integrations the user explicitly declined (e.g. Apollo skipped because the brand doesn't run outbound, Stripe/Xero skipped because the brand doesn't have those accounts yet).

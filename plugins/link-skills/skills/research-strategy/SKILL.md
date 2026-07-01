@@ -5,8 +5,8 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 area: Marketing
 use_for: "Market research, ICP definition, positioning, competitive analysis, campaign briefs"
 deps:
-  mcp: []
-  gateway: ["DataforSEO (opt)"]
+  mcp: ["DataforSEO (opt)"]
+  gateway: []
   files: ["brand.md", "audience.md", "product.md", "competitors.md"]
   env: []
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.2.5 | April 26, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Market research, ICP definition, positioning, competitive analysis, campaign briefs for any active brand
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **DataforSEO migrated to its own MCP (gateway v1.7.5).** Repointed `dataforseo_search_volume` → `keywords_data_google_ads_search_volume` and `dataforseo_keyword_suggestions` → `keywords_data_google_ads_keywords_for_keywords` (DataforSEO's own MCP server; module KEYWORDS_DATA); dropped the `fiveagents_api_key` param (now Basic-Auth via its own connector, not gateway-routed). Moved the DataforSEO dep from gateway to mcp in frontmatter.
 
 **v2.2.5** — April 26, 2026
 - Added "Before Executing" section — reads agents/link.md before starting
@@ -92,8 +95,7 @@ When the task involves paid ads strategy, keyword research, or SEO analysis, use
 
 **Search Volume for specific keywords:**
 ```
-Use gateway MCP tool `dataforseo_search_volume`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use DataforSEO MCP tool `keywords_data_google_ads_search_volume`:
 - keywords: ["keyword1", "keyword2", "keyword3"]
 - location_code: 2702
 - language_code: "en"
@@ -103,8 +105,7 @@ Use gateway MCP tool `dataforseo_search_volume`:
 
 **Keyword suggestions (expand from seeds):**
 ```
-Use gateway MCP tool `dataforseo_keyword_suggestions`:
-- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+Use DataforSEO MCP tool `keywords_data_google_ads_keywords_for_keywords`:
 - keywords: ["seed keyword 1", "seed keyword 2"]
 - location_code: 2702
 - language_code: "en"

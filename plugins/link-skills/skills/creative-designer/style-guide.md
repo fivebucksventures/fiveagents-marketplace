@@ -188,7 +188,7 @@ The image must work without the text. A viewer scrolling at speed should *feel* 
 - **Don't** use drop shadows heavier than `0 4px 12px rgba(0,0,0,0.1)` — it looks dated
 - **Don't** center-align body copy — only headlines and short subheadlines
 - **Don't** generate text-only social images with Claude's `continue_editing` — use HTML/CSS for those
-- **Don't** use Claude's `continue_editing` for Reel video content — use Argil (tagged Reels) or Ken Burns background video (other Reels)
+- **Don't** use Claude's `continue_editing` for Reel video content — use Ken Burns background video (avatar-video Reels via Argil are no longer available; Argil was retired in gateway v1.7.4 with no replacement)
 - **Don't** use text on the image to explain what the image is showing
 
 ---

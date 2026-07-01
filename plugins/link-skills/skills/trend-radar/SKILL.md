@@ -5,8 +5,8 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__Claude_in_Chrom
 area: Marketing
 use_for: "Daily live-trend/newsjacking scan — surfaces timely topics scored for relevance + timeliness, deduplicated, written as candidate topics for the social calendar. Runs daily on cron"
 deps:
-  mcp: ["Notion", "Slack", "Claude in Chrome (opt — competitor video structure analysis; degrades to text-only when absent)"]
-  gateway: ["DataforSEO (opt — trending keywords)", "FiveAgents (logging)"]
+  mcp: ["Notion", "Slack", "Claude in Chrome (opt — competitor video structure analysis; degrades to text-only when absent)", "DataforSEO (opt — trending keywords)"]
+  gateway: ["FiveAgents (logging)"]
   files: ["brand.md", "audience.md", "competitors.md", "PerformanceBrief_*.md (opt — Phase 1 output from content-performance-analyst)"]
   env: ["`${BRAND}_TREND_DB` (auto-bootstraps)", "`${BRAND}_PERFORMANCE_DB` (read-only — populated by content-performance-analyst)"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.15.0 | June 09, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Daily live-trend scan — timely topics scored, deduplicated, written as candidate topics for the social calendar.
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **DataforSEO migrated to its own MCP (gateway v1.7.5).** Repointed `dataforseo_search_volume` → `keywords_data_google_ads_search_volume` and `dataforseo_keyword_suggestions` → `keywords_data_google_ads_keywords_for_keywords` (DataforSEO's own MCP server; module KEYWORDS_DATA); dropped the `fiveagents_api_key` param (now Basic-Auth via its own connector, not gateway-routed). Moved the DataforSEO dep from gateway to mcp in frontmatter.
 
 **v2.15.0** — June 09, 2026
 - **Competitor video structure analysis added (Step 2c).** For competitor-remix candidates with YouTube source URLs, Step 2c uses Claude in Chrome to visit the video, open the transcript, and extract a 6-part structural anatomy: credibility hook, pattern interruptor, framework/mental model, build-with-escalation, reflection beat, and close/CTA type. The `video_structure` JSON is stored on the trend_db entry (Notion page body) and saved locally. social-calendar Step 2a reads this structure to plan videos that match the competitor's proven storytelling pattern. Degrades gracefully when Chrome MCP is unavailable (text-only metadata preserved).
@@ -109,7 +112,7 @@ Build queries from the brand's niche + persona pain points + competitor space. R
 
 - **News / launches:** `WebSearch` — `"[niche] news [current month year]"`, `"[niche] launch OR release OR announcement [current week]"`, `"[competitor space] update [current date]"`.
 - **Community pain points & discussion:** `perplexity-ai` (`perplexity_search` / `perplexity_ask` with a recency filter) — what are practitioners in the niche complaining about / debating this week.
-- **Trending keywords (optional):** if DataforSEO is available, `dataforseo_keyword_suggestions` / `dataforseo_search_volume` for rising terms in the niche.
+- **Trending keywords (optional):** if DataforSEO is available, `keywords_data_google_ads_keywords_for_keywords` / `keywords_data_google_ads_search_volume` for rising terms in the niche.
 
 Read the actual results — don't rank on headline alone.
 

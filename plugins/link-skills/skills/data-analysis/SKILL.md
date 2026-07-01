@@ -5,21 +5,24 @@ allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 area: Marketing
 use_for: "Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis"
 deps:
-  mcp: ["Windsor.ai"]
-  gateway: ["Zernio (ads) (opt — fallback data pull + act-on-findings)"]
+  mcp: ["Windsor.ai", "Zernio (ads) (opt — fallback data pull + act-on-findings)"]
+  gateway: []
   files: ["brand.md", "funnel.md"]
-  env: ["`${BRAND}_LATE_GOOGLE_ADS` + `${BRAND}_LATE_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)", "`${BRAND}_LATE_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)", "`${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair)"]
+  env: ["`${BRAND}_ZERNIO_GOOGLE_ADS` + `${BRAND}_ZERNIO_GOOGLE_ADS_CID` (opt — Google Ads Zernio fallback pair)", "`${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID` (opt — Meta Ads Zernio fallback)", "`${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair)"]
 ---
 
 ## Maintenance
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.3 | May 16, 2026 |
+| Link | v2.18.0 | July 01, 2026 |
 
 **Description:** Analyze campaign performance data — KPI dashboards, weekly/monthly reports, traffic and lead analysis for any active brand
 
 ### Change Log
+
+**v2.18.0** — July 01, 2026
+- **Zernio ads/analytics tools migrated to Zernio's own MCP (gateway v1.7.4).** Repointed all `late_*` ads/analytics fallback calls to Zernio's native tool names (drop the `late_` prefix; `late_search_ad_targeting_locations` → `search_ad_targeting`); dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*`. Windsor.ai remains the primary source; Zernio stays the optional fallback.
 
 **v2.3.3** — May 16, 2026
 - Bug fix (silent-failure): Zernio Windsor-fallback tool params standardized to snake_case (`date_from`/`date_to`, `account_id`) across `late_get_ads_timeline`, `late_get_ad_tree`, `late_list_ad_campaigns`, `late_get_ad_analytics`. Old `fromDate`/`toDate`/`accountId` were silently returning empty results.
@@ -31,17 +34,13 @@ deps:
 - Change log history trimmed — housekeeping pass to keep file-level history compact. No functional change.
 
 **v2.3.1** — May 15, 2026
-- Step 1a Windsor fallback — Google Ads Zernio fallback now passes **both** `account_id=${BRAND}_LATE_GOOGLE_ADS` and `ad_account_id=${BRAND}_LATE_GOOGLE_ADS_CID`. Passing only the SocialAccount ID returned empty results (the existing bug). Env-var gate added: if either var is missing, the Google Ads Zernio fallback is skipped and noted in Data Gaps.
-- Step 1a now includes a **LinkedIn Ads** path (opt-in — only when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set). Windsor primary (`source: "linkedin"`, fields incl. `lead_form_opens` / `lead_form_completions`); Zernio fallback uses the same two-ID pattern as Google Ads (`platform: "linkedin"`). Field map covers `externalWebsiteConversions` → `conversions` and `qualifiedLeads` → `qualified_leads`.
+- Step 1a Windsor fallback — Google Ads Zernio fallback now passes **both** `account_id=${BRAND}_ZERNIO_GOOGLE_ADS` and `ad_account_id=${BRAND}_ZERNIO_GOOGLE_ADS_CID`. Passing only the SocialAccount ID returned empty results (the existing bug). Env-var gate added: if either var is missing, the Google Ads Zernio fallback is skipped and noted in Data Gaps.
+- Step 1a now includes a **LinkedIn Ads** path (opt-in — only when `${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` are set). Windsor primary (`source: "linkedin"`, fields incl. `lead_form_opens` / `lead_form_completions`); Zernio fallback uses the same two-ID pattern as Google Ads (`platform: "linkedin"`). Field map covers `externalWebsiteConversions` → `conversions` and `qualifiedLeads` → `qualified_leads`.
 - 429 rate-limit handling — note in Data Gaps "&lt;Platform&gt; rate-limited — retry after Xs" and continue with whatever Windsor or other-platform data is available; don't block the run.
 
 **v2.3.0** — May 14, 2026
 - Windsor fallback in Step 1a: if Windsor.ai errors or returns empty for Google Ads or Meta Ads, fall back to Zernio `late_get_ads_timeline` + `late_list_ad_campaigns`. GA4 has no fallback (Windsor-only) — noted in Data Gaps.
 - Step 7 (new): after delivering the report, optionally act on findings via Zernio ads tools — pause underperforming campaigns/ad sets, drill into ad-level analytics, audit conversion tracking, boost top posts.
-
-**v2.2.13** — May 05, 2026
-- Step 1a — Windsor.ai is default path; Meta Ads MCP is opt-in with automatic fallback
-- Windsor field map and conversion-event guidance added; corrected capability claims
 
 # Data Analysis Skill
 
@@ -100,7 +99,7 @@ If data is incomplete or missing, flag what's needed before proceeding.
 
 ### Step 1a: Pull data from Windsor.ai or Meta Ads MCP (if applicable)
 
-**Windsor.ai is the universal source** for Google Ads, GA4, **and** Meta Ads (Facebook + Instagram) — every brand has all three connected per brand-setup. The Meta Ads MCP at `https://mcp.facebook.com/ads` is an optional opt-in alternative for Meta data only; it is in limited rollout and most accounts won't have it. **LinkedIn Ads** is opt-in per brand (only pulled when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set) — see the LinkedIn Ads block below.
+**Windsor.ai is the universal source** for Google Ads, GA4, **and** Meta Ads (Facebook + Instagram) — every brand has all three connected per brand-setup. The Meta Ads MCP at `https://mcp.facebook.com/ads` is an optional opt-in alternative for Meta data only; it is in limited rollout and most accounts won't have it. **LinkedIn Ads** is opt-in per brand (only pulled when `${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` are set) — see the LinkedIn Ads block below.
 
 Branch on the `META_ADS_SOURCE` env var (saved by brand-setup, loaded into `os.environ` by the `CLAUDE.md` credential loader):
 
@@ -147,7 +146,7 @@ Windsor field map for canonical Meta dimensions: `ad_set` → `adset_name`/`adse
 
 List the Meta Ads MCP's available tools at runtime and pick the one that returns campaign-level insights for the requested date range. Typical fields: `campaign`, `clicks`, `impressions`, `ctr`, `spend`, `reach`. Drill-down via Meta's Marketing API: `ad_set`, `ad`, `lp_views`, `video_views`, `conversions`, `frequency`, `cpm`, `cpc`. On MCP error, fall back to the Windsor path above.
 
-**LinkedIn Ads — opt-in per brand (only when `${BRAND}_LATE_LINKEDIN_ADS` + `${BRAND}_LATE_LINKEDIN_ADS_CID` are set):**
+**LinkedIn Ads — opt-in per brand (only when `${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` are set):**
 
 LinkedIn Ads is **not pulled by default**. The skill only fetches LinkedIn data when both env vars are present — otherwise it silently skips LinkedIn analysis. When set, the primary source is Windsor.ai; the fallback is Zernio (see the Windsor fallback section below).
 
@@ -178,24 +177,24 @@ If Windsor.ai `get_data` errors **or** returns 0 rows, fall back to Zernio befor
 ```
 Param-name reference (live-tested against Zernio MCP schema):
   - All three tools use snake_case: account_id, ad_account_id, date_from, date_to (NOT accountId / fromDate / toDate)
-  - late_get_ads_timeline and late_get_ad_tree accept date_from / date_to — date-filterable
-  - late_list_ad_campaigns has NO date_from / date_to params — metrics returned are LIFETIME since campaign creation
-  - late_get_ad_tree and late_list_ad_campaigns default limit=20 (max 100); paginate when needed
-  - late_get_ad_tree returns zero metrics for paused campaigns regardless of date range
+  - get_ads_timeline and get_ad_tree accept date_from / date_to — date-filterable
+  - list_ad_campaigns has NO date_from / date_to params — metrics returned are LIFETIME since campaign creation
+  - get_ad_tree and list_ad_campaigns default limit=20 (max 100); paginate when needed
+  - get_ad_tree returns zero metrics for paused campaigns regardless of date range
 
 Google Ads fallback (REQUIRES BOTH env vars — account_id + ad_account_id):
-  late_get_ads_timeline  (account_id: ${BRAND}_LATE_GOOGLE_ADS, ad_account_id: ${BRAND}_LATE_GOOGLE_ADS_CID, platform: "google", date_from, date_to)
-  late_get_ad_tree       (same IDs + date_from/date_to, platform: "google", limit: 100) — for Campaign → Ad Group → Ad hierarchy. In Google's response the `adSets[]` array IS the ad-groups array (Zernio's schema label is "adSets" but the data is ad-group level).
-  late_list_ad_campaigns (same IDs, platform: "google") — campaign metadata only (objective, status, name). Metrics are LIFETIME — do not use as period totals.
+  get_ads_timeline  (account_id: ${BRAND}_ZERNIO_GOOGLE_ADS, ad_account_id: ${BRAND}_ZERNIO_GOOGLE_ADS_CID, platform: "google", date_from, date_to)
+  get_ad_tree       (same IDs + date_from/date_to, platform: "google", limit: 100) — for Campaign → Ad Group → Ad hierarchy. In Google's response the `adSets[]` array IS the ad-groups array (Zernio's schema label is "adSets" but the data is ad-group level).
+  list_ad_campaigns (same IDs, platform: "google") — campaign metadata only (objective, status, name). Metrics are LIFETIME — do not use as period totals.
 
 Meta Ads fallback:
-  late_get_ads_timeline  (account_id: ${BRAND}_LATE_META_ADS_ACCOUNT_ID, platform: "facebook", date_from, date_to) — the ONLY reliable date-filtered source for Meta account totals
-  late_get_ad_tree       (account_id, platform: "facebook", date_from, date_to, limit: 100) — campaign→adset→ad hierarchy (but returns 0 metrics for paused campaigns)
-  late_list_ad_campaigns (account_id, platform: "facebook") — campaign metadata only (names, IDs, objective, status). Metrics are LIFETIME — label as `spend_*_lifetime` in any payload.
+  get_ads_timeline  (account_id: ${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID, platform: "facebook", date_from, date_to) — the ONLY reliable date-filtered source for Meta account totals
+  get_ad_tree       (account_id, platform: "facebook", date_from, date_to, limit: 100) — campaign→adset→ad hierarchy (but returns 0 metrics for paused campaigns)
+  list_ad_campaigns (account_id, platform: "facebook") — campaign metadata only (names, IDs, objective, status). Metrics are LIFETIME — label as `spend_*_lifetime` in any payload.
 
 LinkedIn Ads fallback (REQUIRES BOTH env vars — account_id + ad_account_id; opt-in per brand):
-  late_get_ads_timeline  (account_id: ${BRAND}_LATE_LINKEDIN_ADS, ad_account_id: ${BRAND}_LATE_LINKEDIN_ADS_CID, platform: "linkedin", date_from, date_to)
-  late_list_ad_campaigns (same IDs, platform: "linkedin") — campaign metadata only; metrics LIFETIME
+  get_ads_timeline  (account_id: ${BRAND}_ZERNIO_LINKEDIN_ADS, ad_account_id: ${BRAND}_ZERNIO_LINKEDIN_ADS_CID, platform: "linkedin", date_from, date_to)
+  list_ad_campaigns (same IDs, platform: "linkedin") — campaign metadata only; metrics LIFETIME
 
 Field mapping (Zernio → Windsor):
   spend → cost/spend · ctr, cpc, cpm, clicks, impressions, reach → direct
@@ -213,9 +212,9 @@ Field mapping (Zernio → Windsor):
 
 Note in Data Gaps: "Zernio fallback used — adset-level breakdown and GA4 sessions not available."
 
-⚠️ **Google Ads env var gate:** the Google Ads fallback requires **both** `${BRAND}_LATE_GOOGLE_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_LATE_GOOGLE_ADS_CID` (Google Ads customer ID). If either is missing, skip the Google Ads Zernio fallback and note in Data Gaps: "Google Ads Zernio fallback skipped — `${BRAND}_LATE_GOOGLE_ADS` / `${BRAND}_LATE_GOOGLE_ADS_CID` not configured. Run brand-setup Step 7b Step D or plugin-update Step 3e."
+⚠️ **Google Ads env var gate:** the Google Ads fallback requires **both** `${BRAND}_ZERNIO_GOOGLE_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_ZERNIO_GOOGLE_ADS_CID` (Google Ads customer ID). If either is missing, skip the Google Ads Zernio fallback and note in Data Gaps: "Google Ads Zernio fallback skipped — `${BRAND}_ZERNIO_GOOGLE_ADS` / `${BRAND}_ZERNIO_GOOGLE_ADS_CID` not configured. Run brand-setup Step 7b Step D or plugin-update Step 3e."
 
-⚠️ **LinkedIn Ads env var gate:** the LinkedIn Ads fallback requires **both** `${BRAND}_LATE_LINKEDIN_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_LATE_LINKEDIN_ADS_CID` (LinkedIn sponsored account ID). LinkedIn Ads is opt-in — if neither var is set, silently skip LinkedIn analysis (the brand likely does not run LinkedIn Ads). If one is set but not the other, note in Data Gaps: "LinkedIn Ads Zernio fallback skipped — partial env var configuration. Run brand-setup Step 7b Step D or plugin-update Step 3e."
+⚠️ **LinkedIn Ads env var gate:** the LinkedIn Ads fallback requires **both** `${BRAND}_ZERNIO_LINKEDIN_ADS` (Zernio SocialAccount `_id`) **and** `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` (LinkedIn sponsored account ID). LinkedIn Ads is opt-in — if neither var is set, silently skip LinkedIn analysis (the brand likely does not run LinkedIn Ads). If one is set but not the other, note in Data Gaps: "LinkedIn Ads Zernio fallback skipped — partial env var configuration. Run brand-setup Step 7b Step D or plugin-update Step 3e."
 
 ⚠️ **Rate-limit handling:** if Zernio returns a 429 with `retryDelay`, note in Data Gaps "<Platform> rate-limited — retry after Xs" and continue with whatever Windsor or other-platform data is available. Do not block the run waiting for the retry window.
 
@@ -286,12 +285,12 @@ After delivering the report, offer to apply recommendations directly when the us
 
 | Finding | Action | Tool |
 |---|---|---|
-| Campaign wasting spend (high cost, 0 conv) | Pause campaign | `late_update_ad_campaign_status` |
-| Multiple underperforming campaigns | Bulk pause | `late_bulk_update_ad_campaign_status` |
-| Ad set audience fatigue (frequency > 2.5) | Pause ad set | `late_update_ad_set_status` |
-| Drill-down needed on specific ad | Ad-level analytics | `late_get_ad_analytics` (date_from/date_to = report period) |
-| Conversion tracking gaps flagged | Audit tracking | `late_list_conversion_destinations` · `late_get_tracking_tag_stats` |
-| Top organic post worth promoting | Boost post | `late_boost_post` |
+| Campaign wasting spend (high cost, 0 conv) | Pause campaign | `update_ad_campaign_status` |
+| Multiple underperforming campaigns | Bulk pause | `bulk_update_ad_campaign_status` |
+| Ad set audience fatigue (frequency > 2.5) | Pause ad set | `update_ad_set_status` |
+| Drill-down needed on specific ad | Ad-level analytics | `get_ad_analytics` (date_from/date_to = report period) |
+| Conversion tracking gaps flagged | Audit tracking | `list_conversion_destinations` · `get_tracking_tag_stats` |
+| Top organic post worth promoting | Boost post | `boost_post` |
 
 Always confirm with the user before pausing or modifying campaigns. Read-only actions (analytics, tracking audit) can run immediately.
 
