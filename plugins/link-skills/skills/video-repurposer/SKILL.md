@@ -15,9 +15,12 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.19.0 | July 03, 2026 |
 
 ### Change Log
+
+**v2.19.0** — July 03, 2026
+- **Corrected the Zernio publish mechanics to the real MCP schema (fixes the v2.18.0 migration bug).** v2.18.0 wrongly repointed `late_presign_upload` → `media_generate_upload_link`, but that Zernio tool is a **browser-only** upload flow — PUTting to it silently fails. Clips now upload via `media_get_media_presigned_url(filename, content_type, size)` → PUT → public URL, `validate_media` before publish. `posts_create` corrected to the real signature: `content`, `platform` (single string), `account_id`, `media_urls` (string), `publish_now`/`schedule_minutes` — one call per platform (no `platforms[]`, no `platformSpecificData`); scheduling uses integer `schedule_minutes` via Python `datetime`.
 
 **v2.18.0** — July 01, 2026
 - **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_presign_upload` → `media_generate_upload_link` and `late_create_post` → `posts_create` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*` and internal `late_*` PublishLog fields to `zernio_*`.
@@ -115,13 +118,16 @@ For each clip, the caption is already written in the Notion calendar Captions se
 
 ## Step 5 — Publish via Zernio
 
+The clip is a **local video file**, so upload it programmatically via `media_get_media_presigned_url` — **not** `media_generate_upload_link` (that returns a browser upload-page URL for a human; PUTting to it silently fails). Resolve account IDs via `accounts_list` at run start.
+
 For each clip:
-1. `media_generate_upload_link` → get presigned S3 URL
-2. Upload clip via `requests.put` to the presigned URL
-3. `posts_create` with video asset + caption + platform account ID + scheduled time
+1. `media_get_media_presigned_url` (filename, content_type: `"video/mp4"`, size) → returns an upload URL (PUT target) + a public URL
+2. Upload the clip via `requests.put` to that upload URL
+3. `validate_media(url=public_url)` → confirm `valid: true`
+4. `posts_create` (one call per platform): `content` (caption), `platform` (single string), `account_id`, `media_urls` (the public URL), and either `publish_now: true` or `schedule_minutes` (integer minutes from now, computed via Python `datetime`)
 
 ```python
-# Platform account ID mapping
+# Platform account ID mapping (verify against accounts_list at run start)
 platform_ids = {
     "LinkedIn": os.environ.get(f"{brand_upper}_ZERNIO_LI"),
     "Instagram": os.environ.get(f"{brand_upper}_ZERNIO_IG"),
@@ -131,7 +137,7 @@ platform_ids = {
 }
 ```
 
-Schedule each clip at the `Publish Time` from the Clip Release Schedule (convert to UTC for the API). If scheduling is not supported, publish immediately and note the actual publish time.
+Schedule each clip at the `Publish Time` from the Clip Release Schedule: convert the target time to UTC, then compute `schedule_minutes` as integer minutes from now via Python `datetime`. `posts_create` takes one `platform` + `account_id` per call (no `platforms[]` array) and has no `platformSpecificData` param.
 
 ---
 

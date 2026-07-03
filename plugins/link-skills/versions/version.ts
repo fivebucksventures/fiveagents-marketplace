@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.18.0';
-const DEFAULT_DATE = 'July 01, 2026';
+const DEFAULT_VERSION = 'v2.19.0';
+const DEFAULT_DATE = 'July 03, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,14 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.19.0',
+    date: 'July 03, 2026',
+    changes: [
+      'Zernio migration fix (v2.18.0 was validated against prose, not the live schema): the v2.18.0 assumption that Zernio "drops the late_ prefix" and renames date params to date_from/date_to was WRONG. Corrected against the live Zernio MCP schema across social-publisher, content-generator, creative-designer, video-repurposer, content-performance-analyst, data-analysis, digital-marketing-analyst, and agents/link.md. (1) Tool names are resource-prefixed: analytics_get_analytics, accounts_get_follower_stats, ad_campaigns_{get_ads_timeline,get_ad_tree,list_ad_campaigns,update_ad_campaign,update_ad_campaign_status,bulk_update_ad_campaign_status,duplicate_ad_campaign,update_ad_set_status}, ads_{get_ad_analytics,get_ad_comments,list_ad_accounts,search_ad_interests,search_ad_targeting,boost_post,create_ctwa_ad}. (2) Date params are from_date/to_date (NOT date_from/date_to — the wrong names silently returned empty). ads_get_ad_analytics requires ad_id.',
+      'Publishing/media fix: media_generate_upload_link is a BROWSER-only upload flow (returns a human upload-page URL) — PUTting to it silently fails. Programmatic uploads of local files now use media_get_media_presigned_url(filename, content_type, size); fb.ai fivebucks_render_post signed URLs are passed DIRECTLY as media_urls (no re-host — the publisher fetches/caches at post-creation time). validate_media before publish; curl local backup after render. posts_create real signature: content + platform (single string) + account_id + media_urls (comma-separated string) + publish_now/is_draft/schedule_minutes — one call per platform (no platforms[] array, no platformSpecificData.contentType, so Story/Reel content-typing is not expressible). posts_update accepts only content/scheduled_for/title. creative-designer bg_image/image-slot values must be "media:{fileId}"; media-folder name-mismatch warning added to content-generator.',
+    ],
+  },
   {
     version: 'v2.18.0',
     date: 'July 01, 2026',

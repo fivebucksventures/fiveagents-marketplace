@@ -15,11 +15,17 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.19.0 | July 03, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.19.0** — July 03, 2026
+- **Corrected Zernio publish mechanics to the real MCP schema (fixes the v2.18.0 migration bug).** v2.18.0 wrongly repointed `late_presign_upload` → `media_generate_upload_link`, but that Zernio tool is a **browser-only** upload flow — PUTting to it silently fails. Now: **local files** (image-path `_final.png`, Step 5) upload via `media_get_media_presigned_url(filename, content_type, size)`; **fb.ai render signed URLs** (template-path §7) pass **directly** as `media_urls` with no re-host (the publisher fetches/caches at post-creation time, so ~1h expiry is safe within the run); `validate_media(url)` before publish; local `curl` backup after render.
+- **`posts_create` signature corrected.** Real params: `content`, `platform` (single string), `account_id`, `media_urls` (comma-separated string — not a `media_items` array), `publish_now`/`is_draft`/`schedule_minutes`. One call per platform (no `platforms[]`). `account_id` always passed, resolved via `accounts_list`.
+- **`platformSpecificData.contentType` removed** — no such param on Zernio `posts_create`; image-path posts publish as feed content. Removed the `ZERNIO_CONTENT_TYPE` mapping and the "always pass contentType" rule (Step 5).
+- **Media-folder name-mismatch warning added (Step 4c-template §1).** When folders exist but none match the expected template-type names, surface a non-blocking Slack warning recommending a rename; continue with the all-folder pool.
 
 **v2.18.0** — July 01, 2026
 - **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_presign_upload` → `media_generate_upload_link` and `late_create_post` → `posts_create` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*` and internal `late_*` PublishLog/output fields to `zernio_*`.
@@ -40,9 +46,6 @@ deps:
 **v2.12.0** — May 23, 2026
 - **New media pool — photos are now auto-injected from fb.ai folders.** At run start (cached alongside the template list, called once), `fivebucks_list_media_folders` builds `media_pool[type]` by matching folders to template types by exact name (`LinkedIn Post`→`linkedin-post`, `Meta Story`→`meta-story`, `Meta Carousel`→`meta-carousel`, `Meta Post`→`meta-post`) and listing each folder's files. Fallbacks: pool all folders when no exact name match; empty pool when no folders exist; skip silently on any error (never fails the run).
 - **Step 4 changed from "(Optional) Assign photos" to "Assign photos from the media pool."** Non-empty pool → carousel/story cycle photos through body slots `s2_image`…`s5_image` (up to 4, reused if fewer); single-image types assign one photo to `bg_image`; each slot gets companion `_position: center` / `_fit: cover` overrides. Empty pool → image slots left empty (template renders its branded placeholder) — the normal no-media fallback, never a failure or warning. Quality-checklist item added.
-
-**v2.11.1** — May 22, 2026
-- **Reel and Argil fully removed.** Removed "For Reels" copy instruction, Reel rows from Step 4c routing table and decision logic, Story/Reel guard → Story-only (`post.format.lower() == "story"`), `LATE_CONTENT_TYPE` reel key and `LATE_CONTENT_TYPE_FALLBACK` dict, Reel video publishing and fallback rules, Argil from frontmatter gateway dep. Log metric `format` placeholder corrected from hardcoded `"static"` to `"<Post|Story|Carousel>"`.
 
 # SKILL.md — Content Generator
 
@@ -267,14 +270,14 @@ Check the post `Format` from the calendar. "A `<type>` template exists" means th
 |---|---|---|---|
 | FB/IG | Carousel | Static images | If a `meta-carousel` template exists on fb.ai → **Step 4c-template**. Else → **Step 4c-image** (Gemini background → text overlay → logo). |
 | FB/IG | Story | Static image | If a `meta-story` template exists → **Step 4c-template**. Else → **Step 4c-image** (publish as Story). |
-| FB/IG | Reel | 9:16 static image | **Step 4c-image** (Gemini background → text overlay → logo; `aspect_ratio: "9:16"`). Pass `contentType: "reel"` in Step 5 — no fb.ai template type exists for Reels. |
+| FB/IG | Reel | 9:16 static image | **Step 4c-image** (Gemini background → text overlay → logo; `aspect_ratio: "9:16"`). No fb.ai template type exists for Reels, and Zernio `posts_create` cannot set a Reel content-type — the 9:16 image publishes as a feed post. |
 | FB/IG | Post (single image) | Static image | If a `meta-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
 | LinkedIn | Post | Static image | If a `linkedin-post` template exists → **Step 4c-template**. Else → **Step 4c-image**. |
 | Any | Post | Static image | **Step 4c-image** (no matching template) |
 
 **Decision logic:**
 1. Check the `Format` field from the Notion calendar.
-2. If Format = `"Reel"` AND platform ∈ {Instagram, Facebook} → use **Step 4c-image** (9:16 canvas; `platformSpecificData.contentType: "reel"` in Step 5 — no fb.ai template type exists for Reels).
+2. If Format = `"Reel"` AND platform ∈ {Instagram, Facebook} → use **Step 4c-image** (9:16 canvas). No fb.ai template type exists for Reels, and Zernio `posts_create` cannot set a Reel content-type — the 9:16 image publishes as a feed post.
 3. If Format = `"Carousel"` AND platform ∈ {Instagram, Facebook} AND a `meta-carousel` template exists → use **Step 4c-template**.
 4. If Format = `"Story"` AND platform ∈ {Instagram, Facebook} AND a `meta-story` template exists → use **Step 4c-template**.
 5. If Format = `"Post"` AND platform ∈ {Instagram, Facebook} AND a `meta-post` template exists → use **Step 4c-template**.
@@ -320,7 +323,7 @@ Also at run start, build the **media pool** (cache alongside the template list �
 
 3. **For each matched folder:** call `fivebucks_list_media_files` → store the file list as `media_pool[type]`.
 
-4. **Fallback — no exact match:** if a template type has no folder with a matching name, combine **ALL** returned folders — call `fivebucks_list_media_files` for every folder and merge into a single list. Use that combined list as `media_pool[type]`. (Do not leave the type's pool empty just because its named folder is missing.)
+4. **Fallback — no exact match:** if a template type has no folder with a matching name, combine **ALL** returned folders — call `fivebucks_list_media_files` for every folder and merge into a single list. Use that combined list as `media_pool[type]`. (Do not leave the type's pool empty just because its named folder is missing.) **When this fallback fires** (folders exist but none match the expected names `LinkedIn Post` / `Meta Story` / `Meta Carousel` / `Meta Post`), surface a non-blocking warning in the Slack notification recommending the user rename folders to the expected names so per-type photo injection works correctly. Do not fail — continue with the all-folder pool.
 
 5. **Fallback — no folders at all:** if `fivebucks_list_media_folders` returns an empty list, set `media_pool` to empty. Photo injection is skipped for the entire run — this is normal, not an error.
 
@@ -385,31 +388,33 @@ meta-story renders the 6 slides of the `_direction` set (A/B/C — **never `all`
 
 #### 7. Publish — Story vs other formats
 
-Publishing from the template-path splits on template type: both `meta-story` and all other types re-host on Zernio first — never pass Supabase signed URLs directly to Zernio.
+Pass the `fivebucks_render_post` signed URLs **directly** to `posts_create` as `media_urls` — **do not re-host**. The publisher fetches and caches each image at post-creation time (not at publish time), so the ~1-hour signed-URL expiry is safe as long as `posts_create` runs in the same run as the render. `validate_media(url)` each URL first, and `curl` a local backup of each slide before publishing.
+
+⚠️ **Do not use `media_generate_upload_link` here** — it is a browser-only upload flow (returns a human upload-page URL, not a programmatic presign) and PUTting to it silently fails. It was mis-used by the v2.18.0 migration. Resolve account IDs via `accounts_list` at run start.
+
+`posts_create` real signature: `content`, `platform` (single string), `account_id`, `media_urls` (comma-separated string), `publish_now`/`is_draft`/`schedule_minutes`. There is no `platforms[]` array and no `platformSpecificData` — publish one `posts_create` per platform.
 
 **`meta-story` (6 slides → 6 separate Story posts per platform):**
 
-**Always re-host on Zernio before posting.** Supabase signed URLs from `fivebucks_render_post` expire after ~1 hour. Zernio stores URLs by reference (not bytes), so any draft or post created with a Supabase URL will fail to publish once the URL expires. Use `media_generate_upload_link` + PUT to upload each slide to Zernio's CDN first, then pass the permanent `publicUrl` to `posts_create`. Post one slide at a time with a 1-second sleep between calls. After every ~5 consecutive FB story posts, sleep 5 seconds before the next call (Facebook rate-limits rapid sequential story submissions) and retry once on rejection.
+Post one slide at a time with a 1-second sleep between calls. After every ~5 consecutive FB story posts, sleep 5 seconds before the next call (Facebook rate-limits rapid sequential story submissions) and retry once on rejection.
 
 ```python
-import time, requests
+import time, subprocess
 
 for i, signed_url in enumerate(render_urls, start=1):  # slide-1 through slide-6
-    img_bytes = requests.get(signed_url).content
-    presign = media_generate_upload_link(
-        filename=f"{slug}_story-slide-{i}_{date}.png",
-        content_type="image/png",
-    )
-    requests.put(presign["uploadUrl"], data=img_bytes, headers={"Content-Type": "image/png"})
-    permanent_url = presign["publicUrl"]  # media.zernio.com/media/... — never expires
+    validate_media(url=signed_url)  # confirm valid: true before publishing
+    # Local backup — preserves the asset even if a publish step later fails
+    subprocess.run(["curl", "-s", "-L", signed_url,
+                    "-o", f"outputs/{brand}/posts/Instagram/{slug}_story-slide-{i}_{date}.png"])
 
     for platform, account_id in [("facebook", ZERNIO_ACCOUNTS["facebook"]),
                                   ("instagram", ZERNIO_ACCOUNTS["instagram"])]:
         for attempt in range(2):
             result = posts_create(
-                media_items=[{"type": "image", "url": permanent_url}],
-                platforms=[{"platform": platform, "accountId": account_id,
-                             "platformSpecificData": {"contentType": "story"}}],
+                content=copy_text,
+                platform=platform,
+                account_id=account_id,
+                media_urls=signed_url,          # signed URL passed directly — no re-host
                 publish_now=True,
                 is_draft=False,
             )
@@ -422,23 +427,23 @@ for i, signed_url in enumerate(render_urls, start=1):  # slide-1 through slide-6
 
 This produces 6 separate Story posts per platform — one per slide, in slide order.
 
-**`meta-carousel` and single-image types (`linkedin-post`, `meta-post`) — re-host then publish:**
+**`meta-carousel` and single-image types (`linkedin-post`, `meta-post`) — publish directly:**
 
-The fb.ai signed URLs are short-lived (1 h), so re-host each PNG on Zernio before publishing:
 ```python
-import requests
-media_urls = []
-for i, signed_url in enumerate(render_urls, start=1):
-    img = requests.get(signed_url).content
-    presign = media_generate_upload_link(
-        filename=f"{slug}_slide-{i}_{date}.png",
-        content_type="image/png",
-    )
-    requests.put(presign["uploadUrl"], data=img, headers={"Content-Type": "image/png"})
-    media_urls.append(presign["publicUrl"])
+media_urls = ",".join(render_urls)   # comma-separated string, in slide order (one URL for single-image types)
+for signed_url in render_urls:
+    validate_media(url=signed_url)
+posts_create(
+    content=copy_text,
+    platform=platform_key,
+    account_id=ZERNIO_ACCOUNTS[platform_key],
+    media_urls=media_urls,   # carousel = comma-separated URLs; single-image = one URL
+    publish_now=True,
+    is_draft=False,
+)
 ```
 
-Pass `media_urls` (in slide order) as `media_items` in `posts_create` here — a carousel becomes multiple `media_items`; single-image types are one. (Template-path posts do not proceed to Step 5 — that section is image-path only.)
+A carousel becomes a comma-separated `media_urls` string; single-image types are one URL. `curl` a local backup of each `signed_url` first. (Template-path posts do not proceed to Step 5 — that section is image-path only.)
 
 **Skip Steps 4d, 4e, 4f, 4g** — no Pillow overlays, no local tmp files. Day-of-week `text_align` / `logo_position` rotations apply only to Step 4c-image.
 
@@ -812,33 +817,38 @@ Upload the image and copy directly to Zernio API and publish immediately.
 
 **Fix 2 — Before calling `posts_create`:** write Notion Status → `"Processing"` for this row (same `notion-update-page update_content` call as Step 6, matching `Planned` → `Processing`). This ensures a crash after publish but before the Step 6 `Published` write leaves the row in a non-`Planned` state — the next run's `Status == Planned` filter skips it entirely.
 
-**IMPORTANT: Always pass `platformSpecificData.contentType` for Reels and Stories.** Without this, Zernio defaults everything to a feed Post regardless of image dimensions.
+⚠️ **Zernio `posts_create` has no `platformSpecificData.contentType` param** — Story/Reel content-typing cannot be set through this tool, so image-path posts publish as feed content regardless of dimensions. (Story/Reel typing is only achievable on the template-path via fb.ai; the Gemini image-path publishes feed posts.)
 
-For each post, use the Zernio MCP tools (OAuth/session-scoped — no `fiveagents_api_key`):
+For each post, use the Zernio MCP tools (OAuth/session-scoped — no `fiveagents_api_key`). The `_final.png` is a **local file**, so upload it programmatically via `media_get_media_presigned_url` — **not** `media_generate_upload_link` (that is a browser-only flow and PUTting to it silently fails):
 
 ```
-1. Use `media_generate_upload_link`:
+1. Use `media_get_media_presigned_url`:
    - filename: "<filename>.png" (or .mp4 for video)
    - content_type: "image/png" (or "video/mp4")
-   → Returns uploadUrl + publicUrl
+   - size: <file size in bytes>
+   → Returns an upload URL (PUT target) + a public URL
 
-2. Use Python requests to upload the file directly to S3 via the presigned URL:
+2. Use Python requests to upload the file to the presigned URL:
 ```python
-import requests
-with open('path/to/_final.png', 'rb') as f:
-    requests.put(uploadUrl, data=f, headers={'Content-Type': 'image/png'})
+import requests, os
+path = 'path/to/_final.png'
+presign = media_get_media_presigned_url(filename=os.path.basename(path),
+                                        content_type="image/png",
+                                        size=os.path.getsize(path))
+with open(path, 'rb') as f:
+    requests.put(presign["uploadUrl"], data=f, headers={'Content-Type': 'image/png'})
+public_url = presign["publicUrl"]
 ```
 
-3. Use `posts_create`:
+3. `validate_media(url=public_url)` → confirm `valid: true`, then use `posts_create` (one call per platform):
    - content: <copy text with hashtags>
-   - platforms: [{ platform: "<platform>", accountId: "<id>", platformSpecificData: { contentType: "<type>" } }]
-   - media_items: [{ url: "<publicUrl from step 1>", type: "image" or "video" }]
+   - platform: "<facebook|instagram|linkedin>"   # single string, not an array
+   - account_id: "<from accounts_list / ZERNIO_ACCOUNTS>"
+   - media_urls: "<public_url>"                    # comma-separated string for multiple images
    - publish_now: true (or is_draft: true)
 ```
 
-Follow the platformSpecificData.contentType mapping and Reel fallback logic below.
-
-**Account IDs** — read from env vars using brand prefix (e.g. `FIVEBUCKS_ZERNIO_FB`):
+**Account IDs** — resolve via `accounts_list` at run start; the `{BRAND}_ZERNIO_*` env vars hold the canonical IDs:
 ```python
 B = BRAND.upper()
 ZERNIO_ACCOUNTS = {
@@ -848,23 +858,10 @@ ZERNIO_ACCOUNTS = {
 }
 ```
 
-**platformSpecificData.contentType mapping:**
-```python
-ZERNIO_CONTENT_TYPE = {
-    "story":    {"instagram": "story", "facebook": "story"},
-    "reel":     {"instagram": "reel",  "facebook": "reel"},
-    "carousel": {},   # Zernio handles carousels via multiple mediaItems — no contentType needed
-    "post":     {},   # default feed post — no contentType needed
-}
-```
-
-**For each post**, determine the platform object:
+**For each post:**
 - `platform_key` = post platform lowercase ("facebook" | "instagram" | "linkedin")
-- `post_format` = post format lowercase ("post" | "story" | "carousel")
-- `account_id` = from env var `{BRAND}_ZERNIO_{PLATFORM}` (e.g. `FIVEBUCKS_ZERNIO_FB`)
-- Add `platformSpecificData.contentType` using the mapping above (required for Stories)
-
-Then call `posts_create` with the assembled platform object, media URL from step 2, and copy text.
+- `account_id` = `ZERNIO_ACCOUNTS[platform_key]` — **always passed** (omitting it errors when a brand has multiple accounts on a platform)
+- Call `posts_create` per platform with the public media URL and copy text.
 
 **Do NOT store copy in Notion** — Zernio is the single source of truth.
 
@@ -918,6 +915,8 @@ DM the user via **Slack MCP** (`slack_send_message`, `channel_id: "$SLACK_NOTIFY
   (or Saved as draft: [zernio_post_id])
 
 Notion Social Calendar updated.
+
+[⚠️ Media folders don't match expected names (LinkedIn Post / Meta Story / Meta Carousel / Meta Post) — using the all-folder pool. Rename them for per-type photo injection. — include this line only when the Step 4c-template §1 sub-step 4 fallback fired]
 ```
 
 ---
@@ -951,7 +950,7 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] **Template-path:** `fivebucks_list_templates` called once at run start and cached (not per-post)
 - [ ] **Template-path:** media pool built — `fivebucks_list_media_folders` called once; exact-name match first (case-insensitive); if no match → ALL folders pooled for that type; if no folders → pool empty (not a failure)
 - [ ] **Template-path:** `overrides` map copy → manifest field keys (skip `bound:false`, `select` values from `options`); direction set (`_direction` A/B/C for meta-story — never `all`; `direction` for single-image types)
-- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; **Story (`meta-story`)**: each slide re-hosted on Zernio (`media_generate_upload_link` + PUT → permanent `publicUrl`) then posted one-per-slide via `posts_create` with `is_draft=False` + `publish_now=True`; 1-second sleep between slides; 5-second sleep + one retry after ~5 consecutive FB posts (FB rate-limit); **Carousel/single-image**: signed PNGs re-hosted on Zernio (`media_generate_upload_link` + PUT) then passed as `media_items` to a single `posts_create`; Pillow overlays skipped (Steps 4d–4g)
+- [ ] **Template-path:** `fivebucks_create_post` → `fivebucks_render_post`; signed render URLs passed **directly** as `media_urls` (no re-host; `validate_media` first; local `curl` backup); **Story (`meta-story`)**: posted one-per-slide via `posts_create` (one call per platform) with `is_draft=False` + `publish_now=True`; 1-second sleep between slides; 5-second sleep + one retry after ~5 consecutive FB posts (FB rate-limit); **Carousel/single-image**: signed URLs passed as a comma-separated `media_urls` string to a single `posts_create` per platform; Pillow overlays skipped (Steps 4d–4g)
 - [ ] **Template-path:** `slide_ids` **omitted** for all types — fb.ai selects slides from the direction override (`_direction` for meta-story/meta-carousel, `direction` for single-image)
 - [ ] **Template-path (failure):** quota/5xx falls back to Step 4c-image; Notion status set to `"Draft Ready"`; Slack warning logged
 - [ ] **Image-path (Gemini-only):** Story/Reel full-frame guard applied — `image_brief` passed to Gemini contains `"fills the ENTIRE frame"` (either from `social-calendar` or wrapped by the guard)
@@ -961,8 +960,8 @@ Append a summary to `memory/YYYY-MM-DD.md`:
 - [ ] Day-of-week rotation does NOT apply on template-path (template chrome is fixed)
 - [ ] Final images saved to correct `outputs/{brand}/posts/[Platform]/` folder
 - [ ] Intermediate files deleted — `_with_text.png` removed after `_final.png` confirmed
-- [ ] `platformSpecificData.contentType` set correctly for Reels/Stories (never omitted)
-- [ ] Published to Zernio API with correct mode (publishNow or isDraft)
+- [ ] **Image-path publish:** local `_final.png` uploaded via `media_get_media_presigned_url` (never `media_generate_upload_link`); `validate_media` passed; `posts_create` called per platform with `media_urls` string + `account_id` (resolved via `accounts_list`)
+- [ ] Published to Zernio API with correct mode (`publish_now` or `is_draft`); scheduled posts use integer `schedule_minutes`
 - [ ] Notion Social Calendar rows updated to "Published" (if published) or "Draft Ready" (if draft) — never hardcoded
 - [ ] Slack notification sent with Zernio post IDs and correct status
 - [ ] Memory logged

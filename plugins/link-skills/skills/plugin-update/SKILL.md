@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.19.0 | July 03, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.19.0** — July 03, 2026
+- **Corrected Zernio ad-account discovery tool name (fixes the v2.18.0 migration bug).** v2.18.0 assumed Zernio just drops the `late_` prefix, but Zernio's tools are resource-prefixed. Step 2/Step 3 ad-account resolution now calls **`ads_list_ad_accounts`** (was `list_ad_accounts`). `profiles_list` / `accounts_list` were already correct.
 
 **v2.18.0** — July 01, 2026
 - **Migration support for the Zernio + DataforSEO gateway split-off (gateway v1.7.4/v1.7.5) and Argil retirement.** Step 1e adds Zernio (`profiles_list` — success = authorized) and DataforSEO (`keywords_data_google_ads_search_volume`, optional) connector probes. Step 3f renames every `${BRAND}_LATE_*` env var → `${BRAND}_ZERNIO_*`, removes the now-defunct `LATE_API_KEY` (Zernio is OAuth — no key), and updates the auto-discover tool names (`profiles_list` / `accounts_list` / `list_ad_accounts`, no longer gateway-routed). Step 3g adds a **Zernio (required, OAuth)** connector walkthrough and a **DataforSEO (optional, Basic Auth)** connector walkthrough. Step 3k adds a brand-action row mapping this release — reconnect Zernio + DataforSEO as their own custom connectors and re-run account discovery, since Zernio's own API may return different SocialAccount `_id`s than the old gateway-proxied Late API.
@@ -30,9 +33,6 @@ deps:
 
 **v2.14.0** — May 29, 2026
 - **Migration support for the YouTube-First pipeline.** Added a Step 1b `brand.md` checklist row for `## Content Strategy`; a Step 3e gap-fill (re-runs `brand-setup` Step 4a); Step 3k changelog→brand-action rows for YouTube-First Mode + the trend-radar synthesis requirement; and Step 1d/3f coverage for the new `${BRAND}_LATE_TT` / `${BRAND}_LATE_TW` organic account IDs (TikTok / Twitter-X) that `video-repurposer` needs. Brands missing `## Content Strategy` default to static planning until it's filled.
-
-**v2.11.1** — May 28, 2026
-- **Registered the two new v2.13.0 auto-bootstrapped DBs** — `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the Step 1d auto-bootstrap inventory and the Step 3f defer-or-bootstrap list; Step 1d checklist count corrected 7 → 9. New skills are otherwise auto-detected from the shipped `skills-manifest.json` (Step 1's registry read).
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 
@@ -551,7 +551,7 @@ Use Zernio MCP tool `accounts_list`:
    organic LinkedIn page saved as ${BRAND}_ZERNIO_LI) → save _id as ${BRAND}_ZERNIO_LINKEDIN_ADS
 
 Step 2 — Google Ads customer ID (only if ${BRAND}_ZERNIO_GOOGLE_ADS_CID is missing):
-Use Zernio MCP tool `list_ad_accounts`:
+Use Zernio MCP tool `ads_list_ad_accounts`:
 - account_id: ${BRAND}_ZERNIO_GOOGLE_ADS
 
 2a. Accounts returned → take the customer ID (numeric) from the first entry and save as
@@ -563,7 +563,7 @@ Use Zernio MCP tool `list_ad_accounts`:
 
 Step 3 — LinkedIn sponsored account ID (only if ${BRAND}_ZERNIO_LINKEDIN_ADS is set
         and ${BRAND}_ZERNIO_LINKEDIN_ADS_CID is missing):
-Use Zernio MCP tool `list_ad_accounts`:
+Use Zernio MCP tool `ads_list_ad_accounts`:
 - account_id: ${BRAND}_ZERNIO_LINKEDIN_ADS
 
 3a. Accounts returned → take the numeric sponsored account ID from the first entry and save as

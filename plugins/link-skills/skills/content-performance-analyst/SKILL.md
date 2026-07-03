@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.19.0 | July 03, 2026 |
 
 **Description:** Analyze organic content performance — own posts + competitor benchmarking — into a Performance Brief that feeds the social calendar.
 
 ### Change Log
+
+**v2.19.0** — July 03, 2026
+- **Corrected Zernio tool names + date params to the real MCP schema (fixes the v2.18.0 migration bug).** v2.18.0 assumed Zernio just drops the `late_` prefix, but Zernio's tools are resource-prefixed. Repointed the analytics fallback: `get_analytics` → **`analytics_get_analytics`** (per-post arg is `post_id`, not `postId`) and `get_follower_stats` → **`accounts_get_follower_stats`**. Date filters corrected from `date_from`/`date_to` to **`from_date`/`to_date`** (the wrong names silently returned empty). `accounts_list`/`posts_list` were already correct.
 
 **v2.18.0** — July 01, 2026
 - **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_list_accounts` → `accounts_list`, `late_list_posts` → `posts_list`, `late_get_post_analytics` → `get_analytics`, and `late_get_follower_stats` → `get_follower_stats` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls; renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*`.
@@ -36,11 +39,6 @@ deps:
 - Step 2: Claude in Chrome primary added before Zernio fallback; field mapping updated for "Impressions / Views" and "Engagement Rate"; upsert Source set dynamically.
 - Step 3: Claude in Chrome primary added before web-research fallback; Source tagging updated.
 - Analytics Field Rules section added: per-platform required/optional/na field table, platform-specific Engagement formulas, Engagement Rate formula, YouTube scrape constraints, and pre-write validation checklist.
-
-**v1.0.1** — June 08, 2026
-- Step 0 pre-flight: primary engagement source switched to `late_get_post_analytics` (Zernio Analytics add-on); 402/403 add-on error triggers graceful fallback to `late_list_posts` + competitor benchmarking. Added optional `late_get_follower_stats` for reach denominator.
-- Step 2.3: explicit field mapping from `late_get_post_analytics` response (impressions/likes/comments/shares/saves/engagementRate).
-- Frontmatter deps: `gateway` now lists `Zernio Analytics add-on` alongside Zernio.
 
 # SKILL.md — Content Performance Analyst
 
@@ -68,12 +66,12 @@ Primary engagement source for **all rows** (own posts + competitors) is **Claude
 
 | Rows | Primary | Fallback | Notes |
 |---|---|---|---|
-| Your posts (all platforms) | **Claude in Chrome** (computer use, authenticated Chrome) — open each post URL, navigate to the platform's analytics/insights view, read impressions/views, likes, comments, shares, saves, engagement rate | **Zernio Analytics** `get_analytics`; if 402 `analytics_addon_required` / 403 `requiresAddon`, fall back further to `posts_list` (publish status only) | Mark rows **metrics-pending** if both paths fail; never fabricate |
+| Your posts (all platforms) | **Claude in Chrome** (computer use, authenticated Chrome) — open each post URL, navigate to the platform's analytics/insights view, read impressions/views, likes, comments, shares, saves, engagement rate | **Zernio Analytics** `analytics_get_analytics`; if 402 `analytics_addon_required` / 403 `requiresAddon`, fall back further to `posts_list` (publish status only) | Mark rows **metrics-pending** if both paths fail; never fabricate |
 | Competitors (all) | **Claude in Chrome** (computer use, authenticated Chrome) — navigate to competitor profile pages, scroll recent posts, read any visible engagement signals (reactions/comments/shares/views counts) | **Web research** (`WebSearch` / `perplexity` / `WebFetch`) over handles in `competitors.md` | Competitor metrics always approximate — say so in the Brief |
 
 **Connected platforms:** Call `accounts_list` to resolve the brand's connected social accounts. The platform list is authoritative — only work with platforms that appear here. Store the account list (platform + account_id) for use in Steps 1, 2, and 3.
 
-Set `Source = "chrome-browser"` when Claude in Chrome delivers the metrics; `Source = "zernio"` when Zernio is used as fallback for own posts; `Source = "web-research"` when web-research fallback is used for competitors. Optionally call `get_follower_stats` for per-account follower/growth context (reach denominator).
+Set `Source = "chrome-browser"` when Claude in Chrome delivers the metrics; `Source = "zernio"` when Zernio is used as fallback for own posts; `Source = "web-research"` when web-research fallback is used for competitors. Optionally call `accounts_get_follower_stats` for per-account follower/growth context (reach denominator).
 
 ---
 
@@ -177,7 +175,7 @@ Platform determines which fields are **required**, **optional**, or **N/A**.
 2. **Recover authored attributes.** For each published post, join back to the brand's social-calendar history in `${BRAND}_NOTION_DB` by **Topic + Platform + Date** to recover `Persona`, `Format`, `Content Angle`, `Direction`, and `Hook Archetype` (the dimensions the calendar authored — no need to re-derive them from the creative).
 3. **Fetch engagement.**
    - **Primary — Claude in Chrome:** Use computer use to open each post URL in the user's authenticated Chrome, navigate to the platform's analytics/insights view, and read `Impressions / Views`, `Likes`, `Comments`, `Shares`, `Saves`, and `Engagement Rate`. Set `Source = "chrome-browser"`.
-   - **Fallback — Zernio:** If Claude in Chrome fails, call `get_analytics` (match by `postId`, or filter by `account_id`/`date_from`/`date_to`). Map: `Impressions / Views ← impressions`, `Likes ← likes`, `Comments ← comments`, `Shares ← shares`, `Saves ← saves`, `Engagement Rate ← engagementRate`, `Engagement ← likes+comments+shares+saves`. Set `Source = "zernio"`. If `get_analytics` returns 402/403, fall back further to `posts_list` (publish status only) and mark rows **metrics-pending**.
+   - **Fallback — Zernio:** If Claude in Chrome fails, call `analytics_get_analytics` (match by `post_id`, or filter by `account_id`/`from_date`/`to_date`). Map: `Impressions / Views ← impressions`, `Likes ← likes`, `Comments ← comments`, `Shares ← shares`, `Saves ← saves`, `Engagement Rate ← engagementRate`, `Engagement ← likes+comments+shares+saves`. Set `Source = "zernio"`. If `analytics_get_analytics` returns 402/403, fall back further to `posts_list` (publish status only) and mark rows **metrics-pending**.
 
    Leave unreturned fields blank — never fabricate. Apply the **Analytics Field Rules** above when building the upsert payload.
 4. **Outlier score (self only, non-YouTube).** Compute the brand's per-platform average engagement over rows with real Engagement values, then `Outlier Score = Engagement / platform_avg`. Flag outliers at `>= 2×` (content-engine's threshold). Skip YouTube rows (Engagement is na) and rows too recent to have settled (note them; don't block).

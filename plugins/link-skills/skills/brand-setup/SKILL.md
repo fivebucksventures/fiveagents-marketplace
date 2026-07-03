@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.19.0 | July 03, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.19.0** — July 03, 2026
+- **Corrected Zernio ad-account discovery tool name (fixes the v2.18.0 migration bug).** v2.18.0 assumed Zernio just drops the `late_` prefix, but Zernio's tools are resource-prefixed. The Step 7 Step D / Step 8 ad-account probes now call **`ads_list_ad_accounts`** (was `list_ad_accounts`), and the two-ID docs reference **`ad_campaigns_get_ads_timeline`** / **`ad_campaigns_list_ad_campaigns`**. `profiles_list` / `accounts_list` were already correct.
 
 **v2.18.0** — July 01, 2026
 - **Zernio + DataforSEO split off the gateway (gateway v1.7.4 / v1.7.5).** Both now ship their own MCP servers — they are no longer routed through the Five Agents gateway. **Zernio** is added as a **required** custom-connector (Step 2 row 2 + new Step 7a-ii, `https://mcp.zernio.com/mcp`, OAuth) — the old `LATE_API_KEY` paste flow is gone. **DataforSEO** is added as an **optional** custom-connector (Step 2 row 7 + new Step 7a-iii, `https://mcp.dataforseo.com/mcp`, Basic Auth using `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD`). Account discovery (Step 7 Step D) and the Step 8 validation probes now call the native tools (`profiles_list`, `accounts_list`, `list_ad_accounts`, `keywords_data_google_ads_search_volume`) with no `fiveagents_api_key` param. All `${BRAND}_LATE_*` env vars renamed to `${BRAND}_ZERNIO_*` (10 vars); `LATE_API_KEY` removed from the key tables, save-list, and gateway vault. Existing brands are migrated by `plugin-update` v2.18.0.
@@ -31,9 +34,6 @@ deps:
 **v2.14.0** — May 29, 2026
 - **New Step 4a — Content Strategy.** Captures the brand's primary content channel (`youtube` vs `static`), distribution + connected platforms, and clips per video; writes a `## Content Strategy` section to `brand.md` (also added to the brand.md template in Step 4). `social-calendar` reads this at runtime to choose YouTube-First vs Static planning mode; platform names are never hardcoded — only what the user confirms is written.
 - **Step 7b Step D discovers TikTok + Twitter/X organic account IDs** (`${BRAND}_LATE_TT` / `${BRAND}_LATE_TW`) alongside the existing FB/IG/LI — needed by `video-repurposer` to publish YouTube-First clips. Skipped for platforms not connected to Zernio.
-
-**v2.9.1** — May 28, 2026
-- **Registered two new auto-bootstrapped DBs (v2.13.0 content loop):** `${BRAND}_PERFORMANCE_DB` (`content-performance-analyst`) and `${BRAND}_TREND_DB` (`trend-radar`) added to the auto-bootstrap acknowledgement table and the env-var listing. No user action at setup — both skills create their Notion DB on first run. De-pinned the auto-bootstrap intro from "v2.4.0 / 10 skills" to span versions.
 
 # Brand Setup — New Client Onboarding
 
@@ -1676,10 +1676,10 @@ Show the user what was found:
 
 The `accounts_list` response includes all connected SocialAccount objects. Look for entries where `platform` is `"googleads"` or `"google"` for Google Ads, and `"metaads"` or `"facebook"` for Meta Ads. The `_id` on each is the **SocialAccount ID** (the Zernio-internal object ID).
 
-**Google Ads needs two IDs.** Zernio's `get_ads_timeline` / `list_ad_campaigns` calls take both `account_id` (Zernio SocialAccount `_id`) **and** `ad_account_id` (the actual Google Ads customer ID — a 10-digit number). Passing only the SocialAccount ID returns empty results. Resolve the customer ID after saving the SocialAccount ID:
+**Google Ads needs two IDs.** Zernio's `ad_campaigns_get_ads_timeline` / `ad_campaigns_list_ad_campaigns` calls take both `account_id` (Zernio SocialAccount `_id`) **and** `ad_account_id` (the actual Google Ads customer ID — a 10-digit number). Passing only the SocialAccount ID returns empty results. Resolve the customer ID after saving the SocialAccount ID:
 
 ```
-3. Use Zernio MCP tool `list_ad_accounts`:
+3. Use Zernio MCP tool `ads_list_ad_accounts`:
    - account_id: <Google Ads SocialAccount _id from step 2>
    → Returns ad accounts visible under that Google Ads login.
 
@@ -1690,14 +1690,14 @@ The `accounts_list` response includes all connected SocialAccount objects. Look 
     Strip dashes before saving — store only the digits.
 ```
 
-**LinkedIn Ads needs two IDs (same pattern as Google Ads).** Per the Zernio LinkedIn Ads docs, `get_ads_timeline` / `list_ad_campaigns` for LinkedIn require both `account_id` (Zernio SocialAccount `_id` for the LinkedIn Ads entry) **and** `ad_account_id` (LinkedIn's numeric sponsored account ID, e.g. `517258773`). The LinkedIn Ads SocialAccount is a separate `accounts_list` entry from organic LinkedIn — do not reuse `{BRAND}_ZERNIO_LI` (that is the organic LinkedIn page/profile ID for publishing).
+**LinkedIn Ads needs two IDs (same pattern as Google Ads).** Per the Zernio LinkedIn Ads docs, `ad_campaigns_get_ads_timeline` / `ad_campaigns_list_ad_campaigns` for LinkedIn require both `account_id` (Zernio SocialAccount `_id` for the LinkedIn Ads entry) **and** `ad_account_id` (LinkedIn's numeric sponsored account ID, e.g. `517258773`). The LinkedIn Ads SocialAccount is a separate `accounts_list` entry from organic LinkedIn — do not reuse `{BRAND}_ZERNIO_LI` (that is the organic LinkedIn page/profile ID for publishing).
 
 ```
 4. From the same `accounts_list` response, find the LinkedIn Ads entry — `platform` is
    "linkedinads" or "linkedin_ads" (distinct from the organic "linkedin" entry saved as
    {BRAND}_ZERNIO_LI). Save its _id as ${BRAND}_ZERNIO_LINKEDIN_ADS.
 
-5. Use Zernio MCP tool `list_ad_accounts`:
+5. Use Zernio MCP tool `ads_list_ad_accounts`:
    - account_id: <LinkedIn Ads SocialAccount _id from step 4>
    → Returns LinkedIn sponsored ad accounts visible under that LinkedIn login.
 
@@ -1722,10 +1722,10 @@ Save the account IDs as env vars in `.claude/settings.local.json` (the content-g
 {BRAND}_ZERNIO_TT                    → TikTok _id from accounts_list (platform: tiktok) — organic publishing (video-repurposer, YouTube-First)
 {BRAND}_ZERNIO_TW                    → Twitter/X _id from accounts_list (platform: twitter or x) — organic publishing (video-repurposer, YouTube-First)
 {BRAND}_ZERNIO_GOOGLE_ADS            → Google Ads SocialAccount _id from accounts_list (platform: googleads or google)
-{BRAND}_ZERNIO_GOOGLE_ADS_CID        → Google Ads customer ID (10-digit, no dashes) from list_ad_accounts or user input
+{BRAND}_ZERNIO_GOOGLE_ADS_CID        → Google Ads customer ID (10-digit, no dashes) from ads_list_ad_accounts or user input
 {BRAND}_ZERNIO_META_ADS_ACCOUNT_ID   → Meta Ads _id from accounts_list (platform: metaads or facebook)
 {BRAND}_ZERNIO_LINKEDIN_ADS          → LinkedIn Ads SocialAccount _id from accounts_list (platform: linkedinads or linkedin_ads) — distinct from {BRAND}_ZERNIO_LI
-{BRAND}_ZERNIO_LINKEDIN_ADS_CID      → LinkedIn sponsored account ID (numeric) from list_ad_accounts or user input
+{BRAND}_ZERNIO_LINKEDIN_ADS_CID      → LinkedIn sponsored account ID (numeric) from ads_list_ad_accounts or user input
 ```
 
 Example: `NPCOFFICE_ZERNIO_FB`, `NPCOFFICE_ZERNIO_IG`, `NPCOFFICE_ZERNIO_LI`, `NPCOFFICE_ZERNIO_TT`, `NPCOFFICE_ZERNIO_TW`, `NPCOFFICE_ZERNIO_GOOGLE_ADS`, `NPCOFFICE_ZERNIO_GOOGLE_ADS_CID`, `NPCOFFICE_ZERNIO_META_ADS_ACCOUNT_ID`, `NPCOFFICE_ZERNIO_LINKEDIN_ADS`, `NPCOFFICE_ZERNIO_LINKEDIN_ADS_CID`

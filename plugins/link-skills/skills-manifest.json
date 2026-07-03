@@ -12,7 +12,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "plugin-update",
@@ -27,7 +27,7 @@
       "files": [],
       "env": []
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "background-generator",
@@ -119,7 +119,7 @@
         "`${BRAND}_ZERNIO_FB/IG/LI`"
       ]
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "content-performance-analyst",
@@ -148,7 +148,7 @@
         "`${BRAND}_PERFORMANCE_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "creative-designer",
@@ -171,7 +171,7 @@
       ],
       "env": []
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "data-analysis",
@@ -194,7 +194,7 @@
         "`${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair)"
       ]
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "digital-marketing-analyst",
@@ -222,7 +222,7 @@
         "`${BRAND}_ZERNIO_LINKEDIN_ADS` + `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` (opt — LinkedIn Ads Zernio fallback pair; gates Phase 2.5 and weekly Step 1d)"
       ]
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "research-strategy",
@@ -289,7 +289,7 @@
         "`${BRAND}_ZERNIO_LI` (per-platform; only required for platforms the brand publishes to)"
       ]
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "trend-radar",
@@ -346,7 +346,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.18.0"
+    "version": "v2.19.0"
   },
   {
     "name": "apollo-lead-prospector",

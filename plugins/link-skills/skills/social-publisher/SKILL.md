@@ -15,11 +15,17 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.19.0 | July 03, 2026 |
 
 **Description:** Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand
 
 ### Change Log
+
+**v2.19.0** — July 03, 2026
+- **Corrected the Zernio publish mechanics to the real MCP schema (fixes the v2.18.0 migration bug).** The v2.18.0 migration wrongly assumed `media_generate_upload_link` was a programmatic S3 presign (like the old `late_presign_upload`) — it is actually a **browser-only** upload flow, so PUTting to it silently fails. Now: (1) local files upload via `media_get_media_presigned_url(filename, content_type, size)`; (2) fb.ai `fivebucks_render_post` signed URLs pass **directly** as `media_urls` with no re-host (the publisher fetches/caches at post-creation time, so ~1h expiry is safe for scheduling); (3) `validate_media(url)` before publish; (4) local backup via `curl` after render.
+- **`posts_create` signature corrected.** Real params are `content`, `platform` (single string), `account_id`, `media_urls` (comma-separated string — not a `media_items` array), `publish_now` / `is_draft` / `schedule_minutes` (integer). Scheduling now computes `schedule_minutes` via Python `datetime` (was `scheduled_for` + `timezone`). One `posts_create` per platform (no `platforms[]` array). `account_id` always passed, resolved via `accounts_list` at run start.
+- **`posts_update` scope corrected.** It accepts only `content` / `scheduled_for` / `title` — it cannot flip `is_draft`/`publish_now` or change media. The old "publish a draft via `posts_update(is_draft:false, publish_now:true)`" pattern was invalid and is removed.
+- **`platformSpecificData.contentType` removed.** Zernio `posts_create` has no such param — Story/Reel content-typing is not expressible; images publish as feed content. Removed the delete-and-recreate-for-contentType notes.
 
 **v2.18.0** — July 01, 2026
 - **Zernio migrated to its own MCP (gateway v1.7.4).** Repointed `late_list_posts` → `posts_list`, `late_create_post` → `posts_create`, `late_update_post` → `posts_update`, and `late_presign_upload` → `media_generate_upload_link` to Zernio's native MCP tool names; dropped the `fiveagents_api_key` param from those calls (Zernio is now OAuth-connected, not gateway-routed); renamed `${BRAND}_LATE_*` env vars to `${BRAND}_ZERNIO_*` and internal `late_*` PublishLog fields to `zernio_*`.
@@ -32,9 +38,6 @@ deps:
 
 **v2.2.2** — April 10, 2026
 - Removed late_upload_media from tools list; added requests.put note
-
-**v2.2.1** — April 10, 2026
-- Zernio publishing integrated (LinkedIn, Facebook, Instagram, Twitter/X)
 
 # SKILL.md — Social Publisher
 
@@ -81,9 +84,24 @@ Read from env vars using brand prefix — all stored in `.claude/settings.local.
 
 Example: `${BRAND}_ZERNIO_FB`, `${BRAND}_ZERNIO_IG`, `${BRAND}_ZERNIO_LI`
 
-Available Zernio MCP tools: `posts_list`, `posts_create`, `posts_update`, `posts_delete`, `media_generate_upload_link`.
+Available Zernio MCP tools: `posts_list`, `posts_create`, `posts_update`, `posts_delete`, `accounts_list`, `validate_media`, `media_get_media_presigned_url`, `media_generate_upload_link`.
 
-For media uploads, use Python `requests.put` with the presigned URL from `media_generate_upload_link`.
+### Resolve account IDs at run start
+
+Call `accounts_list` once at the start of the session and build a `{platform → account_id}` map. **Always pass `account_id` explicitly to `posts_create`** — when a brand has multiple accounts on the same platform, omitting it errors. The `{BRAND}_ZERNIO_*` env vars hold the canonical IDs; use `accounts_list` to confirm they are still valid.
+
+### Media handling — how an image becomes a `media_urls` value
+
+`posts_create` takes `media_urls` as a **comma-separated string of public URLs** (not a `media_items` array). There are two ways to obtain a public URL:
+
+1. **Already a signed URL (fb.ai `fivebucks_render_post` output):** pass it **directly** as `media_urls` — do **not** re-host. The publisher fetches and caches the image at post-creation time (not at publish time), so the ~1-hour signed-URL expiry does not affect scheduled delivery as long as `posts_create` runs in the same session as the render. Call `validate_media(url)` first; if `valid: true`, proceed.
+2. **A local file on disk (e.g. a Gemini `_final.png`):** upload it via `media_get_media_presigned_url(filename, content_type, size)` → PUT the bytes to the returned upload URL → use the returned public URL as `media_urls`.
+
+⚠️ **Never use `media_generate_upload_link` in automated flows.** It returns a **browser** upload-page URL for a human to drag-drop files — it is NOT a programmatic presigned S3 URL. PUTting to it silently fails. Use `media_get_media_presigned_url` for programmatic uploads.
+
+**Local backup:** immediately after obtaining a signed render URL, download it to disk (`curl -s -L "<signed_url>" -o "<local_path>"`) so the asset survives even if a later publish step fails.
+
+Note: Zernio's `posts_create` has **no** `platformSpecificData.contentType` parameter — Story/Reel content-typing is not expressible through this tool, so image posts publish as feed content regardless of dimensions. Publish one `posts_create` per platform (there is no `platforms[]` array).
 
 ---
 
@@ -126,28 +144,32 @@ Present the list to the user and ask: "Which drafts should I publish? Publish no
 
 ### Step 3 — Publish or schedule
 
+Publish with `posts_create` — pass `account_id` (from the run-start `accounts_list` map), the media URL as `media_urls`, and one call **per platform**. Resolve the image URL per the "Media handling" rules above (signed render URL passed directly, or local file via `media_get_media_presigned_url`), and `validate_media(url)` before creating the post.
+
 **Option A — Publish now:**
 ```
-Use Zernio MCP tool `posts_update`:
-- post_id: "<draft_id>"
-- is_draft: false
+Use Zernio MCP tool `posts_create`:
+- content: "<copy text with hashtags>"
+- platform: "<instagram|facebook|linkedin>"
+- account_id: "<from accounts_list map>"
+- media_urls: "<public image URL>"   # comma-separated for multiple images
 - publish_now: true
 ```
 
-**Option B — Schedule for a specific time:**
+**Option B — Schedule for a specific time:** compute `schedule_minutes` (integer minutes from now) precisely with Python `datetime` — do not estimate or hardcode.
+```python
+python3 -c "from datetime import datetime, timezone; now=datetime.now(timezone.utc); target=datetime(YYYY,MM,DD,HH,MM,SS,tzinfo=timezone.utc); print(int((target-now).total_seconds()/60))"
 ```
-Use Zernio MCP tool `posts_update`:
-- post_id: "<draft_id>"
-- is_draft: false
-- scheduled_for: "<ISO 8601 UTC datetime>"
-- timezone: "<read from brands/{brand}/brand.md Locale section>
+```
+Use Zernio MCP tool `posts_create`:
+- content: "<copy text with hashtags>"
+- platform: "<instagram|facebook|linkedin>"
+- account_id: "<from accounts_list map>"
+- media_urls: "<public image URL>"
+- schedule_minutes: <integer from the datetime calc above>
 ```
 
-**Note on Reels/Stories:**
-- If a draft was created without `platformSpecificData.contentType`, it must be deleted and re-created with the correct `platformSpecificData`. You cannot change contentType via PUT.
-- **Reels require video.** If a Reel draft has a static image (PNG/JPG), it will fail on publish. Delete it and re-create as a Story instead (`contentType: "story"`).
-- Stories accept both images and video. When in doubt, use Story over Reel for static images.
-- Use PUT (not PATCH) for all Zernio post updates.
+**To reschedule an already-created scheduled post:** `posts_update(post_id, scheduled_for: "<ISO 8601 UTC>")` — `posts_update` accepts only `content`, `scheduled_for`, and `title`; it cannot flip `is_draft`/`publish_now` or change media. To change media or platform, delete and re-create.
 
 Default publish times (convert from brand timezone to UTC using `brands/{brand}/brand.md` Locale):
 | Platform | Local Time | Notes |
@@ -192,7 +214,9 @@ Send a summary to the user via Slack MCP (`slack_send_message`, `channel_id: "$S
 - [ ] Drafts listed and shown to user before any action
 - [ ] User confirmed which posts to publish and when
 - [ ] No copy changes made (publish as-is from draft)
-- [ ] Correct publish time in UTC (convert from brand timezone)
+- [ ] Account IDs resolved via `accounts_list` at run start; `account_id` passed to every `posts_create`
+- [ ] Media URL obtained correctly: signed render URL passed directly, or local file via `media_get_media_presigned_url` (never `media_generate_upload_link` in automated flows); `validate_media` returned `valid: true` before publish
+- [ ] Scheduling uses `schedule_minutes` (integer) computed via Python `datetime` — not estimated
 - [ ] Publish log saved to `outputs/{brand}/published/`
 - [ ] Slack notification sent after publish
 - [ ] Agent run logged to dashboard
