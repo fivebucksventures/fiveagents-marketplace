@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks"
 deps:
   mcp: ["Canva"]
-  gateway: []
+  gateway: ["fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"]
   files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.3.0 | May 20, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Package marketing strategies into presentation decks — campaign decks, launch briefs, client proposals, pitch decks for any active brand
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.3.0** — May 20, 2026
 - Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).

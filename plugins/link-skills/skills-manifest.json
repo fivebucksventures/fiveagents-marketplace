@@ -8,11 +8,13 @@
       "mcp": [
         "all (this is the setup skill — it walks the user through connecting everything)"
       ],
-      "gateway": [],
+      "gateway": [
+        "fivebucks (opt — brand kit / templates / media probes; **scope: social_posts**. Key is project-scoped across 10 capabilities — see Step 7b)"
+      ],
       "files": [],
       "env": []
     },
-    "version": "v2.19.0"
+    "version": "v2.20.0"
   },
   {
     "name": "plugin-update",
@@ -23,11 +25,35 @@
       "mcp": [
         "all (this is the audit skill — it probes everything)"
       ],
-      "gateway": [],
+      "gateway": [
+        "fivebucks (opt — brand kit / template / media probes + fivebucks_whoami key-scope check; **scope: social_posts**)"
+      ],
       "files": [],
       "env": []
     },
-    "version": "v2.19.0"
+    "version": "v2.20.0"
+  },
+  {
+    "name": "article-publisher",
+    "area": "Marketing",
+    "use_for": "Generate articles from fb.ai content briefs, publish them to a connected CMS or social platform, manage the publishing calendar, and configure daily autopilot",
+    "description": "Turn fb.ai article briefs into published articles — check the destination is connected, price the batch (1.0 quota per article), generate, optionally route through human approval, then publish to the connected CMS/social platform. Also owns the publishing calendar and fb.ai's daily autopilot automations. Run on demand, after seo-researcher.",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (**scopes: content, publishing, integrations**)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md",
+        "tone-of-voice.md (opt)"
+      ],
+      "env": [
+        "`FIVEBUCKS_API_KEY`",
+        "`FIVEAGENTS_API_KEY`"
+      ]
+    },
+    "version": "v2.20.0"
   },
   {
     "name": "background-generator",
@@ -39,7 +65,8 @@
         "Notion"
       ],
       "gateway": [
-        "Gemini"
+        "Gemini",
+        "fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"
       ],
       "files": [
         "brand.md",
@@ -49,7 +76,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.18.0"
+    "version": "v2.20.0"
   },
   {
     "name": "campaign-presenter",
@@ -60,7 +87,9 @@
       "mcp": [
         "Canva"
       ],
-      "gateway": [],
+      "gateway": [
+        "fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"
+      ],
       "files": [
         "brand.md",
         "audience.md",
@@ -70,7 +99,7 @@
       ],
       "env": []
     },
-    "version": "v2.3.0"
+    "version": "v2.20.0"
   },
   {
     "name": "content-creation",
@@ -80,7 +109,7 @@
     "deps": {
       "mcp": [],
       "gateway": [
-        "fivebucks (opt — fb.ai template manifest shapes `_copy.json`)"
+        "fivebucks (opt — fb.ai template manifest shapes `_copy.json`; **scope: social_posts**)"
       ],
       "files": [
         "brand.md",
@@ -91,7 +120,7 @@
       ],
       "env": []
     },
-    "version": "v2.18.0"
+    "version": "v2.20.0"
   },
   {
     "name": "content-generator",
@@ -106,7 +135,7 @@
       ],
       "gateway": [
         "Gemini",
-        "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"
+        "fivebucks (opt — fb.ai templates + media; falls back to Gemini + Pillow; **scope: social_posts**)"
       ],
       "files": [
         "brand.md",
@@ -119,7 +148,7 @@
         "`${BRAND}_ZERNIO_FB/IG/LI`"
       ]
     },
-    "version": "v2.19.0"
+    "version": "v2.20.0"
   },
   {
     "name": "content-performance-analyst",
@@ -161,8 +190,7 @@
       ],
       "gateway": [
         "Gemini",
-        "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)",
-        "fivebucks (media library — fivebucks_list_media_folders / fivebucks_list_media_files)"
+        "fivebucks (opt — fb.ai templates + media library; falls back to Gemini + Pillow; **scope: social_posts**)"
       ],
       "files": [
         "brand.md",
@@ -171,7 +199,7 @@
       ],
       "env": []
     },
-    "version": "v2.19.0"
+    "version": "v2.20.0"
   },
   {
     "name": "data-analysis",
@@ -245,6 +273,49 @@
     "version": "v2.18.0"
   },
   {
+    "name": "seo-researcher",
+    "area": "Marketing",
+    "use_for": "Research a topic on fb.ai, analyze keyword-cluster SERPs, and build a scheduled content plan",
+    "description": "SEO topic research on fb.ai — find keyword clusters for a topic, deep-analyze their SERPs, and turn the winners into a scheduled content plan. Hands the resulting article briefs to article-publisher. Run on demand.",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (**scopes: seo_research, content**)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md",
+        "audience.md (opt — sharpens topic selection)"
+      ],
+      "env": [
+        "`FIVEBUCKS_API_KEY`",
+        "`FIVEAGENTS_API_KEY`"
+      ]
+    },
+    "version": "v2.20.0"
+  },
+  {
+    "name": "site-auditor",
+    "area": "Marketing",
+    "use_for": "Audit the brand's website SEO health against real competitors and report issues with fixes",
+    "description": "Run fb.ai's full SEO site audit — discover the real competitors, benchmark the brand's site against them, and report the page-level and sitewide issues with concrete fixes. The audit is the most expensive single fb.ai action (0.75 quota), so it is always priced and confirmed first. Run on demand or monthly.",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (**scope: site_audit**)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md"
+      ],
+      "env": [
+        "`FIVEBUCKS_API_KEY`",
+        "`FIVEAGENTS_API_KEY`"
+      ]
+    },
+    "version": "v2.20.0"
+  },
+  {
     "name": "social-calendar",
     "area": "Marketing",
     "use_for": "Plan a weekly social media content calendar — Static Mode (14 posts across LinkedIn, Facebook, Instagram) or YouTube-First Mode (one weekly video + platform clips), per brand.md Content Strategy. Runs weekly on Sunday cron schedule",
@@ -255,7 +326,8 @@
         "Slack"
       ],
       "gateway": [
-        "FiveAgents (logging)"
+        "FiveAgents (logging)",
+        "fivebucks (opt — fb.ai template manifest via fivebucks_get_template; **scope: social_posts**)"
       ],
       "files": [
         "brand.md",
@@ -267,7 +339,7 @@
         "`${BRAND}_NOTION_DB`"
       ]
     },
-    "version": "v2.15.0"
+    "version": "v2.20.0"
   },
   {
     "name": "social-publisher",
@@ -279,7 +351,9 @@
         "Slack",
         "Zernio"
       ],
-      "gateway": [],
+      "gateway": [
+        "fivebucks (opt — consumes fivebucks_render_post signed URLs as media_urls; **scope: social_posts**)"
+      ],
       "files": [
         "brand.md"
       ],
@@ -289,7 +363,28 @@
         "`${BRAND}_ZERNIO_LI` (per-platform; only required for platforms the brand publishes to)"
       ]
     },
-    "version": "v2.19.0"
+    "version": "v2.20.0"
+  },
+  {
+    "name": "traffic-reporter",
+    "area": "Marketing",
+    "use_for": "Report the brand's organic search traffic and AI-engine visibility trends from fb.ai",
+    "description": "Report the brand's organic performance from fb.ai — Search Console clicks/impressions/positions plus AI-engine visibility (whether ChatGPT, Perplexity and friends cite the brand). All traffic-monitor tools are free, so there is no quota gate. Run weekly or monthly.",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (**scope: traffic_monitor**)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md"
+      ],
+      "env": [
+        "`FIVEBUCKS_API_KEY`",
+        "`FIVEAGENTS_API_KEY`"
+      ]
+    },
+    "version": "v2.20.0"
   },
   {
     "name": "trend-radar",
@@ -370,7 +465,31 @@
         "`${BRAND}_CRM_DB` (auto-bootstraps on first run)"
       ]
     },
-    "version": "v2.4.0"
+    "version": "v2.20.0"
+  },
+  {
+    "name": "campaign-runner",
+    "area": "Sales",
+    "use_for": "Build an fb.ai cold-email workflow, verify the send gates, send the campaign, and report results",
+    "description": "Build an fb.ai cold-email workflow and send it — checks the four send gates, prices the send out loud (0.01/email), sends, then polls the job because some failures only surface as a failed job. This skill emails real people. Run on demand.",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (**scopes: leadgen_campaigns, leadgen_crm**)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "sales.md",
+        "product.md",
+        "audience.md",
+        "brand.md"
+      ],
+      "env": [
+        "`FIVEBUCKS_API_KEY`",
+        "`FIVEAGENTS_API_KEY`"
+      ]
+    },
+    "version": "v2.20.0"
   },
   {
     "name": "gig-proposal-writer",
@@ -428,6 +547,51 @@
     "version": "v2.17.0"
   },
   {
+    "name": "lead-crm-manager",
+    "area": "Sales",
+    "use_for": "Find, import, and enrich leads in the fb.ai CRM, and build the lists/segments a campaign targets",
+    "description": "Fill the fb.ai CRM with sendable leads — search (0.25/query), import, and enrich (0.075/lead) so emails are unmasked, then build the lists and segments a campaign targets. Unenriched leads are silently dropped by a send, so this skill's real job is getting emails unmasked. Run on demand.",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (**scope: leadgen_crm**)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "sales.md",
+        "audience.md",
+        "brand.md"
+      ],
+      "env": [
+        "`FIVEBUCKS_API_KEY`",
+        "`FIVEAGENTS_API_KEY`"
+      ]
+    },
+    "version": "v2.20.0"
+  },
+  {
+    "name": "leadgen-onboarder",
+    "area": "Sales",
+    "use_for": "Set up an fb.ai sending domain and confirmed sender signature so cold-email campaigns can send",
+    "description": "One-time setup that makes fb.ai cold email actually sendable — add a sending domain, get the DNS records published, verify, add a sender signature, and get it confirmed. Has two unavoidable human waits (DNS, Postmark email); the skill stops and hands back at each. Run once per brand, then re-run to resume.",
+    "deps": {
+      "mcp": [],
+      "gateway": [
+        "fivebucks (**scope: leadgen_setup**)",
+        "FiveAgents (logging)"
+      ],
+      "files": [
+        "brand.md",
+        "sales.md (opt — sender persona)"
+      ],
+      "env": [
+        "`FIVEBUCKS_API_KEY`",
+        "`FIVEAGENTS_API_KEY`"
+      ]
+    },
+    "version": "v2.20.0"
+  },
+  {
     "name": "n8n-workflow-builder",
     "area": "Sales",
     "use_for": "Build + publish a real n8n workflow that demonstrates the solution for a drafted gig, via the n8n Cloud MCP SDK flow, with the live URL written back onto the gig row",
@@ -478,7 +642,7 @@
         "`${BRAND}_CRM_DB` (must be bootstrapped by `apollo-lead-prospector` first)"
       ]
     },
-    "version": "v2.4.0"
+    "version": "v2.20.0"
   },
   {
     "name": "proposal-generator",
@@ -494,7 +658,9 @@
         "Notion",
         "Slack"
       ],
-      "gateway": [],
+      "gateway": [
+        "fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"
+      ],
       "files": [
         "sales.md",
         "product.md",
@@ -506,7 +672,7 @@
         "`${BRAND}_CRM_DB`"
       ]
     },
-    "version": "v2.5.0"
+    "version": "v2.20.0"
   },
   {
     "name": "vsl-demo-producer",
@@ -599,7 +765,9 @@
         "PayPal (opt — adds PayPal revenue when connected)",
         "Google Drive (opt — fallback when Gamma fails)"
       ],
-      "gateway": [],
+      "gateway": [
+        "fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"
+      ],
       "files": [
         "finance.md",
         "brand.md",
@@ -609,7 +777,7 @@
         "`${BRAND}_REPORTS_DB` (auto-bootstraps)"
       ]
     },
-    "version": "v2.5.0"
+    "version": "v2.20.0"
   },
   {
     "name": "invoice-collector",
@@ -689,7 +857,9 @@
         "Gamma",
         "Google Drive (fallback when Gamma fails)"
       ],
-      "gateway": [],
+      "gateway": [
+        "fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"
+      ],
       "files": [
         "investors.md",
         "finance.md",
@@ -702,7 +872,7 @@
         "`${BRAND}_REPORTS_DB`"
       ]
     },
-    "version": "v2.6.0"
+    "version": "v2.20.0"
   },
   {
     "name": "meeting-analyzer",

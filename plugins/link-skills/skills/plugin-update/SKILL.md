@@ -4,7 +4,7 @@ area: Setup
 use_for: "Bring an existing brand's setup up to date with the latest plugin version — detects gaps since last brand-setup run and fills only what's missing (idempotent)"
 deps:
   mcp: ["all (this is the audit skill — it probes everything)"]
-  gateway: []
+  gateway: ["fivebucks (opt — brand kit / template / media probes + fivebucks_whoami key-scope check; **scope: social_posts**)"]
   files: []
   env: []
 ---
@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.19.0 | July 03, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **fb.ai key scope check for existing brands.** Repointed the stale api-keys links to `/dashboard/api-keys` and added a `fivebucks_whoami` probe: keys generated before scoping are **legacy full-access keys and keep working** (empty `scopes` — no action needed), but a regenerated key missing `social_posts` will silently break the fb.ai-dependent skills. Reports the granted scopes + quota snapshot and surfaces `auth/key-expired`.
 
 **v2.19.0** — July 03, 2026
 - **Corrected Zernio ad-account discovery tool name (fixes the v2.18.0 migration bug).** v2.18.0 assumed Zernio just drops the `late_` prefix, but Zernio's tools are resource-prefixed. Step 2/Step 3 ad-account resolution now calls **`ads_list_ad_accounts`** (was `list_ad_accounts`). `profiles_list` / `accounts_list` were already correct.
@@ -30,9 +33,6 @@ deps:
 
 **v2.16.0** — June 20, 2026
 - **Migration support for `gig-prospector` (new v2.16.0 Sales skill).** Step 1d adds `${BRAND}_GIGS_DB` to the auto-bootstrap inventory (count 9 → 10, informational only). Step 1a adds an inline schema check for `sales.md` `## Inbound Job Filters`; Step 3a adds a targeted backfill (runs `brand-setup` Step 5g Step H — markets, platforms + account status, product.md-derived keywords) for brands that pursue freelance work. Step 3k maps the `gig-prospector introduced` changelog entry to that optional brand action. The skill itself is auto-detected from the shipped `skills-manifest.json` (Step 1 registry read).
-
-**v2.14.0** — May 29, 2026
-- **Migration support for the YouTube-First pipeline.** Added a Step 1b `brand.md` checklist row for `## Content Strategy`; a Step 3e gap-fill (re-runs `brand-setup` Step 4a); Step 3k changelog→brand-action rows for YouTube-First Mode + the trend-radar synthesis requirement; and Step 1d/3f coverage for the new `${BRAND}_LATE_TT` / `${BRAND}_LATE_TW` organic account IDs (TikTok / Twitter-X) that `video-repurposer` needs. Brands missing `## Content Strategy` default to static planning until it's filled.
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 
@@ -484,7 +484,7 @@ If yes, walk the user through `brand-setup` Step 4b:
 Verify `brands/{brand}/design-system/` exists and is non-empty before marking complete. If the user skips, mark as ⏭ — not a gap that blocks any skill.
 
 **Optional fb.ai upload:** after the local copy is in place, ask whether the user also wants to upload the design system to fb.ai (only useful with a paid fb.ai plan — lets fb.ai social templates render with the brand's colors/fonts). If yes:
-1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys — generate API Key if not done yet *(skip if already generated)*
+1. Go to https://www.fivebucks.ai/dashboard/api-keys — generate API Key if not done yet *(skip if already generated)*
 2. Go to https://www.fivebucks.ai/dashboard/social-posts/brand-kit — click **Upload Design System Zip** and upload the ZIP.
 
 The fb.ai upload is optional — the local `design-system/` already works everywhere. Skip is fine.
@@ -495,7 +495,7 @@ From Step 1h you know which of the four `type`s exist on fb.ai. For any **missin
 
 > Want to set up any optional social templates? Pick any of the four: Meta Carousel (IG/FB carousel), Meta Story (IG/FB 9:16), LinkedIn Post (LinkedIn single-image), Meta Post (IG/FB single-image). They make published content more polished and need a paid fb.ai plan. Skip any channel you don't publish on — it falls back to Gemini + Pillow.
 
-If yes, walk through the matching brand-setup sub-step (each = author in Claude Design → generate API Key at https://www.fivebucks.ai/dashboard/social-posts/api-keys if not done yet → upload ZIP at https://www.fivebucks.ai/dashboard/social-posts/templates → verify via `fivebucks_list_templates`):
+If yes, walk through the matching brand-setup sub-step (each = author in Claude Design → generate API Key at https://www.fivebucks.ai/dashboard/api-keys if not done yet → upload ZIP at https://www.fivebucks.ai/dashboard/social-posts/templates → verify via `fivebucks_list_templates`):
 - Meta Carousel → `brand-setup` Step 4c-i
 - Meta Story → `brand-setup` Step 4c-ii
 - LinkedIn Post → `brand-setup` Step 4c-iii
@@ -510,7 +510,7 @@ Check whether the brand has any media folders via `fivebucks_list_media_folders`
 > The fb.ai media library is empty. Uploading brand photos lets skills pick on-brand visuals automatically. Want to add some now? You can always skip and upload later.
 
 If yes:
-> 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys — generate API Key if not done yet *(skip if already generated)*
+> 1. Go to https://www.fivebucks.ai/dashboard/api-keys — generate API Key if not done yet *(skip if already generated)*
 > 2. Go to https://www.fivebucks.ai/dashboard/social-posts/media
 > 3. Create one folder per template type, named **exactly** as follows — `content-generator` matches photos to templates using these names:
 >    - **LinkedIn Post** — photos for LinkedIn single-image posts
@@ -583,6 +583,26 @@ rename above — apply that first.)
 `${BRAND}_ZERNIO_GOOGLE_ADS`, `${BRAND}_ZERNIO_META_ADS_ACCOUNT_ID`, and `${BRAND}_ZERNIO_LINKEDIN_ADS` are SocialAccount IDs (Zernio-side `_id`s); `${BRAND}_ZERNIO_GOOGLE_ADS_CID` and `${BRAND}_ZERNIO_LINKEDIN_ADS_CID` are the actual platform-side account IDs (Google Ads customer ID, LinkedIn sponsored account ID). Zernio's Google Ads and LinkedIn Ads tools require **both** the SocialAccount ID AND the platform-side ID — passing only the SocialAccount ID returns empty results. Only save the vars for platforms that are returned. If the Zernio connector is not authorized, skip silently and note: "Windsor.ai fallback ads account IDs not set — connect Zernio first." If LinkedIn Ads is not in `accounts_list`, skip Step 3 — most brands do not run LinkedIn Ads and the analyst skills tolerate the gap.
 
 After updating `.claude/settings.local.json`, also store the remaining vaultable API keys (`GEMINI_API_KEY`, `FIVEBUCKS_API_KEY`) in the gateway vault via `fiveagents_store_credential` (mapping per `brand-setup` Step 7b vault table). Zernio (OAuth) and DataforSEO (own Basic-Auth connector) are **not** gateway-vaulted — no `fiveagents_store_credential` for them.
+
+#### fb.ai key — check its scopes (new in v2.20.0)
+
+fb.ai API keys are now **project-scoped with 10 capabilities**, and can carry an expiry. Existing keys generated before this change are **legacy keys with full access — they keep working, no action needed**. But it's worth confirming, because a key regenerated with boxes unticked will silently break skills.
+
+If `FIVEBUCKS_API_KEY` is set, probe it:
+
+```
+Use gateway MCP tool fivebucks_whoami:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+```
+
+Read the response and report:
+
+- **`scopes: []` (empty)** → a legacy full-access key. ✅ Everything works. No action.
+- **`scopes` lists capabilities** → a scoped key. Check `social_posts` is present — without it, `content-generator`, `creative-designer`, `social-publisher`, `social-calendar` and the other fb.ai-dependent skills will fail with `auth/insufficient-scope`. If it's missing, tell the user to regenerate at https://www.fivebucks.ai/dashboard/api-keys with the box ticked, then re-store it via `fiveagents_store_credential` (service `fivebucks`).
+- **`auth/key-expired` (401)** → the key expired. Regenerate and re-store.
+- Also surface the returned `quota` snapshot so the user knows what they have left.
+
+Mention what the key now unlocks beyond social templates — SEO research, article generation, publishing, site audits, traffic monitoring, and cold-email lead gen (98 tools). A brand that only ticked Social Posts is leaving the rest on the table.
 
 For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB`, `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB`):
 

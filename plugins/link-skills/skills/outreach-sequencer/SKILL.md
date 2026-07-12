@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Send personalized cold email sequences via Gmail (self-managed loop), track replies, schedule follow-ups, route booked meetings to Calendly
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Routing added against the new fb.ai cold-email stack.** The marketplace now has a second, entirely separate sending stack (`leadgen-onboarder` → `lead-crm-manager` → `campaign-runner`). This skill stays the **low-volume, personal, 1:1** path — founder's own Gmail, no setup, no quota. "Do NOT use this skill for:" now routes scale sending to `campaign-runner` and states the real tradeoff (volume through a personal inbox risks the founder's primary domain reputation).
 
 **v2.4.0** — May 07, 2026
 - Initial production release as part of the v2.4.0 business-operations expansion.
@@ -48,6 +51,7 @@ Use this skill when the task involves:
 
 Do NOT use this skill for:
 - Sourcing new prospects → use `apollo-lead-prospector`
+- **Cold email at scale** → use `campaign-runner` (the fb.ai stack). This skill is the **low-volume, personal, 1:1** path: it sends from the founder's own Gmail, needs no setup, and costs no quota — but it doesn't scale, and pushing volume through a personal inbox puts the founder's primary domain reputation at risk. `campaign-runner` sends from a dedicated verified domain with real deliverability infrastructure (DKIM, Postmark) — at the cost of quota and a one-time setup (`leadgen-onboarder`) with two human waits. The two stacks share no data; don't migrate a user between them unprompted
 - Marketing newsletters or one-off broadcasts → use `content-creation` + `social-publisher`
 - Booking meetings outside the sequence → use Calendly directly
 - Analyzing reply rate / pipeline performance → use `data-analysis`

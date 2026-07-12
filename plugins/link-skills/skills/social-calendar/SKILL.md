@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Plan a weekly social media content calendar — Static Mode (14 posts across LinkedIn, Facebook, Instagram) or YouTube-First Mode (one weekly video + platform clips), per brand.md Content Strategy. Runs weekly on Sunday cron schedule"
 deps:
   mcp: ["Notion", "Slack"]
-  gateway: ["FiveAgents (logging)"]
+  gateway: ["FiveAgents (logging)", "fivebucks (opt — fb.ai template manifest via fivebucks_get_template; **scope: social_posts**)"]
   files: ["brand.md", "audience.md", "product.md", "competitors.md"]
   env: ["`${BRAND}_NOTION_DB`"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.15.0 | June 09, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Plan a weekly social media content calendar for any active brand — Static Mode (14 posts) or YouTube-First Mode (one weekly video + platform clips), selected by brand.md Content Strategy
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.15.0** — June 09, 2026
 - **Competitor video structure matching added (Step 2a Part 1b).** YouTube-First Mode now reads the `video_structure` JSON from trend_db (written by `trend-radar` Step 2c) and maps each structural element — credibility hook, pattern interruptor, framework, escalation, reflection, close — to the brand's own angle. The adapted structure is written as a Video Structure table in the calendar. Clips now have a `Source Section` column tracing each clip to a video section, preventing topic-mismatch bugs. Degrades gracefully when no video structure is available (plans from topic/angle as before).
@@ -32,10 +35,6 @@ deps:
 
 **v2.11.1** — May 22, 2026
 - **Metrics and checklist corrected.** Log payload: `calendar_status` fixed "Published" → "Planned"; post `format` fixed from hardcoded `"static"` → `"<Post|Story|Carousel>"`; `content_mix.type` fixed from `"static"` → content-type enum. Quality checklist: added Monday slot checks (LinkedIn Post / Facebook Post / Instagram Post) and Friday LinkedIn = Post. `deps.gateway` updated from `[]` to `["FiveAgents (logging)"]`.
-
-**v2.11.0** — May 21, 2026
-- **SlideId column removed (12 → 11 columns)** — fb.ai now filters `linkedin-post` and `meta-post` by the post's `direction` override server-side, returning only the matching slide. `content-generator` no longer passes `slide_ids`; social-calendar no longer needs to pre-resolve slide labels. Direction is all you need for single-image types.
-- **Direction rotation guidance added** — spread A/B/C across same-format posts for variety; avoid long runs of the same Direction in one platform's feed.
 
 # SKILL.md — Social Calendar
 

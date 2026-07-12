@@ -4,7 +4,7 @@ area: Setup
 use_for: "Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files"
 deps:
   mcp: ["all (this is the setup skill — it walks the user through connecting everything)"]
-  gateway: []
+  gateway: ["fivebucks (opt — brand kit / templates / media probes; **scope: social_posts**. Key is project-scoped across 10 capabilities — see Step 7b)"]
   files: []
   env: []
 ---
@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.19.0 | July 03, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Onboard a new brand — configure API keys, connect integrations, analyze website, generate brand context files
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **fb.ai API key is now project-scoped across 10 capabilities.** Repointed all 5 key-generation links to the new API Keys page (`/dashboard/api-keys`, reached from the profile menu; the old `/dashboard/social-posts/api-keys` still 308-redirects) and added a scope-checkbox section at the point of generation: all 10 boxes are ticked by default and should be left that way; `social_posts` is the minimum for every skill shipping today; unticking a box makes those tools return `auth/insufficient-scope`. Also documents the new key expiry (defaults to 90 days) and reframes the key — it is no longer "social templates", it unlocks SEO research, article generation, publishing, site audits, traffic monitoring and cold-email lead gen.
 
 **v2.19.0** — July 03, 2026
 - **Corrected Zernio ad-account discovery tool name (fixes the v2.18.0 migration bug).** v2.18.0 assumed Zernio just drops the `late_` prefix, but Zernio's tools are resource-prefixed. The Step 7 Step D / Step 8 ad-account probes now call **`ads_list_ad_accounts`** (was `list_ad_accounts`), and the two-ID docs reference **`ad_campaigns_get_ads_timeline`** / **`ad_campaigns_list_ad_campaigns`**. `profiles_list` / `accounts_list` were already correct.
@@ -30,10 +33,6 @@ deps:
 
 **v2.16.0** — June 20, 2026
 - **New Step 5g Step H — Inbound Job Filters** (powers the new `gig-prospector` Sales skill). Captures the **Markets** to monitor (Singapore / Indonesia / Malaysia / Thailand / Australia / Global-Remote), the **Platforms** to scan — each tagged *have account* / *no account* — the **Search Keywords** (drafted from `product.md`, i.e. what the brand actually sells — never hardcoded), and Budget Floor / Exclusions / Daily Cap. Written to a new `## Inbound Job Filters` section in the `sales.md` template. Pre-fill mapping gains `product.md` → Step H (keywords) and `brand.md` → Step H (markets) rows. Skippable for brands that don't pursue marketplace work.
-
-**v2.14.0** — May 29, 2026
-- **New Step 4a — Content Strategy.** Captures the brand's primary content channel (`youtube` vs `static`), distribution + connected platforms, and clips per video; writes a `## Content Strategy` section to `brand.md` (also added to the brand.md template in Step 4). `social-calendar` reads this at runtime to choose YouTube-First vs Static planning mode; platform names are never hardcoded — only what the user confirms is written.
-- **Step 7b Step D discovers TikTok + Twitter/X organic account IDs** (`${BRAND}_LATE_TT` / `${BRAND}_LATE_TW`) alongside the existing FB/IG/LI — needed by `video-repurposer` to publish YouTube-First clips. Skipped for platforms not connected to Zernio.
 
 # Brand Setup — New Client Onboarding
 
@@ -154,7 +153,7 @@ Before we begin, here's everything you'll want to have ready. You don't need all
 | # | Key | What it's for | How to get it |
 |---|---|---|---|
 | 5 | `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | Keyword research (search volume, suggestions) — entered into the DataforSEO connector (Step 7a-iii) | 1. Sign up at https://dataforseo.com<br>2. Go to Dashboard → API Settings<br>3. Copy your login email and API password |
-| 6 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c — optional; see Step 4b for what fb.ai is) | 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in<br>2. Generate API Key and save it somewhere safe<br>3. Copy it (skip if you're not using Claude Design social templates) |
+| 6 | `FIVEBUCKS_API_KEY` | The brand's fb.ai content + traffic + lead-gen stack — **paid fb.ai subscription** (see Step 4b for what fb.ai is). Unlocks branded social templates (Step 4c), and also SEO research, article generation, publishing to 11 platforms, site audits, traffic monitoring, and cold-email lead gen | 1. Go to https://www.fivebucks.ai/dashboard/api-keys and sign in (profile menu → **API Keys**)<br>2. **Leave all 10 capability checkboxes ticked** (the default) — see the scope note below<br>3. Generate API Key and save it somewhere safe<br>4. Copy it |
 
 **MCP connections (connect in Claude settings):**
 
@@ -488,7 +487,7 @@ After the local copy succeeds, ask the user whether they also want to upload the
 
 If the user says skip, that's fine — move on to Step 4c. If yes, walk them through it:
 
-> 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in — generate your API Key and save it somewhere safe. *(Skip if you have already generated your API Key.)*
+> 1. Go to https://www.fivebucks.ai/dashboard/api-keys and sign in — generate your API Key and save it somewhere safe. *(Skip if you have already generated your API Key.)*
 > 2. Go to https://www.fivebucks.ai/dashboard/social-posts/brand-kit — click **Upload Design System Zip** and upload the ZIP file.
 
 **Proceed to Step 4c whether or not the design system was installed** — Step 9c will record the actual installed/missing state in CLAUDE.md, and skills will branch accordingly at runtime.
@@ -524,7 +523,7 @@ If the user skips all, move on to Step 5. Otherwise run only the sub-steps for t
 **Step B — Export.** In Claude Design: **Share → Download Project as .zip**.
 
 **Step C — Upload to the fb.ai dashboard.**
-1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in — generate your API Key and save it somewhere safe. *(Skip if you have already generated your API Key.)*
+1. Go to https://www.fivebucks.ai/dashboard/api-keys and sign in — generate your API Key and save it somewhere safe. *(Skip if you have already generated your API Key.)*
 2. Go to https://www.fivebucks.ai/dashboard/social-posts/templates — click **Upload Templates** and upload the ZIP file.
 
 fb.ai unpacks the ZIP, reads the `EDITMODE` block into a **manifest** (editable fields + image slots + slides), and detects the template `type` from its slug. *(Template upload is dashboard-only — there is no gateway upload tool.)*
@@ -852,7 +851,7 @@ Ask the user:
 
 If the user says skip, acknowledge and move on to Step 5. If yes, walk them through it:
 
-> 1. Go to https://www.fivebucks.ai/dashboard/social-posts/api-keys and sign in — generate your API Key and save it somewhere safe. *(Skip if you have already generated your API Key.)*
+> 1. Go to https://www.fivebucks.ai/dashboard/api-keys and sign in — generate your API Key and save it somewhere safe. *(Skip if you have already generated your API Key.)*
 > 2. Go to https://www.fivebucks.ai/dashboard/social-posts/media
 > 3. Create one folder per template type you have set up (Step 4c), named **exactly** as follows — `content-generator` uses these names to automatically match photos to the right template at runtime:
 >    - **LinkedIn Post** — photos for LinkedIn single-image posts
@@ -1746,8 +1745,27 @@ Save the profile ID and connected platforms to `brands/{brand}/brand.md`:
 |---|---|---|---|
 | 5 | `DATAFORSEO_LOGIN` | Keyword research & search volume | https://dataforseo.com — sign up, copy login email |
 | 6 | `DATAFORSEO_PASSWORD` | Keyword research & search volume | DataforSEO dashboard → API Settings → API password |
-| 7 | `FIVEBUCKS_API_KEY` | Branded social-post templates on fb.ai — **paid fb.ai subscription** (Step 4c; see Step 4b for what fb.ai is) | https://www.fivebucks.ai/dashboard/social-posts/api-keys — sign in, generate API Key, save it somewhere safe. Skip if not using Claude Design social templates. |
+| 7 | `FIVEBUCKS_API_KEY` | The brand's fb.ai stack — **paid fb.ai subscription** (see Step 4b). Social templates (Step 4c) + SEO research, article generation, publishing, site audits, traffic monitoring, cold-email lead gen | https://www.fivebucks.ai/dashboard/api-keys — sign in (profile menu → **API Keys**), **leave all 10 capability checkboxes ticked**, generate, save it somewhere safe. See the scope note below. |
 | 8 | `{BRAND}_N8N_PROJECT` | Targets a specific n8n project/folder for `n8n-workflow-builder`'s demo workflows | n8n Cloud → open the target project → copy its project ID/name. Skip → workflows land in the n8n account's default project. Only relevant if you connected n8n Cloud. |
+
+#### ⚠️ fb.ai API key — the capability checkboxes
+
+The fb.ai key page shows **10 capability checkboxes**, and the key only grants what's ticked. They are **all ticked by default — leave them that way** unless the user deliberately wants to restrict what Claude can do.
+
+Tell the user, in plain terms:
+
+> The key is scoped to **one project** and grants Claude the capabilities you tick. Ticking everything is the normal setup — it's what the skills expect. Only untick something if you specifically don't want Claude touching it.
+
+| Checkbox | Unlocks | Needed by |
+|---|---|---|
+| **Social Posts** (`social_posts`) | Brand kit, templates, media, post drafts, render/export | **Every skill that produces a visual** — `content-generator`, `creative-designer`, `social-publisher`, `social-calendar`, and any skill that reads the brand kit (decks, reports). Untick it and ~12 skills stop working. |
+| Integrations · SEO Research · Content · Publishing · Site Audit · Traffic Monitor | SEO research → article generation → publishing to 11 platforms; site audits; Search Console + AI-visibility tracking | The traffic skills: `seo-researcher`, `article-publisher`, `site-auditor`, `traffic-reporter`. These need **no** `social_posts` |
+| Lead Gen Setup · Lead Gen CRM · Lead Gen Campaigns | Sending domains, lead search/enrichment, cold-email campaigns | The lead-gen skills |
+
+Two things worth saying to the user up front:
+
+- **If a skill later fails with `auth/insufficient-scope`**, the key is missing that capability. Fix: regenerate the key at the same page with the box ticked, then re-run this step to re-store it.
+- **The key can expire** — the page offers an expiry and **defaults to 90 days**. If tools start failing with `auth/key-expired`, generate a fresh key. Choose "No expiry" if the brand runs unattended automations and you don't want to revisit this.
 
 **Save ALL keys to `.claude/settings.local.json`:**
 

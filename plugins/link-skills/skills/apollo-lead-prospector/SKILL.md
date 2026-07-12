@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.4.0 | May 07, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Daily B2B prospect search via Apollo against the brand's ICP, with deduplication, scoring, and Notion CRM dropoff
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Routing added against the new fb.ai lead stack.** `lead-crm-manager` now prospects into fb.ai's own CRM (feeding `campaign-runner`), while this skill continues to prospect via Apollo into Notion (feeding `outreach-sequencer`). "Do NOT use this skill for:" now says so explicitly, because **the two CRMs are separate and the data does not transfer** — prospecting into the wrong one leaves the campaign with no leads.
 
 **v2.4.0** — May 07, 2026
 - Initial production release as part of the v2.4.0 business-operations expansion.
@@ -46,6 +49,7 @@ Use this skill when the task involves:
 
 Do NOT use this skill for:
 - Sending outreach emails → use `outreach-sequencer`
+- **Building a lead list for an fb.ai cold-email campaign** → use `lead-crm-manager`. This skill prospects via Apollo into a **Notion** CRM (`${BRAND}_CRM_DB`), which feeds Gmail outreach. `lead-crm-manager` uses fb.ai's own lead search and CRM, which feeds `campaign-runner`. **The two CRMs are separate and the data does not transfer** — prospecting into the wrong one means the campaign has no leads to send to. Pick the one that matches how the brand sends
 - Writing email copy → use `content-creation`
 - Building marketing landing pages → use `content-creation` + `creative-designer`
 - Analyzing pipeline performance → use `data-analysis`

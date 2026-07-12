@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding"
 deps:
   mcp: ["Zernio"]
-  gateway: ["Gemini", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)", "fivebucks (media library — fivebucks_list_media_folders / fivebucks_list_media_files)"]
+  gateway: ["Gemini", "fivebucks (opt — fb.ai templates + media library; falls back to Gemini + Pillow; **scope: social_posts**)"]
   files: ["brand.md", "audience.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.19.0 | July 03, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Visual design and asset creation — social media graphics, HTML/CSS mockups, image generation, text overlays and branding for any active brand
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.19.0** — July 03, 2026
 - **Corrected Zernio publish mechanics to the real MCP schema (fixes the v2.18.0 migration bug).** v2.18.0 wrongly repointed `late_presign_upload` → `media_generate_upload_link`, but that Zernio tool is a **browser-only** upload flow — PUTting to it silently fails. Now: **fb.ai render signed URLs** (Step 4a template-path) pass **directly** as `media_urls` with no re-host (`validate_media` first, local `curl` backup); **local Gemini `_final.png`** (Step 4 upload) uploads via `media_get_media_presigned_url(filename, content_type, size)`.
@@ -39,9 +42,6 @@ deps:
 
 **v2.12.1** — May 30, 2026
 - **Media pool fallback made explicit (parity with content-generator v2.12.1).** Restructured the Step 1 media pool build from a single dense paragraph into a numbered sub-step list with bold-labelled fallbacks so both levels are reliably executed: (1) exact folder-name match first, (2) all-folders pool if no exact match, (3) empty pool if no folders. Matches content-generator's structure exactly.
-
-**v2.12.0** — May 30, 2026
-- **Media pool added (parity with content-generator).** At run start, calls `fivebucks_list_media_folders` and builds `media_pool[type]` using the same exact-name matching table as content-generator (LinkedIn Post / Meta Story / Meta Carousel / Meta Post); fallback to all-folder pool when no exact match; empty pool leaves image slots empty. Step 4a item 3 updated: user-provided photo takes priority, then media pool, then empty. Removes the stale `fivebucks_presign_media_upload` path from the injection step (upload-new-photo is a separate, explicit user action — not auto-injection).
 
 # Creative Designer Skill
 

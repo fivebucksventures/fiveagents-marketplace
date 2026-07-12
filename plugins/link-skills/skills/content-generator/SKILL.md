@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack"
 deps:
   mcp: ["Notion", "Slack", "Zernio"]
-  gateway: ["Gemini", "fivebucks (opt — fb.ai templates; falls back to Gemini + Pillow)"]
+  gateway: ["Gemini", "fivebucks (opt — fb.ai templates + media; falls back to Gemini + Pillow; **scope: social_posts**)"]
   files: ["brand.md", "audience.md", "product.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_NOTION_DB`", "`${BRAND}_ZERNIO_FB/IG/LI`"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.19.0 | July 03, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Daily automated content production — generate copy and images from Notion Social Calendar, publish to Zernio API, update Notion, notify Slack
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.19.0** — July 03, 2026
 - **Corrected Zernio publish mechanics to the real MCP schema (fixes the v2.18.0 migration bug).** v2.18.0 wrongly repointed `late_presign_upload` → `media_generate_upload_link`, but that Zernio tool is a **browser-only** upload flow — PUTting to it silently fails. Now: **local files** (image-path `_final.png`, Step 5) upload via `media_get_media_presigned_url(filename, content_type, size)`; **fb.ai render signed URLs** (template-path §7) pass **directly** as `media_urls` with no re-host (the publisher fetches/caches at post-creation time, so ~1h expiry is safe within the run); `validate_media(url)` before publish; local `curl` backup after render.
@@ -42,10 +45,6 @@ deps:
 
 **v2.12.1** — May 30, 2026
 - **Media pool fallback made explicit.** Restructured the media pool build from a single dense paragraph into a numbered sub-step list so Claude reliably executes both fallback levels during runs: (1) exact folder-name match first, (2) all-folders pool if no exact match, (3) empty pool if no folders. Previously the fallback clauses were buried in prose and skipped in practice, causing posts to publish with no photos despite a media library folder being present.
-
-**v2.12.0** — May 23, 2026
-- **New media pool — photos are now auto-injected from fb.ai folders.** At run start (cached alongside the template list, called once), `fivebucks_list_media_folders` builds `media_pool[type]` by matching folders to template types by exact name (`LinkedIn Post`→`linkedin-post`, `Meta Story`→`meta-story`, `Meta Carousel`→`meta-carousel`, `Meta Post`→`meta-post`) and listing each folder's files. Fallbacks: pool all folders when no exact name match; empty pool when no folders exist; skip silently on any error (never fails the run).
-- **Step 4 changed from "(Optional) Assign photos" to "Assign photos from the media pool."** Non-empty pool → carousel/story cycle photos through body slots `s2_image`…`s5_image` (up to 4, reused if fewer); single-image types assign one photo to `bg_image`; each slot gets companion `_position: center` / `_fit: cover` overrides. Empty pool → image slots left empty (template renders its branded placeholder) — the normal no-media fallback, never a failure or warning. Quality-checklist item added.
 
 # SKILL.md — Content Generator
 

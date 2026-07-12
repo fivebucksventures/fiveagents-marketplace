@@ -6,7 +6,7 @@ area: Strategy
 use_for: "Monthly investor update — branded Gamma deck (Google Doc fallback) plus per-investor Gmail draft. Combines Xero financials + PostHog product KPIs + CRM wins, drafts in founder voice"
 deps:
   mcp: ["Xero", "Stripe", "PostHog", "Notion", "Gmail", "Slack", "Gamma", "Google Drive (fallback when Gamma fails)"]
-  gateway: []
+  gateway: ["fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"]
   files: ["investors.md", "finance.md", "brand.md", "product.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_CRM_DB`", "`${BRAND}_REPORTS_DB`"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.6.0 | May 20, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Compose a monthly investor update — pull financials from Xero, MRR/churn from Stripe, product KPIs from PostHog, customer wins from Notion CRM, prior-update context from investors.md. Drafts in founder's voice, redacts per investors.md OMIT rules, packages as a branded Gamma deck (Google Doc fallback), and dispatches a Gmail cover note per investor (or BCC list) linking to the deck. Monthly cron (5th of month for prior month) or on-demand.
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.6.0** — May 20, 2026
 - Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. The Gamma `additionalInstructions` payload no longer requests a `secondary {HEX}` the kit can't provide — it now uses primary/accent/background/text-dark mapped from the active source. Trimmed duplicated design-system reading boilerplate.

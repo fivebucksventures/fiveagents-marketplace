@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio"
 deps:
   mcp: ["Slack", "Zernio"]
-  gateway: []
+  gateway: ["fivebucks (opt — consumes fivebucks_render_post signed URLs as media_urls; **scope: social_posts**)"]
   files: ["brand.md"]
   env: ["`${BRAND}_ZERNIO_FB`", "`${BRAND}_ZERNIO_IG`", "`${BRAND}_ZERNIO_LI` (per-platform; only required for platforms the brand publishes to)"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.19.0 | July 03, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Publishing to LinkedIn, Facebook, Instagram, Twitter/X via Zernio for any active brand
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.19.0** — July 03, 2026
 - **Corrected the Zernio publish mechanics to the real MCP schema (fixes the v2.18.0 migration bug).** The v2.18.0 migration wrongly assumed `media_generate_upload_link` was a programmatic S3 presign (like the old `late_presign_upload`) — it is actually a **browser-only** upload flow, so PUTting to it silently fails. Now: (1) local files upload via `media_get_media_presigned_url(filename, content_type, size)`; (2) fb.ai `fivebucks_render_post` signed URLs pass **directly** as `media_urls` with no re-host (the publisher fetches/caches at post-creation time, so ~1h expiry is safe for scheduling); (3) `validate_media(url)` before publish; (4) local backup via `curl` after render.
@@ -35,9 +38,6 @@ deps:
 
 **v2.2.5** — April 26, 2026
 - Added "Before Executing" section — reads agents/link.md before starting
-
-**v2.2.2** — April 10, 2026
-- Removed late_upload_media from tools list; added requests.put note
 
 # SKILL.md — Social Publisher
 

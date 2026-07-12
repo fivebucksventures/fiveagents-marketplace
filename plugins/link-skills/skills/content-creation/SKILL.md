@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy"
 deps:
   mcp: []
-  gateway: ["fivebucks (opt — fb.ai template manifest shapes `_copy.json`)"]
+  gateway: ["fivebucks (opt — fb.ai template manifest shapes `_copy.json`; **scope: social_posts**)"]
   files: ["brand.md", "audience.md", "product.md", "competitors.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: []
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Write persona-targeted marketing copy — landing pages, emails, ad copy, blog posts, social media copy for any active brand
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.18.0** — July 01, 2026
 - **Argil video-ad-script guidance removed (gateway v1.7.4).** Argil (AI avatar video) was retired from the gateway with no replacement, so the "Video Ad Scripts (for Argil)" subsection, its output-table row, and the "When to use" bullet are gone. **Capability gap flagged:** avatar-video ad scripts are no longer supported — reinstating them would require a new AI-avatar vendor + integration. (Also cleared the dangling `brands/{brand}/avatars.md` reference, a file no longer created since brand-setup v2.11.1.)
@@ -32,9 +35,6 @@ deps:
 
 **v2.8.0** — May 20, 2026
 - Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. Trimmed the duplicated design-system reading boilerplate (now centralized in link.md tier 2).
-
-**v2.7.0** — May 20, 2026
-- `_copy.json` contracts now key off **fb.ai templates** (detected via `fivebucks_list_templates`), not local `social-meta-*-template/` folders. Keys are the template's **manifest field keys** (fed to `fivebucks_create_post` overrides). Added **linkedin-post** and **meta-post** single-image contracts alongside meta-carousel and meta-story. Fallback unchanged: no matching template → `_copy.json` optional, Gemini + Pillow reads `_copy.md`.
 
 # Content Creation Skill
 

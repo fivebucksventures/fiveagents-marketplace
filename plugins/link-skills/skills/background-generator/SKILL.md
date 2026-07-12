@@ -6,7 +6,7 @@ area: Marketing
 use_for: "Generate 20 background images per brand for Reel video production. Run manually or schedule externally"
 deps:
   mcp: ["Notion"]
-  gateway: ["Gemini"]
+  gateway: ["Gemini", "fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"]
   files: ["brand.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_NOTION_DB`"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.18.0 | July 01, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Generate 20 background images per brand for Reel video production. Run manually or schedule externally.
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.18.0** — July 01, 2026
 - **Gemini image model ID updated (gateway v1.7.4).** `gemini_generate_image` model changed from the retired `gemini-3.1-flash-image-preview` (Google 404'd all `-preview` image IDs on 2026-06-25) to the GA default `gemini-3.1-flash-image` ("Nano Banana 2").
@@ -34,10 +37,6 @@ deps:
 - Step 2 — added explicit "Read brand visual identity FIRST" block. Probes `brands/{brand}/design-system/` (preferred) then `brand.md` Colors (fallback). Mirrors the Visual consistency rule in `agents/link.md`.
 - Step 2 Prompt rules — every Gemini prompt now appends a brand-palette hint (HEX values phrased as ambient mood, e.g. "warm tones around #ec4899 with muted slate (#0f172a) shadows"). Backgrounds are now on-brand instead of generic stock-photo aesthetics. **Reason:** library was previously brand-agnostic (no color injection); content-generator's downstream Pillow overlay couldn't recover an off-brand background.
 - Quality Checklist — two new entries enforce the design-system probe and the palette-hint injection.
-
-**v2.4.0** — May 07, 2026
-- Step 1 — replaced obsolete `mcp__notion__API-query-data-source` and `mcp__notion__API-get-block-children` calls (not exposed by current Notion connector) with the canonical `notion-fetch` + `notion-search` (with `data_source_url` filter) pattern used by social-calendar
-- Notion MCP tool prefix normalized — `mcp__notion__*` → `mcp__claude_ai_Notion__*`
 
 # SKILL.md — Background Generator
 

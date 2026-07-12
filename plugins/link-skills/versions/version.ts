@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.19.0';
-const DEFAULT_DATE = 'July 03, 2026';
+const DEFAULT_VERSION = 'v2.20.0';
+const DEFAULT_DATE = 'July 12, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,25 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.20.0',
+    date: 'July 12, 2026',
+    changes: [
+      'fb.ai grew from 13 tools to 98 and its API key is now project-scoped across 10 capabilities, enforced server-side (gateway v1.8.0). The same FIVEBUCKS_API_KEY that used to mean "social templates" now drives the brand\'s whole content + traffic + lead-gen stack. agents/link.md gains a new "fb.ai API key — scopes, errors, quota" section: always call fivebucks_whoami first to learn the bound project, granted scopes, and remaining quota; never retry on auth/insufficient-scope (regenerate the key with the scope ticked), auth/key-expired, or quota/* (relay the numbers + upgrade path). Every action\'s quota cost is documented — articles 1.0 each, enrichment 0.075/lead, campaign sends 0.01/email — so batches get priced with the user before they run.',
+      'seo-researcher v2.20.0 (NEW, Marketing): topic research → keyword-cluster SERP analysis → scheduled content plan. First skill to drive fb.ai\'s seo_research + content scopes.',
+      'article-publisher v2.20.0 (NEW, Marketing): content briefs → generated articles → optional human approval → published to a connected CMS or social platform. Also owns the publishing calendar and fb.ai\'s daily autopilot — these were originally slated for the four social skills, but fivebucks_publish_content resolves contentId against the content table (articles) while fb.ai social posts live in a disjoint social_posts table, so those tools would have 404\'d there. Autopilot is opt-in only: the skill reports automation state but never enables it unasked, and recommends workflowStatusRequired: true so a human still approves before anything goes live.',
+      'site-auditor v2.20.0 (NEW, Marketing): discovers real competitors, then runs a benchmarked SEO audit and reports issues with fixes. Drives the site_audit scope.',
+      'traffic-reporter v2.20.0 (NEW, Marketing): Search Console + AI-engine/GEO visibility trends. Drives the traffic_monitor scope — every tool it uses is free.',
+      'leadgen-onboarder v2.20.0 (NEW, Sales): sending domain + confirmed sender signature, so cold-email campaigns can send at all. Built around the two unavoidable human waits — publish the DNS records, click Postmark\'s confirmation email — at which it stops and hands back rather than polling. Drives leadgen_setup; all its tools are free.',
+      'lead-crm-manager v2.20.0 (NEW, Sales): find → import → enrich leads in fb.ai\'s own CRM, then build the lists/segments a campaign targets. Enrichment (0.075/lead) is not optional — unenriched leads are silently dropped by a send. Drives leadgen_crm.',
+      'campaign-runner v2.20.0 (NEW, Sales): builds the cold-email workflow, verifies four send gates, sends, and reports. Must poll — an empty sequence returns 200 and then fails as a job. Drives leadgen_campaigns (+ leadgen_crm for the recipient-count pre-flight).',
+      'Routing rule for the two cold-email stacks added to link.md Skill Chains, and to the "Do NOT use this skill for:" blocks of apollo-lead-prospector and outreach-sequencer. The Gmail stack (apollo-lead-prospector → outreach-sequencer) and the fb.ai stack (leadgen-onboarder → lead-crm-manager → campaign-runner) share no infrastructure and their CRMs are disjoint — data does not transfer, so prospecting into the wrong one leaves the campaign with no leads. Choose by volume and sending identity.',
+      'brand-setup v2.20.0: repointed all 5 key-generation links to the new API Keys page (/dashboard/api-keys; the old /dashboard/social-posts/api-keys still 308-redirects) and added a scope-checkbox walkthrough at the point of generation — all 10 boxes ticked by default, social_posts the minimum for every skill shipping today, unticking a box makes those tools return auth/insufficient-scope. Documents the new 90-day key expiry.',
+      'plugin-update v2.20.0: fb.ai key scope check for existing brands via a fivebucks_whoami probe. Pre-scoping keys are legacy full-access and keep working (empty scopes — no action needed), but a regenerated key missing social_posts silently breaks the fb.ai-dependent skills. Reports granted scopes + quota snapshot and surfaces auth/key-expired.',
+      'background-generator, campaign-presenter, content-creation, content-generator, creative-designer, financial-reporter, investor-update-writer, proposal-generator, social-calendar, social-publisher v2.20.0: each now declares fivebucks in deps.gateway along with the scope it needs (social_posts), so brand-setup can tell users which capability boxes to tick. No behaviour change.',
+      'link.md trimmed: the change log moved out to plugins/link-skills/CHANGELOG.md (link.md is embedded wholesale into every brand\'s CLAUDE.md, so release history was pure context cost), the "fb.ai is more than templates" framing and the "call fivebucks_whoami first" instruction were each de-duplicated (stated in three and two places respectively), and Agent Run Logging was promoted out of the fb.ai section where it had been nested as if it were an fb.ai concern.',
+    ],
+  },
   {
     version: 'v2.19.0',
     date: 'July 03, 2026',
@@ -145,27 +164,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-generator v2.12.0: new media pool — at run start fivebucks_list_media_folders (cached with the template list) builds media_pool[type] by matching folders to template types by exact name (LinkedIn Post / Meta Story / Meta Carousel / Meta Post) and listing each folder\'s files. Step 4 changed from optional photo assignment to active injection: carousel/story cycle photos through body slots s2_image…s5_image, single-image types fill bg_image (+ _position: center / _fit: cover); empty pool leaves slots empty (branded placeholder). Fallbacks: pool all folders when no exact match; empty pool when no folders; skip silently on any error — never fails the run.',
       'brand-setup v2.9.0: Step 4b Claude Design setup rewritten for the new claude.ai/design UI (Design System → Create → "Set up your design system" attach form → Continue to generation), with a placeholder-substitution table and a ready-to-paste, website-aware generation prompt that points Claude at the live site. Step 4d media library now defines the per-template-type folder names (LinkedIn Post / Meta Story / Meta Carousel / Meta Post) content-generator matches photos against.',
       'plugin-update v2.11.0: Step 3b design-system install updated to the new claude.ai/design flow (steps renumbered 1–6) with a website-aware generation prompt; Step 3d media library now specifies the per-template-type folder names matching the content-generator media-pool convention.',
-    ],
-  },
-  {
-    version: 'v2.11.1',
-    date: 'May 22, 2026',
-    changes: [
-      'link.md v2.11.1: Argil fully removed — avatars.md context file, Argil API gateway section, "Full social post (video)" skill chain, .mp4 output convention, and Argil from the Deps gateway legend all removed. Calendly corrected to outreach-sequencer + customer-onboarder.',
-      'content-generator v2.11.1 + creative-designer v2.11.1: Reel and Argil fully removed — Reel rows from routing table and decision logic, Story-only guard, LATE_CONTENT_TYPE reel key and LATE_CONTENT_TYPE_FALLBACK dict, Reel video publishing rules, Argil gateway dep, is_story_reel → is_story, Reel rows from dimensions/format tables, "Reels UI stack"/"Reels right-rail" → "Meta bottom/side safe zone". Log metric format corrected from "static" to dynamic enum.',
-      'social-calendar v2.11.1: Metrics corrected — calendar_status "Published" → "Planned", format "static" → dynamic enum, content_mix.type corrected. Monday/Friday checklist items added. deps.gateway updated.',
-      'brand-setup v2.8.3: Argil and avatars.md fully removed — Step 5 overview, directory tree, CLAUDE.md template, Step 10 email, connections[]. Calendly corrected to outreach-sequencer / customer-onboarder across Steps 7b, 8c-bis, 8d, 8 summary table.',
-      'plugin-update v2.10.2: Step 3k cross-references corrected (CLAUDE.md row → Step 3h, Windsor.ai → Step 3f). Quality checklist: Step 3f env-var item added. Step 1k version audit annotated as example-only.',
-    ],
-  },
-  {
-    version: 'v2.11.0',
-    date: 'May 21, 2026',
-    changes: [
-      'content-generator v2.11.0 + creative-designer v2.11.0: Story publish split — meta-story renders call late_create_post once per slide (6 calls per platform pair) using the Supabase signed URL directly; Zernio auto-proxies Supabase storage URLs so no late_presign_upload/PUT step is needed. meta-carousel and single-image types keep the existing re-host flow.',
-      'content-generator v2.11.0 + creative-designer v2.11.0: slide_ids removed for all template types — fb.ai now filters single-image templates (linkedin-post, meta-post) by the direction override server-side; fivebucks_render_post always omits slide_ids. Calendar table 12 → 11 columns (SlideId removed; Status at [10]).',
-      'social-calendar v2.11.0: SlideId column removed (12 → 11 columns) — direction is all you need; fb.ai applies server-side direction filtering for single-image types. Direction rotation guidance (spread A/B/C for variety) added.',
-      'brand-setup v2.8.2: Step 4c export-marker contract rewritten — renderer captures data-export-id at manifest canvas size (no fragile off-screen mirror needed); Story/Carousel/LinkedIn/Meta Post export prompts updated accordingly.',
     ],
   },
 ];

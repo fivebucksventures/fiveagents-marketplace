@@ -6,7 +6,7 @@ area: Finance
 use_for: "Monthly P&L, cashflow forecast, runway, top movers. Investor-ready Gamma deck + Slack summary"
 deps:
   mcp: ["Xero", "Gamma", "Notion", "Slack", "Stripe (opt — degrades to Xero-only invoice data when absent)", "PayPal (opt — adds PayPal revenue when connected)", "Google Drive (opt — fallback when Gamma fails)"]
-  gateway: []
+  gateway: ["fivebucks (opt — brand kit via fivebucks_get_brand_kit; **scope: social_posts**)"]
   files: ["finance.md", "brand.md", "design-system/ (opt — local; or fb.ai brand kit via fivebucks_get_brand_kit; brand.md fallback)"]
   env: ["`${BRAND}_REPORTS_DB` (auto-bootstraps)"]
 ---
@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.5.0 | May 20, 2026 |
+| Link | v2.20.0 | July 12, 2026 |
 
 **Description:** Monthly P&L, cashflow forecast, runway calculation, and top movers. Investor-ready Gamma deck plus Slack summary, archived to Notion.
 
 ### Change Log
+
+**v2.20.0** — July 12, 2026
+- **Declared the fb.ai dependency and its required scope.** fb.ai API keys are now scoped; this skill's `deps.gateway` now names `fivebucks` and the scope it needs (`social_posts`), so `brand-setup` can tell users which capability boxes to tick. No behaviour change — see `agents/link.md` for the scope/error/quota contract.
 
 **v2.5.0** — May 20, 2026
 - Brand color/font resolution is now a **3-tier lookup**: fb.ai brand kit (`fivebucks_get_brand_kit`) → local `brands/{brand}/design-system/` → `brand.md`, per the Brand kit field map in `agents/link.md`. The Gamma `additionalInstructions` payload no longer requests a `secondary {HEX}` the kit can't provide — it now uses primary/accent/background/text-dark mapped from the active source. Trimmed duplicated design-system reading boilerplate.
