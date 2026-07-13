@@ -13,11 +13,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** Bring an existing brand's setup up to date with the latest plugin version — detects gaps since the user last ran brand-setup and fills them interactively
 
 ### Change Log
+
+**v2.20.1** — July 13, 2026
+- **Corrected the fb.ai tool count referenced in the key-scope check messaging (98 → 100), matching the same correction made across the other v2.20.0 skills.**
 
 **v2.20.0** — July 12, 2026
 - **fb.ai key scope check for existing brands.** Repointed the stale api-keys links to `/dashboard/api-keys` and added a `fivebucks_whoami` probe: keys generated before scoping are **legacy full-access keys and keep working** (empty `scopes` — no action needed), but a regenerated key missing `social_posts` will silently break the fb.ai-dependent skills. Reports the granted scopes + quota snapshot and surfaces `auth/key-expired`.
@@ -30,9 +33,6 @@ deps:
 
 **v2.17.0** — June 21, 2026
 - **Migration support for the Inbound Gig Engine completion (v2.17.0 Sales skills `gig-proposal-writer` / `n8n-workflow-builder` / `vsl-demo-producer`).** Step 1e adds an **n8n Cloud MCP** probe (`get_workflow_best_practices`) — optional, only needed by `n8n-workflow-builder`. Step 3g adds the n8n Cloud connect-walkthrough prompt. Step 3k maps the new `Inbound Gig Engine completed` changelog entry to its optional brand action (connect n8n Cloud + optional `${BRAND}_N8N_PROJECT`). The three skills are auto-detected from the shipped `skills-manifest.json` (Step 1 registry read); no per-brand context file is required beyond what `gig-prospector` already needs.
-
-**v2.16.0** — June 20, 2026
-- **Migration support for `gig-prospector` (new v2.16.0 Sales skill).** Step 1d adds `${BRAND}_GIGS_DB` to the auto-bootstrap inventory (count 9 → 10, informational only). Step 1a adds an inline schema check for `sales.md` `## Inbound Job Filters`; Step 3a adds a targeted backfill (runs `brand-setup` Step 5g Step H — markets, platforms + account status, product.md-derived keywords) for brands that pursue freelance work. Step 3k maps the `gig-prospector introduced` changelog entry to that optional brand action. The skill itself is auto-detected from the shipped `skills-manifest.json` (Step 1 registry read).
 
 # Plugin Update — Catch Existing Brands Up to Latest Plugin Version
 
@@ -602,7 +602,7 @@ Read the response and report:
 - **`auth/key-expired` (401)** → the key expired. Regenerate and re-store.
 - Also surface the returned `quota` snapshot so the user knows what they have left.
 
-Mention what the key now unlocks beyond social templates — SEO research, article generation, publishing, site audits, traffic monitoring, and cold-email lead gen (98 tools). A brand that only ticked Social Posts is leaving the rest on the table.
+Mention what the key now unlocks beyond social templates — SEO research, article generation, publishing, site audits, traffic monitoring, and cold-email lead gen (100 tools). A brand that only ticked Social Posts is leaving the rest on the table.
 
 For the auto-bootstrapped DB env vars (`${BRAND}_CRM_DB`, `${BRAND}_CUSTOMER_DB`, `${BRAND}_INVOICE_TRACKER_DB`, `${BRAND}_REPORTS_DB`, `${BRAND}_COMPETITOR_DB`, `${BRAND}_MEETINGS_DB`, `${BRAND}_ACTIONS_DB`, `${BRAND}_PERFORMANCE_DB`, `${BRAND}_TREND_DB`):
 

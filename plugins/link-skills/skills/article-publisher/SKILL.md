@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** Turn fb.ai article briefs into published articles — verify the destination is connected, price the batch, generate, optionally route through human approval, then publish.
 
 ### Change Log
+
+**v2.20.1** — July 13, 2026
+- **Corrected the `whoami` quota field (v2.20.0 referenced a `quota.remaining` field that doesn't exist)** — quota now read from `quota.quotas.content_generation.{current, max}`. Added a use-existing-first check (Step 3) so the skill checks `fivebucks_list_content` for an already-generated article before spending 1.0 quota to regenerate one. Corrected the contentId field name — `fivebucks_list_content` returns `id`, not `contentId`.
 
 **v2.20.0** — July 12, 2026
 - Initial release. Drives fb.ai's `content` + `publishing` + `integrations` scopes (gateway v1.8.0).
@@ -86,7 +89,7 @@ Use gateway MCP tool `fivebucks_whoami`:
 
 - Confirm `scopes` contains **`content`**, **`publishing`** and **`integrations`** (an empty `scopes` array = legacy full-access key, which is fine).
 - If a scope is missing → stop. Send the user to https://www.fivebucks.ai/dashboard/api-keys to regenerate the key with that box ticked. Do not retry.
-- **Record `quota.remaining` now.** Step 4 is priced against it.
+- **Note your content-generation quota now.** whoami returns `quota.quotas.content_generation.{current, max}` — your remaining is `max − current` (there is **no** `quota.remaining` field). Step 4 is priced against it.
 
 ### Step 2: Verify the destination is connected — BEFORE spending anything
 
@@ -121,6 +124,8 @@ Use gateway MCP tool `fivebucks_list_content_settings`:
 ```
 
 Show the user the available briefs. If they want one that doesn't exist, create it with `fivebucks_create_content_setting` (free) rather than generating something off-brief.
+
+**Use-existing-first — check before you spend.** Article generation costs 1.0 quota each, so before generating, call `fivebucks_list_content` and see whether an article for the brief(s) you're about to write **already exists**. If it does, skip generation for that brief and go straight to Step 6/8 (review/publish the existing one). Only generate for briefs that have no article yet — regenerating something you already paid for is money burned.
 
 ### Step 4: Quota pre-flight — MANDATORY
 
@@ -158,7 +163,7 @@ Use gateway MCP tool `fivebucks_list_content`:
 - order: "desc"
 ```
 
-Each record's `contentId` is what publishing and approval need. Read the drafts and tell the user, honestly, whether they're on-brand — if one is thin or off-voice, say so before it goes live. You can fix copy with `fivebucks_update_content` (free) rather than regenerating (1.0 quota).
+Each record's `id` field IS the contentId that publishing and approval need (the list returns `id`, not a field named `contentId`). Read the drafts and tell the user, honestly, whether they're on-brand — if one is thin or off-voice, say so before it goes live. You can fix copy with `fivebucks_update_content` (free) rather than regenerating (1.0 quota).
 
 ### Step 7: Human approval — optional, and it is a *gate*
 

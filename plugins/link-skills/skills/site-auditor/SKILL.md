@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** Run fb.ai's full SEO site audit — discover competitors, benchmark the site against them, and report issues with concrete fixes.
 
 ### Change Log
+
+**v2.20.1** — July 13, 2026
+- **Added the missing GSC + CMS prerequisite check (v2.20.0 let the audit run straight into a `409 integration/gsc-required` / `integration/cms-required` failure on Step 3).** Step 1 now calls `fivebucks_list_integrations` to confirm both are connected before spending anything, and points the user to the dashboard if not. Removed `selectedCMSIntegrationId` / `gscIntegrationId` from the `fivebucks_run_site_audit` call — fb.ai auto-resolves them. Corrected the `whoami` quota field (`quota.quotas.site_audit.{current, max}`, no `quota.remaining`).
 
 **v2.20.0** — July 12, 2026
 - Initial release. Drives fb.ai's `site_audit` scope (gateway v1.8.0).
@@ -82,7 +85,8 @@ Use gateway MCP tool `fivebucks_whoami`:
 
 - Confirm `scopes` contains **`site_audit`** (an empty `scopes` array = legacy full-access key, which is fine).
 - If it's missing → stop. Send the user to https://www.fivebucks.ai/dashboard/api-keys to regenerate the key with the `site_audit` box ticked. Do not retry.
-- **Record `quota.remaining`.** You need at least **1.0** to run this end to end (0.25 competitors + 0.75 audit).
+- **Note your site-audit quota.** whoami returns `quota.quotas.site_audit.{current, max}` — remaining is `max − current` (there is **no** `quota.remaining` field). You need at least **1.0** to run this end to end (0.25 competitors + 0.75 audit).
+- **Check the two prerequisites — before spending anything.** Site Audit requires a connected **Google Search Console** AND a connected **CMS** (WordPress/Wix/Shopify/Ghost/Blogger). Call `fivebucks_list_integrations` and confirm both are present. If either is missing, **stop** — Step 3 (Find Competitors) will return `409 integration/gsc-required` / `integration/cms-required` *before any charge*. Send the user to https://www.fivebucks.ai/dashboard/integrations to connect it (GSC is OAuth — dashboard only), then re-run. You do **not** pass the integration ids yourself — fb.ai auto-resolves them.
 
 ### Step 2: Price the run before touching anything
 
@@ -131,9 +135,9 @@ Use gateway MCP tool `fivebucks_run_site_audit`:
 - language: "<from brand.md>"
 - location: "<location code>"
 - selectedCompetitorUrls: ["<competitor>", "<competitor>", ...]
-- selectedCMSIntegrationId: "<optional — pulls the site's published pages in>"
-- gscIntegrationId: "<optional — adds real Search Console traffic to the audit>"
 ```
+
+*(Do NOT pass `selectedCMSIntegrationId` or `gscIntegrationId` — fb.ai auto-resolves the project's connected CMS + GSC, which are the prerequisites you already confirmed in Step 1.)*
 
 **Pass `selectedCompetitorUrls`.** The audit does *not* auto-discover competitors — omit them and you get a bare audit with no benchmark, for the same 0.75.
 

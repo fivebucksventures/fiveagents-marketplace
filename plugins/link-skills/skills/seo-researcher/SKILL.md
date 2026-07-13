@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** SEO topic research on fb.ai — find keyword clusters for a topic, deep-analyze their SERPs, and turn the winners into a scheduled content plan.
 
 ### Change Log
+
+**v2.20.1** — July 13, 2026
+- **Added the missing "Research Top Rankings" step (v2.20.0 assumed `fivebucks_research_topic` produces `serpSourceId`s directly — it only produces clusters).** New free Step 4 calls `fivebucks_research_top_rankings` to turn approved clusters into `serpSourceId`s; SERP analysis, content-plan creation, and Step 2's reuse-existing-research logic all now account for this. Steps renumbered 4–7 → 5–8.
 
 **v2.20.0** — July 12, 2026
 - Initial release. First skill to drive fb.ai's `seo_research` + `content` scopes (gateway v1.8.0).
@@ -84,7 +87,7 @@ Use gateway MCP tool `fivebucks_whoami`:
 
 - Confirm `scopes` contains **`seo_research`** and **`content`** (an empty `scopes` array = legacy full-access key, which is fine).
 - If a scope is missing → stop. Tell the user to regenerate the key at https://www.fivebucks.ai/dashboard/api-keys with that box ticked. Do not retry.
-- Read the `quota` snapshot and keep it — you will price the run against it in Step 3.
+- Read the `quota` snapshot and keep it — you price each spend against it (research 0.5 in Step 3, SERP analysis 0.5/cluster in Step 5, the plan 0.5 in Step 7).
 
 ### Step 2: Reuse existing research before buying new
 
@@ -95,7 +98,7 @@ Use gateway MCP tool `fivebucks_list_analyses`:
 - fiveagents_api_key: ${FIVEAGENTS_API_KEY}
 ```
 
-If an analysis for this topic (or a near-identical one) already exists, fetch it in detail (`fivebucks_list_analyses` with `analysisId`) and **skip Step 3** — go straight to Step 4 with its `serpSourceId`s. Tell the user you reused existing research and what it saved.
+If an analysis for this topic (or a near-identical one) already exists, fetch it in detail (`fivebucks_list_analyses` with `analysisId`). If it already has serp_sources, **skip Steps 3–4** — go straight to Step 5 with those existing `serpSourceId`s (or Step 6 if they've already been SERP-analyzed). If it only has clusters (no serp_sources yet), skip Step 3 but still do Step 4 to create the `serpSourceId`s. Tell the user you reused existing research and what it saved.
 
 Only if nothing usable exists do you proceed to Step 3.
 
@@ -120,15 +123,33 @@ Use gateway MCP tool `fivebucks_research_status`:
 - jobId: "<jobId from fivebucks_research_topic>"
 ```
 
-Keep polling (with a sensible gap) until status is `completed` or `failed`. On completion you have an analysis with **`serp_sources`** — each carries a `serpSourceId`, a cluster topic, and its keywords. These are the raw material for everything that follows.
+Keep polling (with a sensible gap) until status is `completed` or `failed`. On completion the result carries the keyword **CLUSTERS** — each has a cluster topic, its keywords, and a summary. Research does **NOT** create `serpSourceId`s (that's Step 4). The clusters are the raw material for everything that follows.
 
-### Step 4: Choose the clusters worth analyzing — and price the batch
+### Step 4: Research Top Rankings — turn the clusters you want into `serpSourceId`s (free)
 
-Show the user the clusters and recommend which to analyze, grounded in the brand's audience and the returned keyword data. Do not analyze everything by default — **each cluster costs 0.5 quota.**
+Research gave you clusters, but nothing downstream (SERP analysis, content plan) works without a `serpSourceId` — and the only way to get one is to "approve" the clusters you actually want to pursue. This is the API analog of the dashboard's **Research Top Rankings** button, and it's **free** (the SERP analysis in Step 5 is what costs).
+
+Show the user the clusters and recommend which to pursue, grounded in the brand's audience and the returned keyword data. **Do not approve everything by default** — each cluster you pursue costs 0.5 quota to analyze in Step 5.
+
+Then create their serp_sources in one call:
+
+```
+Use gateway MCP tool `fivebucks_research_top_rankings`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- analysisId: "<the analysis id from Step 3>"
+- clusters: [
+    { "clusterTopic": "<cluster topic>", "mainKeywords": ["<kw>", "<kw>"], "summary": "<cluster summary>" },
+    ...
+  ]
+```
+
+It returns `data.insertedSerpSources` — an array of `{ id }`; each `id` is a `serpSourceId`. Keep them for Steps 5–7. *(Reusing an existing analysis from Step 2 that already has serp_sources? Skip this — you already have the `serpSourceId`s.)*
+
+### Step 5: Deep-analyze their SERPs (0.5 quota each)
 
 State the arithmetic plainly before calling anything:
 
-> "There are 9 clusters. I'd deep-analyze these 5 — that's 5 × 0.5 = **2.5 quota**. You have {remaining} left. Proceed?"
+> "I approved 5 clusters — deep-analyzing them is 5 × 0.5 = **2.5 quota**. You have {remaining} left. Proceed?"
 
 Get confirmation. Then run them in ONE batch (cheaper round-trips than one at a time):
 
@@ -151,13 +172,13 @@ Use gateway MCP tool `fivebucks_serp_batch_status`:
 
 Poll until complete. *(For a single cluster you may instead use `fivebucks_analyze_serp_cluster` + `fivebucks_serp_status`, which take a normal `jobId`.)*
 
-### Step 5: Propose the content plan
+### Step 6: Propose the content plan
 
 Summarize what the SERP analysis actually found — competitor angles, content gaps, unanswered questions — and propose which cluster becomes the content plan. Ground every claim in the returned data.
 
 Confirm the cadence and start date with the user. **A plan is built from exactly ONE cluster** (`serpSourceId`).
 
-### Step 6: Create the plan (0.5 quota)
+### Step 7: Create the plan (0.5 quota)
 
 ```
 Use gateway MCP tool `fivebucks_create_content_plan`:
@@ -184,7 +205,7 @@ Use gateway MCP tool `fivebucks_content_plan_status`:
 
 *(If you re-send an identical plan request within 5 minutes you'll get a `429 duplicate request` — that means it's already running. Poll; don't retry.)*
 
-### Step 7: Confirm the briefs exist and hand off
+### Step 8: Confirm the briefs exist and hand off
 
 When the plan completes it has generated **content settings** — the article briefs. Verify:
 

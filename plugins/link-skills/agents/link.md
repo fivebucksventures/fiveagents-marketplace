@@ -7,7 +7,7 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
@@ -15,8 +15,11 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 Current release only. Full history: [`CHANGELOG.md`](../CHANGELOG.md).
 
+**v2.20.1** — July 13, 2026
+- **Corrected the fb.ai tool count (98 → 100) and the SEO research + lead-import contracts that were wrong in v2.20.0.** `fivebucks_research_topic` yields keyword **clusters**, not `serpSourceId`s directly — `fivebucks_research_top_rankings` is the actual (free) step that turns approved clusters into `serpSourceId`s; the content pipeline diagram now shows this. `fivebucks_search_leads_status` results are **not** in the CRM until passed to `fivebucks_import_search_results` — the old text implied they landed in the CRM automatically.
+
 **v2.20.0** — July 12, 2026
-- **fb.ai grew from 13 tools to 98, and its API key is now scoped (gateway v1.8.0).** One `FIVEBUCKS_API_KEY` now drives the brand's whole content + traffic + lead-gen stack, **project-scoped across 10 capabilities** enforced server-side. See **"fb.ai API key — scopes, errors, quota"** below for the contract.
+- **fb.ai grew from 13 tools to 100, and its API key is now scoped (scoping shipped in gateway v1.8.0).** One `FIVEBUCKS_API_KEY` now drives the brand's whole content + traffic + lead-gen stack, **project-scoped across 10 capabilities** enforced server-side. See **"fb.ai API key — scopes, errors, quota"** below for the contract.
 - **Four new Traffic skills** put those tools to work: `seo-researcher`, `article-publisher`, `site-auditor`, `traffic-reporter`. Each confirms its scopes and quota with `fivebucks_whoami` before spending, prices every batch out loud, polls every async job, and refuses to report missing data as zero.
 - **Three new Lead Gen skills** complete the fb.ai coverage — all 10 scopes now have a packaged workflow: `leadgen-onboarder` (sending domain + sender signature; built around the **two unavoidable human waits** — publish DNS records, click Postmark's confirmation email — at which it stops and hands back rather than polling), `lead-crm-manager` (search 0.25/query → **enrich 0.075/lead**, because unenriched leads are *silently dropped* by a send → lists/segments), `campaign-runner` (workflow → **four send gates** → send 0.01/email → **must poll**, since an empty sequence returns 200 and then fails as a job).
 - **Routing rule for the two cold-email stacks** (Gmail vs fb.ai) added under **Skill Chains** — they share no infrastructure, so the choice is by volume and sending identity.
@@ -209,23 +212,23 @@ These calls go through the fiveagents-gateway remote MCP server (`https://gatewa
 - **FiveAgents** — `fiveagents_log_run` / `fiveagents_store_credential` / `fiveagents_send_email`
 - **Image processing** — Python Pillow (local) for text overlay and logo compositing; media uploaded via `requests.put` to presigned S3 URL
 
-#### fb.ai (`fivebucks_*`) — 98 tools across 10 capabilities
+#### fb.ai (`fivebucks_*`) — 100 tools across 10 capabilities
 
 One `FIVEBUCKS_API_KEY` unlocks the brand's whole content + traffic + lead-gen stack. **Read the "fb.ai API key — scopes, errors, quota" section below before using any of these.**
 
 - **Identity** *(always available)* — `fivebucks_whoami` → the key's bound project, its granted scopes, and a quota snapshot.
 - **Social posts** *(scope `social_posts`)* — templates `fivebucks_list_templates` / `fivebucks_get_template`; posts `fivebucks_list_posts` / `fivebucks_create_post` / `fivebucks_update_post` / `fivebucks_render_post`; brand kit `fivebucks_get_brand_kit`; media `fivebucks_list_media_folders` / `fivebucks_create_media_folder` / `fivebucks_list_media_files` / `fivebucks_presign_media_upload` / `fivebucks_confirm_media_upload`
 - **Integrations** *(scope `integrations`)* — `fivebucks_list_integrations` / `fivebucks_disconnect_integration`; connect via `fivebucks_connect_email` / `fivebucks_connect_wix` / `fivebucks_connect_ghost` / `fivebucks_connect_zapier` / `fivebucks_connect_wordpress_plugin`. ⚠️ **OAuth platforms cannot be connected by API key** (LinkedIn, Twitter/X, Facebook, Blogger, Shopify, Google Search Console, WordPress.com) — send the user to `https://www.fivebucks.ai/dashboard/integrations`. (You *can* publish to WordPress.com by key once it's connected there — you just can't connect it.)
-- **SEO research** *(scope `seo_research`)* — `fivebucks_research_topic` → `fivebucks_research_status` → yields `serpSourceId`s; `fivebucks_list_analyses`; deep-dive a cluster with `fivebucks_analyze_serp_cluster` / `fivebucks_serp_status`, or many at once with `fivebucks_analyze_serp_batch` / `fivebucks_serp_batch_status`
+- **SEO research** *(scope `seo_research`)* — `fivebucks_research_topic` → `fivebucks_research_status` yields keyword **clusters** (NOT serpSourceIds) → `fivebucks_research_top_rankings(analysisId, chosen clusters)` turns them into `serpSourceId`s (the "Research Top Rankings" step — the ONLY way to get one); then deep-dive a cluster with `fivebucks_analyze_serp_cluster` / `fivebucks_serp_status`, or many at once with `fivebucks_analyze_serp_batch` / `fivebucks_serp_batch_status`; `fivebucks_list_analyses` to reuse existing research/serpSourceIds
 - **Content** *(scope `content`)* — plans `fivebucks_create_content_plan` / `fivebucks_content_plan_status` / `fivebucks_list_content_plans`; article briefs `fivebucks_list_content_settings` / `fivebucks_create_content_setting` / `fivebucks_update_content_setting`; write them with `fivebucks_generate_articles` / `fivebucks_article_status`; then `fivebucks_list_content` / `fivebucks_update_content`; human review via `fivebucks_request_approval` / `fivebucks_list_pending_approvals`
 - **Publishing** *(scope `publishing`)* — `fivebucks_publish_content(contentId, platform)` is ONE tool covering all 11 destinations (twitterx, linkedin, facebook, wordpress, wp-plugin, wix, ghost, shopify, blogger, email, zapier); calendar `fivebucks_list_scheduled_posts` / `fivebucks_reschedule_post` / `fivebucks_delete_scheduled_post`; daily automations `fivebucks_get_automation` / `fivebucks_set_automation` / `fivebucks_disable_automation`
 - **Site audit** *(scope `site_audit`)* — `fivebucks_find_competitors`, `fivebucks_run_site_audit`, `fivebucks_site_audit_status`
 - **Traffic monitor** *(scope `traffic_monitor`, all free)* — `fivebucks_traffic_summary`, `fivebucks_discover_pages`, `fivebucks_list_cms_pages`, `fivebucks_untrack_items`; Search Console `fivebucks_gsc_data` / `fivebucks_refresh_gsc` / `fivebucks_gsc_refresh_status`; AI/GEO visibility `fivebucks_ai_visibility` / `fivebucks_refresh_ai_visibility` / `fivebucks_ai_refresh_status` / `fivebucks_get_geo_settings` / `fivebucks_set_geo_settings`
 - **Lead gen — setup** *(scope `leadgen_setup`)* — `fivebucks_list_domains` / `fivebucks_add_domain` / `fivebucks_verify_domain` / `fivebucks_delete_domain`; `fivebucks_list_signatures` / `fivebucks_add_signature` / `fivebucks_update_signature` / `fivebucks_delete_signature`; `fivebucks_get_brand` / `fivebucks_update_brand`
-- **Lead gen — CRM** *(scope `leadgen_crm`)* — `fivebucks_list_leads` / `fivebucks_get_lead` / `fivebucks_create_lead` / `fivebucks_update_lead` / `fivebucks_delete_lead` / `fivebucks_import_leads`; `fivebucks_search_leads` / `fivebucks_search_leads_status`; `fivebucks_enrich_leads` / `fivebucks_enrich_status`; `fivebucks_bulk_tag_leads` / `fivebucks_bulk_delete_leads`; targeting `fivebucks_list_lead_lists` / `fivebucks_create_lead_list` / `fivebucks_list_segments` / `fivebucks_create_segment` / `fivebucks_segment_count`
+- **Lead gen — CRM** *(scope `leadgen_crm`)* — `fivebucks_list_leads` / `fivebucks_get_lead` / `fivebucks_create_lead` / `fivebucks_update_lead` / `fivebucks_delete_lead` / `fivebucks_import_leads`; `fivebucks_search_leads` / `fivebucks_search_leads_status` → `fivebucks_import_search_results` (search results are NOT in the CRM until imported); `fivebucks_enrich_leads` / `fivebucks_enrich_status`; `fivebucks_bulk_tag_leads` / `fivebucks_bulk_delete_leads`; targeting `fivebucks_list_lead_lists` / `fivebucks_create_lead_list` / `fivebucks_list_segments` / `fivebucks_create_segment` / `fivebucks_segment_count`
 - **Lead gen — campaigns** *(scope `leadgen_campaigns`)* — `fivebucks_list_workflows` / `fivebucks_create_workflow` / `fivebucks_get_workflow` / `fivebucks_update_workflow` / `fivebucks_delete_workflow`; `fivebucks_send_campaign` / `fivebucks_send_status`; `fivebucks_list_email_templates`; `fivebucks_retry_send`; `fivebucks_export_sends`
 
-**The content pipeline, end to end:** `fivebucks_research_topic` → `serpSourceId` → `fivebucks_create_content_plan` → `contentSettingIds` → `fivebucks_generate_articles` → `contentId` → `fivebucks_publish_content`.
+**The content pipeline, end to end:** `fivebucks_research_topic` → (clusters) → `fivebucks_research_top_rankings` → `serpSourceId` → `fivebucks_create_content_plan` → `contentSettingIds` → `fivebucks_generate_articles` → `contentId` → `fivebucks_publish_content`.
 
 **The cold-email pipeline** (two unavoidable human waits — see the lead-gen tool descriptions): add domain → 🧑 human publishes DNS records → verify (poll) → add signature → 🧑 human clicks Postmark's confirmation email → search/enrich leads → create workflow (needs a *verified* domain) → send.
 

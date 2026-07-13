@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** Build an fb.ai cold-email workflow, verify the four send gates, send the campaign, and report results.
 
 ### Change Log
+
+**v2.20.1** — July 13, 2026
+- **Corrected the `whoami` quota field (v2.20.0 referenced a `quota.remaining` field that doesn't exist)** — quota now read from `quota.quotas.automatic_posting.{current, max}`.
 
 **v2.20.0** — July 12, 2026
 - Initial release. Drives fb.ai's `leadgen_campaigns` scope, plus `leadgen_crm` for the recipient-count pre-flight (gateway v1.8.0).
@@ -87,7 +90,7 @@ Use gateway MCP tool `fivebucks_whoami`:
 
 - Confirm `scopes` contains **`leadgen_campaigns`** and **`leadgen_crm`** (the latter is needed to count recipients for the pre-flight). An empty `scopes` array = legacy full-access key, which is fine.
 - If either is missing → stop. Send the user to https://www.fivebucks.ai/dashboard/api-keys. Do not retry.
-- **Record `quota.remaining`.** The send is priced against it in Step 5.
+- **Note your sending quota.** whoami returns `quota.quotas.automatic_posting.{current, max}` — remaining is `max − current` (there is **no** `quota.remaining` field). The send is priced against it in Step 5.
 
 ### Step 2: Reuse an existing workflow before building a new one
 

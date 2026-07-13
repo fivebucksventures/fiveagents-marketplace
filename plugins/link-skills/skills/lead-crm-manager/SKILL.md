@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** Find, import, and enrich leads in the fb.ai CRM, and build the lists/segments a campaign targets.
 
 ### Change Log
+
+**v2.20.1** — July 13, 2026
+- **Added the missing "import to CRM" step (v2.20.0 implied `fivebucks_search_leads_status` results land in the CRM automatically — they don't).** New Step 3a calls `fivebucks_import_search_results` to persist chosen search results before they're sendable/enrichable. Corrected the masked-email signal (empty/`null` `email` field, not a literal `***`) and the `whoami` quota field (`quota.quotas.<bucket>.{current, max}` per bucket — search bills `seo_research`, enrich bills `content_generation` — no `quota.remaining` field exists).
 
 **v2.20.0** — July 12, 2026
 - Initial release. Drives fb.ai's `leadgen_crm` scope (gateway v1.8.0).
@@ -82,7 +85,7 @@ Use gateway MCP tool `fivebucks_whoami`:
 
 - Confirm `scopes` contains **`leadgen_crm`** (an empty `scopes` array = legacy full-access key, which is fine).
 - If it's missing → stop. Send the user to https://www.fivebucks.ai/dashboard/api-keys. Do not retry.
-- **Record `quota.remaining`.** Steps 3 and 4 are priced against it.
+- **Note your quota.** whoami returns `quota.quotas.<bucket>.{current, max}` (there is **no** `quota.remaining` field) — search bills `seo_research`, enrich bills `content_generation`; remaining for each is `max − current`. Steps 3 and 4 are priced against them.
 
 ### Step 2: See what's already in the CRM
 
@@ -100,7 +103,7 @@ Use gateway MCP tool `fivebucks_list_leads`:
 - offset: <for paging>
 ```
 
-**Look at the `email` field on every lead.** If it contains `***`, that lead is **masked** — it is in the CRM but cannot be emailed. Count them. Tell the user how many of their existing leads are sendable versus masked, because that number is usually a surprise.
+**Look at the `email` field on every lead.** If it's empty/`null` (or contains `***`), that lead is **masked/unenriched** — it is in the CRM but cannot be emailed. Count them. Tell the user how many of their existing leads are sendable versus masked, because that number is usually a surprise.
 
 If the brand already has enough of the right leads, skip Step 3 entirely and go straight to enrichment.
 
@@ -133,7 +136,20 @@ Use gateway MCP tool `fivebucks_search_leads_status`:
 
 Each search is **0.25 quota**, so a wide net cast three different ways costs 0.75. Refine the filters *before* searching, not by searching repeatedly.
 
-⚠️ **Every lead comes back with a MASKED email.** They are in the CRM, and they are not sendable. Step 4 is not optional if these leads are going to be emailed.
+The completed status returns a `results` array — the found leads, **with MASKED emails** (the `email` field comes back `null`/blank and the *name* is partly redacted; `email_status` / `has_email_flag` signal sendability, not a `***` in the email itself). ⚠️ **These results are NOT in the CRM yet** — they live only in the search response and will not appear in `fivebucks_list_leads` until you import them (next step).
+
+### Step 3a: Import the results you want into the CRM
+
+This is the dashboard's "Import to Database" step. Show the user the results and let them pick which to keep — you don't have to import all of them. Then persist the chosen ones:
+
+```
+Use gateway MCP tool `fivebucks_import_search_results`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- searchResults: [ <the objects from the search_leads_status `results` array, unchanged> ]
+- tags: ["<optional label, e.g. q1-outbound>"]
+```
+
+Free, and fb.ai deduplicates against existing leads. Now they're in the CRM — but **still masked**. Step 4 (enrich) is what makes them sendable, and it is not optional if these leads are going to be emailed.
 
 ### Step 3b: Or import a list the user already has
 

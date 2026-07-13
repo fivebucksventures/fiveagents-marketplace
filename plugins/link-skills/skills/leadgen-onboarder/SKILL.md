@@ -15,11 +15,14 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.0 | July 12, 2026 |
+| Link | v2.20.1 | July 13, 2026 |
 
 **Description:** One-time setup that makes fb.ai cold email sendable — sending domain + DNS verification + confirmed sender signature.
 
 ### Change Log
+
+**v2.20.1** — July 13, 2026
+- **Corrected the DNS record count (v2.20.0 only documented 2 of the 3 records `fivebucks_add_domain` returns).** `dns_records` includes a DMARC record alongside DKIM and Return-Path — the skill now presents all three, since a missing DMARC record silently hurts deliverability.
 
 **v2.20.0** — July 12, 2026
 - Initial release. Drives fb.ai's `leadgen_setup` scope (gateway v1.8.0). Every tool it uses is free.
@@ -115,18 +118,19 @@ Use gateway MCP tool `fivebucks_add_domain`:
 - domain: "<mail.example.com>"
 ```
 
-This returns `dns_records` — a DKIM record and a Return-Path record.
+This returns `dns_records` — **three** records: DKIM (`dkim`), Return-Path (`return_path`), and DMARC (`dmarc`). Present **all three** — DMARC is easy to miss and its absence hurts deliverability.
 
-🧑 **STOP HERE. This is a human wait.** Present the records as a clean table they can work from — record type, host/name, and value, each exactly as returned, nothing paraphrased:
+🧑 **STOP HERE. This is a human wait.** Present the records as a clean table they can work from — record type, host/name, and value, each exactly as returned, nothing paraphrased. Include a row for **every** key `dns_records` returns:
 
 | Type | Host / Name | Value |
 |---|---|---|
-| TXT | `<from dns_records>` | `<from dns_records>` |
-| CNAME | `<from dns_records>` | `<from dns_records>` |
+| TXT | `<dkim.hostname>` | `<dkim.record>` |
+| CNAME | `<return_path.hostname>` | `<return_path.record>` |
+| TXT | `<dmarc host, e.g. _dmarc>` | `<dmarc.record>` |
 
 Then tell them, plainly:
 
-> Add these two records at whoever manages your DNS (Cloudflare, GoDaddy, Namecheap, your hosting provider). There is no API that can do this for me. Once they're saved, come back and re-run this skill and I'll verify.
+> Add these three records at whoever manages your DNS (Cloudflare, GoDaddy, Namecheap, your hosting provider). There is no API that can do this for me. Once they're saved, come back and re-run this skill and I'll verify.
 >
 > DNS changes usually take a few minutes but can take a few hours to spread.
 

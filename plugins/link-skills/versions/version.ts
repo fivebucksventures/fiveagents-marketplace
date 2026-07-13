@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.20.0';
-const DEFAULT_DATE = 'July 12, 2026';
+const DEFAULT_VERSION = 'v2.20.1';
+const DEFAULT_DATE = 'July 13, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,20 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.20.1',
+    date: 'July 13, 2026',
+    changes: [
+      'agents/link.md: corrected the fb.ai tool count (98 → 100) and the SEO research + lead-import contracts that were wrong in v2.20.0 — fivebucks_research_topic yields keyword clusters, not serpSourceIds directly, and fivebucks_search_leads_status results are not in the CRM until imported.',
+      'seo-researcher: added the missing "Research Top Rankings" step — fivebucks_research_topic only produces clusters; the new free Step 4 calls fivebucks_research_top_rankings to turn approved clusters into serpSourceIds. Steps renumbered 4–7 → 5–8.',
+      'lead-crm-manager: added the missing "import to CRM" step — fivebucks_search_leads_status results are not in the CRM until fivebucks_import_search_results is called. Corrected the masked-email signal (empty/null email field, not a literal ***) and the whoami quota field.',
+      'article-publisher: corrected the whoami quota field (quota.quotas.content_generation, not quota.remaining) and the contentId field name (fivebucks_list_content returns id). Added a use-existing-first check before generating.',
+      'campaign-runner: corrected the whoami quota field (quota.quotas.automatic_posting, not quota.remaining).',
+      'leadgen-onboarder: corrected the DNS record count — fivebucks_add_domain returns three records (DKIM, Return-Path, DMARC), not two.',
+      'site-auditor: added the missing GSC + CMS prerequisite check before Step 3 (previously failed with a 409 mid-run); removed the unnecessary selectedCMSIntegrationId/gscIntegrationId params (fb.ai auto-resolves them); corrected the whoami quota field.',
+      'plugin-update: corrected the fb.ai tool count referenced in the key-scope check messaging (98 → 100).',
+    ],
+  },
   {
     version: 'v2.20.0',
     date: 'July 12, 2026',
@@ -155,15 +169,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'content-creation v2.9.0: added hook-library.md (8 hook archetypes + opening-line patterns); Step 3 selects an archetype for social hooks.',
       'link.md v2.13.0: registered the 3 new skills + content-learning-loop and timely-content chains; domain map regenerated (26 skills).',
       'brand-setup v2.9.1 + plugin-update v2.11.1: registered the two new auto-bootstrapped DBs (${BRAND}_PERFORMANCE_DB, ${BRAND}_TREND_DB).',
-    ],
-  },
-  {
-    version: 'v2.12.0',
-    date: 'May 23, 2026',
-    changes: [
-      'content-generator v2.12.0: new media pool — at run start fivebucks_list_media_folders (cached with the template list) builds media_pool[type] by matching folders to template types by exact name (LinkedIn Post / Meta Story / Meta Carousel / Meta Post) and listing each folder\'s files. Step 4 changed from optional photo assignment to active injection: carousel/story cycle photos through body slots s2_image…s5_image, single-image types fill bg_image (+ _position: center / _fit: cover); empty pool leaves slots empty (branded placeholder). Fallbacks: pool all folders when no exact match; empty pool when no folders; skip silently on any error — never fails the run.',
-      'brand-setup v2.9.0: Step 4b Claude Design setup rewritten for the new claude.ai/design UI (Design System → Create → "Set up your design system" attach form → Continue to generation), with a placeholder-substitution table and a ready-to-paste, website-aware generation prompt that points Claude at the live site. Step 4d media library now defines the per-template-type folder names (LinkedIn Post / Meta Story / Meta Carousel / Meta Post) content-generator matches photos against.',
-      'plugin-update v2.11.0: Step 3b design-system install updated to the new claude.ai/design flow (steps renumbered 1–6) with a website-aware generation prompt; Step 3d media library now specifies the per-template-type folder names matching the content-generator media-pool convention.',
     ],
   },
 ];
