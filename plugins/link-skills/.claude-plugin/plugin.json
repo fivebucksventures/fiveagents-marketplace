@@ -1,6 +1,6 @@
 {
   "name": "fiveagents-link",
-  "version": "2.20.1",
+  "version": "2.20.2",
   "description": "Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand",
   "author": {
     "name": "fiveagents.io",
@@ -13,44 +13,63 @@
   "keywords": ["marketing", "sales", "customer-success", "finance", "strategy", "productivity", "social-media", "content", "analytics", "agent"],
 
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": ["./agents/link.md"],
   "hooks": "./hooks/hooks.json",
   "mcpServers": "./.mcp.json",
 
   "userConfig": {
     "fiveagents_api_key": {
+      "type": "string",
+      "title": "FiveAgents API key",
       "description": "Your fiveagents.io API key (fa_live_... — from admin dashboard)",
-      "sensitive": true
+      "sensitive": true,
+      "required": true
     },
     "default_brand": {
+      "type": "string",
+      "title": "Default brand",
       "description": "Your primary brand name (must match a folder in brands/)",
       "sensitive": false
     },
     "slack_notify_user": {
+      "type": "string",
+      "title": "Slack user ID",
       "description": "Your Slack user ID for notifications (e.g. U01234ABCDE)",
       "sensitive": false
     },
     "report_email": {
+      "type": "string",
+      "title": "Report email",
       "description": "Email address for daily/weekly marketing reports",
       "sensitive": false
     },
     "late_api_key": {
+      "type": "string",
+      "title": "Late API key (legacy)",
       "description": "Legacy — no longer used by link-skills (Zernio moved to its own OAuth MCP connector in v2.18.0; there is no API key to paste). Retained only for backward-compatibility with the fiveagents.io dashboard schema; safe to leave blank.",
       "sensitive": true
     },
     "gemini_api_key": {
+      "type": "string",
+      "title": "Gemini API key",
       "description": "Google Gemini API key for image generation — also store in dashboard for Cowork use",
       "sensitive": true
     },
     "fivebucks_api_key": {
+      "type": "string",
+      "title": "fb.ai API key",
       "description": "fb.ai API key (fbai_live_... — paid plan) for branded social-post templates (optional) — also store in dashboard for Cowork use",
       "sensitive": true
     },
     "dataforseo_login": {
+      "type": "string",
+      "title": "DataforSEO login",
       "description": "DataforSEO login email (optional) — also store in dashboard for Cowork use",
       "sensitive": false
     },
     "dataforseo_password": {
+      "type": "string",
+      "title": "DataforSEO password",
       "description": "DataforSEO password (optional) — also store in dashboard for Cowork use",
       "sensitive": true
     }

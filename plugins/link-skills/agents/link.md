@@ -7,13 +7,16 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.1 | July 13, 2026 |
+| Link | v2.20.2 | August 05, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
 
 Current release only. Full history: [`CHANGELOG.md`](../CHANGELOG.md).
+
+**v2.20.2** — August 05, 2026
+- **Plugin schema compatibility fixes** — `claude plugin validate .` was failing. `plugin.json`'s `agents` field changed from a bare directory string (`"./agents/"`) to the required array-of-paths form (`["./agents/link.md"]`). All nine `userConfig` entries (`fiveagents_api_key`, `default_brand`, `slack_notify_user`, `report_email`, `late_api_key`, `gemini_api_key`, `fivebucks_api_key`, `dataforseo_login`, `dataforseo_password`) now declare the required `type` and `title` fields; `fiveagents_api_key` also gains `required: true` since every gateway tool call needs it. `.mcp.json`'s gateway transport `type` changed from the non-standard `"url"` to `"http"`. No skill behavior changed.
 
 **v2.20.1** — July 13, 2026
 - **Corrected the fb.ai tool count (98 → 100) and the SEO research + lead-import contracts that were wrong in v2.20.0.** `fivebucks_research_topic` yields keyword **clusters**, not `serpSourceId`s directly — `fivebucks_research_top_rankings` is the actual (free) step that turns approved clusters into `serpSourceId`s; the content pipeline diagram now shows this. `fivebucks_search_leads_status` results are **not** in the CRM until passed to `fivebucks_import_search_results` — the old text implied they landed in the CRM automatically.

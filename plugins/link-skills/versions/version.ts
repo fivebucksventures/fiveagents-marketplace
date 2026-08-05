@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.20.1';
-const DEFAULT_DATE = 'July 13, 2026';
+const DEFAULT_VERSION = 'v2.20.2';
+const DEFAULT_DATE = 'August 05, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.20.2',
+    date: 'August 05, 2026',
+    changes: [
+      'plugin.json: `agents` field changed from a bare directory string ("./agents/") to the required array-of-paths form (["./agents/link.md"]) — claude plugin validate . was rejecting the string form.',
+      'plugin.json: all nine userConfig entries (fiveagents_api_key, default_brand, slack_notify_user, report_email, late_api_key, gemini_api_key, fivebucks_api_key, dataforseo_login, dataforseo_password) now declare the required `type` and `title` fields; fiveagents_api_key also gains `required: true` since every gateway tool call needs it.',
+      '.mcp.json: gateway server transport `type` changed from the non-standard "url" to "http" to match the current MCP transport schema.',
+    ],
+  },
   {
     version: 'v2.20.1',
     date: 'July 13, 2026',
