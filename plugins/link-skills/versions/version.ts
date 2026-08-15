@@ -1,6 +1,6 @@
 // Version information (production)
-const DEFAULT_VERSION = 'v2.20.2';
-const DEFAULT_DATE = 'August 05, 2026';
+const DEFAULT_VERSION = 'v2.20.3';
+const DEFAULT_DATE = 'August 15, 2026';
 
 // Export constants initially with default values
 export let APP_VERSION = DEFAULT_VERSION;
@@ -9,6 +9,15 @@ export let RELEASE_DATE = DEFAULT_DATE;
 // NOTE: Keep only last 15 versions to prevent git overload (following Next.js pattern)
 // Full history available in GitHub releases and git commits
 export let VERSION_HISTORY: Array<{ version: string; date: string; changes: string[] }> = [
+  {
+    version: 'v2.20.3',
+    date: 'August 15, 2026',
+    changes: [
+      'agents/link.md: corrected fb.ai quota guidance to name the four real paid buckets, mark `traffic_monitor` as free, and compute remaining quota from `quota.quotas.<bucket>` — prevents agents from mispricing batches against a nonexistent `quota.remaining` field.',
+      'seo-researcher: split quota accounting by bucket, added optional real competitor discovery via `fivebucks_find_competitors`, and forbade invented competitor URLs or word-count benchmarks from SERP analysis — keeps reports aligned with what fb.ai actually returns.',
+      'skills registry CI: added a vendored `fivebucks-tools.json` inventory plus `check_fivebucks_tools.py` and wired it into GitHub Actions — catches SKILL.md references to gateway tools that do not exist before release.',
+    ],
+  },
   {
     version: 'v2.20.2',
     date: 'August 05, 2026',
@@ -157,27 +166,6 @@ export let VERSION_HISTORY: Array<{ version: string; date: string; changes: stri
       'plugin-update v2.14.0: migration support for the YouTube-First pipeline — Step 1b brand.md checklist row for ## Content Strategy, Step 3e gap-fill (runs brand-setup Step 4a), Step 3k changelog→brand-action rows for YouTube-First Mode + the trend-radar synthesis requirement, and Step 1d/3f coverage for the new ${BRAND}_LATE_TT / _LATE_TW organic account IDs that video-repurposer needs.',
       'trend-radar v2.14.0: synthesis-before-write rule — Step 0 reads the latest Performance Brief (own post performance + competitor benchmarking from content-performance-analyst), mandatory competitor research from competitors.md on first run; Step 3 synthesizes own performance + competitor benchmarking + web research before scoring, adding competitor-differentiation and own-performance-alignment criteria; Step 4 forbids writing to ${BRAND}_TREND_DB before synthesis is complete.',
       'link.md v2.14.0: added the Content Engine — 5 Phases table to the Skills section (Phase 4–5 reflect the YouTube-First create→publish flow via video-repurposer; static path noted); Timely content skill chain updated to content-performance-analyst → trend-radar → social-calendar; v2.13.0 changelog now points to the new table.',
-    ],
-  },
-  {
-    version: 'v2.13.1',
-    date: 'May 28, 2026',
-    changes: [
-      'video-downloader v1.0.1: removed the bundled scripts/download_video.py + $CLAUDE_PLUGIN_ROOT path — Cowork (the runtime) does not expose that variable and link-skills has no bundled-runtime-script convention. yt-dlp now runs inline (python3 -m pip install yt-dlp → python3 -m yt_dlp) in the skill bash block, matching content-generator local-glue pattern. No other skill affected.',
-    ],
-  },
-  {
-    version: 'v2.13.0',
-    date: 'May 28, 2026',
-    changes: [
-      'content-performance-analyst v1.0.0 (NEW, Marketing): organic-content Data phase — pulls per-post engagement from Zernio joined to the social-calendar authored attributes (via the social-publisher PublishLog), benchmarks competitor content via web research, scores outliers vs the brand own baseline, writes a Performance Brief to ${BRAND}_PERFORMANCE_DB (Owner/Source columns). Closes the create→publish→measure→learn loop.',
-      'trend-radar v1.0.0 (NEW, Marketing): daily Research phase — WebSearch + Perplexity (+ optional DataforSEO) scan for timely niche topics, scored for relevance/timeliness, 7-day dedup, written as candidates to ${BRAND}_TREND_DB for social-calendar.',
-      'video-downloader v1.0.0 (NEW, Productivity): standalone yt-dlp + optional Whisper transcription utility for repurposing/analysis; not wired into the static publishing pipeline.',
-      'social-publisher v2.3.0: PublishLog now captures the platform post URL + Late ID + Date/Topic/Platform — the join key content-performance-analyst uses to match engagement back to planned posts.',
-      'social-calendar v2.12.0: Step 1b reads the Performance Brief + Trend Radar candidates before market research (precedence brief → trends → research); Content Angle names a hook archetype.',
-      'content-creation v2.9.0: added hook-library.md (8 hook archetypes + opening-line patterns); Step 3 selects an archetype for social hooks.',
-      'link.md v2.13.0: registered the 3 new skills + content-learning-loop and timely-content chains; domain map regenerated (26 skills).',
-      'brand-setup v2.9.1 + plugin-update v2.11.1: registered the two new auto-bootstrapped DBs (${BRAND}_PERFORMANCE_DB, ${BRAND}_TREND_DB).',
     ],
   },
 ];

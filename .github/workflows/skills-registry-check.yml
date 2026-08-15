@@ -16,6 +16,8 @@ on:
       - "plugins/link-skills/skills-manifest.json"
       - "plugins/link-skills/SKILLS.md"
       - "plugins/link-skills/scripts/gen_skills_index.py"
+      - "plugins/link-skills/scripts/check_fivebucks_tools.py"
+      - "plugins/link-skills/fivebucks-tools.json"
       - ".github/workflows/skills-registry-check.yml"
 
 jobs:
@@ -28,3 +30,10 @@ jobs:
           python-version: "3.x"
       - name: Verify skills registry is in sync with skill frontmatter
         run: python plugins/link-skills/scripts/gen_skills_index.py --check
+
+      # Catches skills that instruct the agent to call a fivebucks_* tool the
+      # gateway does not expose. Two shipped bugs came from skills being written
+      # against an assumed tool surface rather than the real one; this makes the
+      # mechanical half of that failure impossible to merge.
+      - name: Verify skills only reference tools the gateway exposes
+        run: python plugins/link-skills/scripts/check_fivebucks_tools.py --check

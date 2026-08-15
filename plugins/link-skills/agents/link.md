@@ -7,13 +7,16 @@ description: Multi-brand business operations agent — marketing, sales, custome
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.2 | August 05, 2026 |
+| Link | v2.20.3 | August 15, 2026 |
 
 **Description:** Multi-brand business operations agent — marketing, sales, customer success, finance, strategy, productivity for any active brand
 
 ### Change Log
 
 Current release only. Full history: [`CHANGELOG.md`](../CHANGELOG.md).
+
+**v2.20.3** — August 15, 2026
+- **fb.ai quota bucket guidance corrected** — the shared quota table now names the four real buckets (`content_generation`, `seo_research`, `site_audit`, `automatic_posting`), clarifies that `traffic_monitor` is free despite appearing in `whoami`, and tells agents to compute remaining quota from `quota.quotas.<bucket>` rather than a nonexistent `quota.remaining`.
 
 **v2.20.2** — August 05, 2026
 - **Plugin schema compatibility fixes** — `claude plugin validate .` was failing. `plugin.json`'s `agents` field changed from a bare directory string (`"./agents/"`) to the required array-of-paths form (`["./agents/link.md"]`). All nine `userConfig` entries (`fiveagents_api_key`, `default_brand`, `slack_notify_user`, `report_email`, `late_api_key`, `gemini_api_key`, `fivebucks_api_key`, `dataforseo_login`, `dataforseo_password`) now declare the required `type` and `title` fields; `fiveagents_api_key` also gains `required: true` since every gateway tool call needs it. `.mcp.json`'s gateway transport `type` changed from the non-standard `"url"` to `"http"`. No skill behavior changed.
@@ -248,18 +251,26 @@ The `FIVEBUCKS_API_KEY` is **project-scoped** and carries up to **10 capability 
 
 **Quota costs — state these to the user before any batch, and pre-flight with `fivebucks_whoami`:**
 
-| Action | Cost |
-|---|---|
-| Render/export a social post | **1.0** |
-| Generate an article | **1.0 each** — a 10-article batch costs 10.0 |
-| SEO research · SERP analysis (per cluster) · content plan | 0.5 |
-| Site audit (diagnostics) | 0.75 · find competitors 0.25 |
-| Publish — CMS (WordPress/Wix/Ghost/Shopify/Blogger/wp-plugin) | 0.5 |
-| Publish — social, email, Zapier | 0.25 |
-| Lead search (per query) | 0.25 |
-| Lead enrichment | **0.075 per lead** — 100 leads = 7.5 |
-| Campaign send | **0.01 per email** — 500 recipients = 5.0 |
-| Everything under Traffic monitor, and all list/read tools | free |
+**There are four buckets, and they are shared across product lines** — a bucket can be low because of spend from a completely different skill. Always price against the named bucket, not "quota" in general.
+
+| Action | Cost | Bucket |
+|---|---|---|
+| Render/export a social post | **1.0** | `content_generation` |
+| Generate an article | **1.0 each** — a 10-article batch costs 10.0 | `content_generation` |
+| Content plan | 0.5 | `content_generation` |
+| Lead enrichment | **0.075 per lead** — 100 leads = 7.5 | `content_generation` |
+| SEO research · SERP analysis (per cluster) | 0.5 | `seo_research` |
+| Lead search (per query) | 0.25 | `seo_research` |
+| Site audit (diagnostics) | 0.75 | `site_audit` |
+| Find competitors | 0.25 | `site_audit` |
+| Publish — CMS (WordPress/Wix/Ghost/Shopify/Blogger/wp-plugin) | 0.5 | `automatic_posting` |
+| Publish — social, email, Zapier | 0.25 | `automatic_posting` |
+| Campaign send | **0.01 per email** — 500 recipients = 5.0 | `automatic_posting` |
+| Everything under Traffic monitor, and all list/read tools | free | — |
+
+**`traffic_monitor` is free, not a budget.** `whoami` reports a `traffic_monitor` figure, but no route charges it — the counter never moves. Do not describe it as unused capacity or count it as something the user is paying for and wasting.
+
+Read remaining as `max − current` from `quota.quotas.<bucket>`. There is **no** `quota.remaining` field.
 
 **Async tools return a `jobId` — always poll the matching status tool** (each tool's description names it) and report progress. Never fire-and-forget.
 

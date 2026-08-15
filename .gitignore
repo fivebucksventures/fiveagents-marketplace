@@ -37,3 +37,6 @@ Thumbs.db
 
 # Admin skills (release/operator tooling — not part of the link-skills marketplace plugin)
 /admin-skills/
+
+# Packaged zips for direct client hand-off (built artifacts, not source)
+/dist/

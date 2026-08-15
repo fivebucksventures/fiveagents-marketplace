@@ -15,11 +15,15 @@ deps:
 
 | Agent | Version | Last Changed |
 |---|---|---|
-| Link | v2.20.1 | July 13, 2026 |
+| Link | v2.20.3 | August 15, 2026 |
 
 **Description:** SEO topic research on fb.ai — find keyword clusters for a topic, deep-analyze their SERPs, and turn the winners into a scheduled content plan.
 
 ### Change Log
+
+**v2.20.3** — August 15, 2026
+- Corrected quota accounting across the workflow: SEO research and SERP analysis draw from `seo_research`, content plans draw from `content_generation`, optional competitor discovery draws from `site_audit`, and output now reports spend by bucket instead of implying one shared remaining quota.
+- Added Step 5b for real competitor discovery via `fivebucks_find_competitors`, and tightened SERP reporting so agents do not invent competitor URLs or word-count benchmarks from LLM analysis output.
 
 **v2.20.1** — July 13, 2026
 - **Added the missing "Research Top Rankings" step (v2.20.0 assumed `fivebucks_research_topic` produces `serpSourceId`s directly — it only produces clusters).** New free Step 4 calls `fivebucks_research_top_rankings` to turn approved clusters into `serpSourceId`s; SERP analysis, content-plan creation, and Step 2's reuse-existing-research logic all now account for this. Steps renumbered 4–7 → 5–8.
@@ -87,7 +91,10 @@ Use gateway MCP tool `fivebucks_whoami`:
 
 - Confirm `scopes` contains **`seo_research`** and **`content`** (an empty `scopes` array = legacy full-access key, which is fine).
 - If a scope is missing → stop. Tell the user to regenerate the key at https://www.fivebucks.ai/dashboard/api-keys with that box ticked. Do not retry.
-- Read the `quota` snapshot and keep it — you price each spend against it (research 0.5 in Step 3, SERP analysis 0.5/cluster in Step 5, the plan 0.5 in Step 7).
+- Read the `quota` snapshot and keep it. **Two different buckets fund this skill** — price each spend against the right one:
+  - `quota.quotas.seo_research` — research 0.5 (Step 3) and SERP analysis 0.5/cluster (Step 5)
+  - `quota.quotas.content_generation` — the content plan 0.5 (Step 7), *not* seo_research
+  Note `seo_research` is also drawn on by Apollo lead search (0.25/query) and `content_generation` by lead enrichment (0.075/lead), so a bucket may be lower than this skill's own spend explains.
 
 ### Step 2: Reuse existing research before buying new
 
@@ -172,9 +179,28 @@ Use gateway MCP tool `fivebucks_serp_batch_status`:
 
 Poll until complete. *(For a single cluster you may instead use `fivebucks_analyze_serp_cluster` + `fivebucks_serp_status`, which take a normal `jobId`.)*
 
+⚠️ **Know what this returns before you report it.** This is an LLM analysis of the topic with source citations — **not** a crawl of the live SERP. It gives you themes, content gaps and unanswered questions. It does **not** give you:
+- named competitors or competitor URLs → that is **Step 5b**
+- competitor word counts or content length benchmarks → fb.ai does not measure these. If you want a length target, say it is your recommendation, not a measurement of what ranks. **Never present a word count as "what top-ranking articles average"** — nothing in this pipeline counts them.
+
+Report the citations alongside any claim you repeat. If a finding has no citation, say so rather than presenting it as evidence.
+
+### Step 5b: Get the real competitors (0.25 quota, `site_audit` scope)
+
+Only if the user wants to know who they are up against. Step 5 cannot answer this — it never sees the SERP.
+
+```
+Use gateway MCP tool `fivebucks_find_competitors`:
+- fiveagents_api_key: ${FIVEAGENTS_API_KEY}
+- url: "<the brand's site URL>"
+- keywords: "<the cluster's primary keyword, max ~3 words>"
+```
+
+This needs the `site_audit` scope and a connected Google Search Console + CMS — confirm the scope in the Step 1 `fivebucks_whoami` snapshot, then check `fivebucks_list_integrations` first, or it returns 409 before charging. ASYNC: poll `fivebucks_site_audit_status`. It returns competitor URLs with scored strengths and the gaps you can exploit — real evidence, unlike Step 5's prose.
+
 ### Step 6: Propose the content plan
 
-Summarize what the SERP analysis actually found — competitor angles, content gaps, unanswered questions — and propose which cluster becomes the content plan. Ground every claim in the returned data.
+Summarize what the SERP analysis actually found — content gaps, unanswered questions, thematic angles — and propose which cluster becomes the content plan. Ground every claim in the returned data, and attribute it to a citation where one exists. If you ran Step 5b, bring in the named competitors there; if you did not, do not speculate about who ranks.
 
 Confirm the cadence and start date with the user. **A plan is built from exactly ONE cluster** (`serpSourceId`).
 
@@ -216,7 +242,7 @@ Use gateway MCP tool `fivebucks_list_content_settings`:
 
 Report how many briefs were created and their titles. Then hand off explicitly:
 
-> "The plan is live with {N} article briefs. Writing and publishing them is `article-publisher` — that costs **1.0 quota per article** (so {N} articles = {N}.0). Want me to hand over?"
+> "The plan is live with {N} article briefs. Writing and publishing them is `article-publisher` — that costs **1.0 `content_generation` quota per article** (so {N} articles = {N}.0). Want me to hand over?"
 
 **Do not generate articles in this skill.** That is `article-publisher`'s job.
 
@@ -253,9 +279,9 @@ Status: Final
 **Output sections:**
 1. **Topic & scope** — what was researched, and whether existing research was reused
 2. **Keyword clusters** — every cluster returned, with its keywords (a table)
-3. **SERP findings** — per analyzed cluster: competitor angles, content gaps, unanswered questions. Grounded only in what fb.ai returned
+3. **SERP findings** — per analyzed cluster: content gaps, unanswered questions, thematic angles, each with its citation. Grounded only in what fb.ai returned. Competitors appear here **only** if Step 5b was run
 4. **The plan** — cadence, start date, and the article briefs it produced
-5. **Quota spent** — itemized (research 0.5 + N × 0.5 clusters + plan 0.5), and what's left
+5. **Quota spent** — itemized per bucket: `seo_research` (research 0.5 + N × 0.5 clusters), `site_audit` (0.25 if Step 5b ran), and `content_generation` (plan 0.5), and what's left in each
 6. **Next step** — the hand-off to `article-publisher` with its cost
 
 ---
@@ -269,6 +295,8 @@ Status: Final
 - [ ] `fivebucks_serp_batch_status` called with `batchJobId` (not `jobId`)
 - [ ] Weekly plans include `weeklyInterval` + `weeklyDay`; monthly plans include `monthlyRule` + `monthlyDay`
 - [ ] No invented keywords, volumes, or competitor findings — everything traces to an fb.ai response
+- [ ] No word-count benchmark presented as a measurement of ranking pages (fb.ai does not measure this)
+- [ ] Competitor claims come from `fivebucks_find_competitors` (Step 5b), never from Step 5's output
 - [ ] Quota spend reported and reconciled against the `fivebucks_whoami` snapshot
 - [ ] Hand-off to `article-publisher` stated with its real cost (1.0 × article count)
 - [ ] Agent run logged to dashboard
