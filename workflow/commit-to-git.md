@@ -588,7 +588,12 @@ Add a new object at the **top** of the `VERSION_HISTORY` array. Include one bull
 
 ## Step 8 — Regenerate skills manifest, then stage and commit
 
-**Before staging, regenerate `skills-manifest.json`** any time a `SKILL.md` or `link.md` file was added, removed, or had its frontmatter edited. The CI `skills-registry-check` workflow will fail if this file is stale.
+**Before staging, regenerate `skills-manifest.json`** any time a `SKILL.md` or `link.md` file was added, removed, or had its frontmatter edited. **Nothing on GitHub checks this any more** (the `skills-registry-check` workflow was removed on 9 Nov 2026, so that only sieraOS uses GitHub Actions): a stale registry is caught only if you run the two checks yourself, before every commit that touches a skill. Both read the files and write nothing, and exit 1 on a problem:
+
+```bash
+python plugins/link-skills/scripts/gen_skills_index.py --check          # registry, SKILLS.md and the link.md map match each SKILL.md
+python plugins/link-skills/scripts/check_fivebucks_tools.py --check     # skills only name gateway tools that exist
+```
 
 ```bash
 cd plugins/link-skills && python scripts/gen_skills_index.py
